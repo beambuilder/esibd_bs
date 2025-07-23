@@ -1,0 +1,3 @@
+# Keep this file to ensure logs directory is tracked by git
+*.log
+!.gitkeep

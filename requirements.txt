@@ -1,0 +1,14 @@
+# ESIBD Lab Device Management System - Requirements
+
+# Core dependencies - Essential for device communication
+pyserial>=3.5          # Serial communication for Arduino and serial-based devices
+
+# Development and testing - For code quality and unit testing
+pytest>=7.0.0          # Unit testing framework (runs your test_devices.py)
+pytest-cov>=4.0.0      # Code coverage reports (shows which code is tested)
+black>=22.0.0          # Code formatter (keeps code style consistent)
+flake8>=5.0.0          # Code linter (finds potential bugs and style issues)
+
+# Documentation - For generating project documentation
+sphinx>=5.0.0          # Documentation generator
+sphinx-rtd-theme>=1.0.0 # Nice documentation theme
