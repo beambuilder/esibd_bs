@@ -8,10 +8,12 @@ control and chilling systems via various communication protocols.
 from typing import Any, Dict, Optional, Union
 import logging
 
+import serial
+
 
 class Chiller:
     """
-    Chiller device communication class.
+    Chiller (Lauda) device communication class.
     
     This class handles communication with chiller devices, providing
     methods for temperature control, monitoring, and system management.
@@ -24,8 +26,14 @@ class Chiller:
         chiller.disconnect()
     """
     
-    def __init__(self, device_id: str, communication_type: str = 'serial',
-                 **connection_params):
+    def __init__(
+        self,
+        device_id: str,
+        port: str,
+        baudrate: int = 9600,
+        timeout: float = 1.0,
+        **kwargs,
+    ):
         """
         Initialize Chiller device.
         
@@ -35,9 +43,11 @@ class Chiller:
             **connection_params: Communication-specific parameters
         """
         self.device_id = device_id
-        self.communication_type = communication_type
-        self.connection_params = connection_params
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
         self.is_connected = False
+        self.serial_connection: Optional[serial.Serial] = None
         self.current_temperature: Optional[float] = None
         self.target_temperature: Optional[float] = None
         self.is_cooling: bool = False
@@ -51,8 +61,10 @@ class Chiller:
             bool: True if connection successful, False otherwise
         """
         try:
-            self.logger.info(f"Connecting to chiller {self.device_id} via {self.communication_type}")
-            # Implementation will be added here based on communication_type
+            self.logger.info(f"Connecting to chiller {self.device_id} on {self.port}")
+            self.serial_connection = serial.Serial(
+                self.port, self.baudrate, timeout=self.timeout
+            )
             self.is_connected = True
             return True
         except Exception as e:
@@ -67,11 +79,11 @@ class Chiller:
             bool: True if disconnection successful, False otherwise
         """
         try:
-            # Implementation will be added here
+            if self.serial_connection:
+                self.serial_connection.close()
             self.is_connected = False
             self.logger.info(f"Disconnected from chiller {self.device_id}")
             return True
         except Exception as e:
             self.logger.error(f"Failed to disconnect from chiller: {e}")
             return False
-    
