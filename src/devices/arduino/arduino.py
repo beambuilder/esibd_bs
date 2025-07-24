@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 import serial
 import time
 import logging
-
+import re
 
 class Arduino:
     """
@@ -26,7 +26,7 @@ class Arduino:
     """
     
     def __init__(self, device_id: str, port: str, baudrate: int = 9600, 
-                 timeout: float = 1.0, **kwargs):
+                 timeout: float = 1.0, data_parser: str = "pump_locker", **kwargs):
         """
         Initialize Arduino device.
         
@@ -35,12 +35,14 @@ class Arduino:
             port: Serial port (e.g., 'COM3' on Windows, '/dev/ttyUSB0' on Linux)
             baudrate: Communication speed (default: 9600)
             timeout: Serial communication timeout in seconds
+            data_parser: Parser type ("pump_locker", "trafo_locker", "custom", etc.)
             **kwargs: Additional connection parameters
         """
         self.device_id = device_id
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
+        self.data_parser = data_parser
         self.is_connected = False
         self.serial_connection: Optional[serial.Serial] = None
         self.logger = logging.getLogger(f"Arduino_{device_id}")
@@ -53,9 +55,8 @@ class Arduino:
             bool: True if connection successful, False otherwise
         """
         try:
-            # Implementation will be added here
             self.logger.info(f"Connecting to Arduino {self.device_id} on {self.port}")
-            # self.serial_connection = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
+            self.serial_connection = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
             self.is_connected = True
             return True
         except Exception as e:
@@ -94,77 +95,112 @@ class Arduino:
             "timeout": self.timeout
         }
     
-    def send_command(self, command: str, wait_for_response: bool = True, 
-                    response_timeout: float = None) -> Any:
+    def parse_data(self, data_line: str) -> Optional[Dict[str, Any]]:
         """
-        Send a command to the Arduino.
+        Parse Arduino data line based on the configured parser type.
         
         Args:
-            command: Command string to send
-            wait_for_response: Whether to wait for a response
-            response_timeout: Timeout for response (uses default if None)
+            data_line: Raw data line from Arduino
             
         Returns:
-            Any: Response from the Arduino or None if no response expected
+            dict: Parsed data or None if parsing fails
         """
-        if not self.is_connected:
-            self.logger.error("Arduino not connected")
+        if not data_line:
             return None
             
-        # Implementation will be added here
-        self.logger.debug(f"Sending command: {command}")
-        return f"Response to: {command}"  # Placeholder
+        if self.data_parser == "pump_locker":
+            return self._parse_pump_locker_data(data_line)
+        elif self.data_parser == "trafo_locker":
+            return self._parse_trafo_locker_data(data_line)
+        elif self.data_parser == "custom":
+            return self._parse_custom_data(data_line)
+        else:
+            # Default: return raw data
+            return {"raw_data": data_line}
     
-    def read_analog_pin(self, pin: int) -> int:
+    def _parse_pump_locker_data(self, data_line: str) -> Optional[Dict[str, Any]]:
         """
-        Read analog value from specified pin.
+        Parse temperature, fan and waterflow data.
+        Expected format: "Temperature: 23.44 °C | Fan_PWR: 60 % | Waterflow: 15.2 L/min"
+        """
+        pattern = r"Temperature:\s*([\d.]+)\s*°C\s*\|\s*Fan_PWR:\s*(\d+)\s*%\s*\|\s*Waterflow:\s*([\d.]+)\s*L/min"
+        match = re.search(pattern, data_line)
         
-        Args:
-            pin: Analog pin number to read
-            
-        Returns:
-            int: Analog value (0-1023 for 10-bit ADC)
+        if match:
+            try:
+                temperature = float(match.group(1))
+                fan_power = int(match.group(2))
+                waterflow = float(match.group(3))
+                return {
+                    'temperature': temperature,
+                    'fan_power': fan_power,
+                    'waterflow': waterflow,
+                    'raw_data': data_line
+                }
+            except ValueError:
+                return None
+        return None
+
+    def _parse_trafo_locker_data(self, data_line: str) -> Optional[Dict[str, Any]]:
         """
-        # Implementation will be added here
-        return 0
+        Parse temperature and fan data.
+        Expected format: "Temperature: 23.44 °C | Fan_PWR: 60 %"
+        """
+        pattern = r"Temperature:\s*([\d.]+)\s*°C\s*\|\s*Fan_PWR:\s*(\d+)\s*%"
+        match = re.search(pattern, data_line)
+        
+        if match:
+            try:
+                temperature = float(match.group(1))
+                fan_power = int(match.group(2))
+                return {
+                    'temperature': temperature,
+                    'fan_power': fan_power,
+                    'raw_data': data_line
+                }
+            except ValueError:
+                return None
+        return None
     
-    def read_digital_pin(self, pin: int) -> bool:
+    def _parse_custom_data(self, data_line: str) -> Optional[Dict[str, Any]]:
         """
-        Read digital value from specified pin.
-        
-        Args:
-            pin: Digital pin number to read
-            
-        Returns:
-            bool: Pin state (True for HIGH, False for LOW)
+        Parse custom data format.
+        Override this method for custom parsing logic.
         """
-        # Implementation will be added here
-        return False
+        return {"raw_data": data_line}
     
-    def write_digital_pin(self, pin: int, value: bool) -> bool:
+    def readout(self) -> Optional[str]:
         """
-        Write digital value to specified pin.
+        Read a line from Arduino serial monitor
         
-        Args:
-            pin: Digital pin number to write
-            value: Value to write (True for HIGH, False for LOW)
-            
         Returns:
-            bool: True if successful, False otherwise
+            str: The line read from Arduino, or None if no data/error
         """
-        # Implementation will be added here
-        return True
-    
-    def write_pwm_pin(self, pin: int, value: int) -> bool:
-        """
-        Write PWM value to specified pin.
+        if not self.is_connected or not self.serial_connection:
+            print("Arduino not connected. Call connect() first.")
+            return None
         
-        Args:
-            pin: PWM-capable pin number
-            value: PWM value (0-255)
-            
-        Returns:
-            bool: True if successful, False otherwise
+        try:
+            if self.serial_connection.in_waiting > 0:
+                # Read line and decode from bytes to string
+                line = self.serial_connection.readline().decode('utf-8', errors='ignore').strip()
+                return line
+            else:
+                return None
+        except serial.SerialException as e:
+            print(f"Error reading from Arduino: {e}")
+            return None
+        
+    def read_arduino_data(self) -> Optional[Dict[str, Any]]:
         """
-        # Implementation will be added here
-        return True
+        Read and parse data from Arduino.
+        
+        Returns:
+            dict: Parsed data or None if reading fails
+        """
+        data_line = self.readout()
+        if data_line:
+            return self.parse_data(data_line)
+        else:
+            print("No data received from Arduino.")
+            return None
