@@ -4,7 +4,7 @@ Arduino device controller.
 This module provides the Arduino class for communicating with Arduino
 microcontrollers via serial communication protocols.
 """
-
+# ToDo: Logging into each function
 from typing import Any, Dict, Optional
 import serial
 import logging
