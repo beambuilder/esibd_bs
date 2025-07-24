@@ -7,4 +7,4 @@ microcontrollers via serial communication.
 
 from .arduino import Arduino
 
-__all__ = ['Arduino']
+__all__ = ["Arduino"]
