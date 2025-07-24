@@ -7,6 +7,9 @@ control and chilling systems via various communication protocols.
 
 from typing import Any, Dict, Optional
 import logging
+import os
+from datetime import datetime
+from pathlib import Path
 
 import serial
 
@@ -53,6 +56,7 @@ class Chiller:
         port: str,
         baudrate: int = 9600,
         timeout: float = 1.0,
+        logger: Optional[logging.Logger] = None,
         **kwargs,
     ):
         """
@@ -63,6 +67,7 @@ class Chiller:
             port: Serial port (e.g., "COM4" on Windows, "/dev/ttyUSB0" on Linux)
             baudrate: Communication baud rate (default: 9600)
             timeout: Serial communication timeout in seconds (default: 1.0)
+            logger: Optional custom logger. If None, creates file logger in debugging/logs/
             **kwargs: Additional keyword arguments for future extensibility
         """
         self.device_id = device_id
@@ -74,7 +79,37 @@ class Chiller:
         self.current_temperature: Optional[float] = None
         self.target_temperature: Optional[float] = None
         self.is_cooling: bool = False
-        self.logger = logging.getLogger(f"Chiller_{device_id}")
+        
+        # Setup logger
+        if logger is not None:
+            self.logger = logger
+        else:
+            # Create logger with file handler and timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            logger_name = f"Chiller_{device_id}_{timestamp}"
+            self.logger = logging.getLogger(logger_name)
+            
+            # Only add handler if logger doesn't already have one
+            if not self.logger.handlers:
+                # Create logs directory if it doesn't exist
+                logs_dir = Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
+                logs_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Create file handler with timestamp
+                log_filename = f"Chiller_{device_id}_{timestamp}.log"
+                log_filepath = logs_dir / log_filename
+                
+                file_handler = logging.FileHandler(log_filepath)
+                formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                )
+                file_handler.setFormatter(formatter)
+                
+                self.logger.addHandler(file_handler)
+                self.logger.setLevel(logging.INFO)
+                
+                # Log the initialization
+                self.logger.info(f"Chiller logger initialized for device '{device_id}' on port '{port}'")
 
     def connect(self) -> bool:
         """
