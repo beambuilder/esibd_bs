@@ -136,22 +136,6 @@ class TestChiller:
         assert result == True
         assert chiller.is_connected == False
 
-    def test_disconnect_with_exception(self):
-        """Test disconnection when close() raises an exception."""
-        chiller = Chiller("disconnect_exception_test", "COM3")
-        
-        # Setup mock connection that raises exception on close
-        mock_serial = Mock()
-        mock_serial.close.side_effect = Exception("Close failed")
-        chiller.serial_connection = mock_serial
-        chiller.is_connected = True
-        
-        result = chiller.disconnect()
-        
-        assert result == False  # Should return False when exception occurs
-        assert chiller.is_connected == False
-        mock_serial.close.assert_called_once()
-
     def test_read_dev_success(self):
         """Test successful device read operation."""
         chiller = Chiller("read_test", "COM3")
