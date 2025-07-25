@@ -7,7 +7,6 @@ control and chilling systems via various communication protocols.
 # ToDo: Logging into each function
 from typing import Any, Dict, Optional
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -79,7 +78,7 @@ class Chiller:
         self.current_temperature: Optional[float] = None
         self.target_temperature: Optional[float] = None
         self.is_cooling: bool = False
-        
+
         # Setup logger
         if logger is not None:
             self.logger = logger
@@ -88,28 +87,32 @@ class Chiller:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             logger_name = f"Chiller_{device_id}_{timestamp}"
             self.logger = logging.getLogger(logger_name)
-            
+
             # Only add handler if logger doesn't already have one
             if not self.logger.handlers:
                 # Create logs directory if it doesn't exist
-                logs_dir = Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
+                logs_dir = (
+                    Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
+                )
                 logs_dir.mkdir(parents=True, exist_ok=True)
-                
+
                 # Create file handler with timestamp
                 log_filename = f"Chiller_{device_id}_{timestamp}.log"
                 log_filepath = logs_dir / log_filename
-                
+
                 file_handler = logging.FileHandler(log_filepath)
                 formatter = logging.Formatter(
-                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
                 )
                 file_handler.setFormatter(formatter)
-                
+
                 self.logger.addHandler(file_handler)
                 self.logger.setLevel(logging.INFO)
-                
+
                 # Log the initialization
-                self.logger.info(f"Chiller logger initialized for device '{device_id}' on port '{port}'")
+                self.logger.info(
+                    f"Chiller logger initialized for device '{device_id}' on port '{port}'"
+                )
 
     def connect(self) -> bool:
         """
@@ -357,13 +360,24 @@ class Chiller:
         }
 
     def custom_logger(self, dev_name, port, measure, value, unit):
-        return self.logger.info(f'{dev_name}   {port}   {measure}   {value}//{unit}')
+        return self.logger.info(f"{dev_name}   {port}   {measure}   {value}//{unit}")
 
     def hk_monitor(self):
-
-        self.custom_logger(self.device_id, self.port, "Cur_Temp", self.read_temp(), "degC")
-        self.custom_logger(self.device_id, self.port, "Set_Temp", self.read_temp(), "degC")
-        self.custom_logger(self.device_id, self.port, "Run_Stat", self.read_running(), "")
-        self.custom_logger(self.device_id, self.port, "Dev_Stat", self.read_status(), "")
-        self.custom_logger(self.device_id, self.port, "Pump_Lvl", self.read_pump_level(), "")
-        self.custom_logger(self.device_id, self.port, "Col_Stat", self.read_cooling(), "")
+        self.custom_logger(
+            self.device_id, self.port, "Cur_Temp", self.read_temp(), "degC"
+        )
+        self.custom_logger(
+            self.device_id, self.port, "Set_Temp", self.read_temp(), "degC"
+        )
+        self.custom_logger(
+            self.device_id, self.port, "Run_Stat", self.read_running(), ""
+        )
+        self.custom_logger(
+            self.device_id, self.port, "Dev_Stat", self.read_status(), ""
+        )
+        self.custom_logger(
+            self.device_id, self.port, "Pump_Lvl", self.read_pump_level(), ""
+        )
+        self.custom_logger(
+            self.device_id, self.port, "Col_Stat", self.read_cooling(), ""
+        )
