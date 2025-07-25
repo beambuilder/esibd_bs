@@ -355,3 +355,15 @@ class Chiller:
             "target_temperature": self.target_temperature,
             "is_cooling": self.is_cooling,
         }
+
+    def custom_logger(self, dev_name, port, measure, value, unit):
+        return self.logger.info(f'{dev_name}   {port}   {measure}   {value}//{unit}')
+
+    def hk_monitor(self):
+
+        self.custom_logger(self.device_id, self.port, "Cur_Temp", self.read_temp(), "degC")
+        self.custom_logger(self.device_id, self.port, "Set_Temp", self.read_temp(), "degC")
+        self.custom_logger(self.device_id, self.port, "Run_Stat", self.read_running(), "")
+        self.custom_logger(self.device_id, self.port, "Dev_Stat", self.read_status(), "")
+        self.custom_logger(self.device_id, self.port, "Pump_Lvl", self.read_pump_level(), "")
+        self.custom_logger(self.device_id, self.port, "Col_Stat", self.read_cooling(), "")
