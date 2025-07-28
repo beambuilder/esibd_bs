@@ -9,6 +9,8 @@ from typing import Any, Dict, Optional
 import logging
 from datetime import datetime
 from pathlib import Path
+import threading
+import time
 
 import serial
 
@@ -56,6 +58,9 @@ class Chiller:
         baudrate: int = 9600,
         timeout: float = 1.0,
         logger: Optional[logging.Logger] = None,
+        hk_thread: Optional[threading.Thread] = None,
+        thread_lock: Optional[threading.Lock] = None,
+        hk_interval: float = 30.0,  # Housekeeping interval in seconds
         **kwargs,
     ):
         """
@@ -67,6 +72,9 @@ class Chiller:
             baudrate: Communication baud rate (default: 9600)
             timeout: Serial communication timeout in seconds (default: 1.0)
             logger: Optional custom logger. If None, creates file logger in debugging/logs/
+            hk_thread: Optional housekeeping thread. If None, creates one automatically
+            thread_lock: Optional thread lock. If None, creates one automatically
+            hk_interval: Housekeeping monitoring interval in seconds (default: 30.0)
             **kwargs: Additional keyword arguments for future extensibility
         """
         self.device_id = device_id
@@ -78,6 +86,32 @@ class Chiller:
         self.current_temperature: Optional[float] = None
         self.target_temperature: Optional[float] = None
         self.is_cooling: bool = False
+
+        # Housekeeping and threading setup
+        self.hk_interval = hk_interval
+        self.hk_running = False
+        self.hk_stop_event = threading.Event()
+        
+        # Determine if using external or internal thread management
+        self.external_thread = hk_thread is not None
+        self.external_lock = thread_lock is not None
+        
+        # Setup thread lock
+        if thread_lock is not None:
+            self.thread_lock = thread_lock
+        else:
+            self.thread_lock = threading.Lock()
+            
+        # Setup housekeeping thread
+        if hk_thread is not None:
+            self.hk_thread = hk_thread
+            # For external threads, we don't manage the thread lifecycle
+        else:
+            self.hk_thread = threading.Thread(
+                target=self._hk_worker,
+                name=f"HK_{device_id}",
+                daemon=True
+            )
 
         # Setup logger
         if logger is not None:
@@ -113,6 +147,15 @@ class Chiller:
                 self.logger.info(
                     f"Chiller logger initialized for device '{device_id}' on port '{port}'"
                 )
+                if self.external_thread:
+                    self.logger.info(f"Using external thread: {self.hk_thread.name if hasattr(self.hk_thread, 'name') else 'unnamed'}")
+                else:
+                    self.logger.info(f"Using internal thread: {self.hk_thread.name}")
+                    
+                if self.external_lock:
+                    self.logger.info("Using external thread lock")
+                else:
+                    self.logger.info("Using internal thread lock")
 
     def connect(self) -> bool:
         """
@@ -121,16 +164,17 @@ class Chiller:
         Returns:
             bool: True if connection successful, False otherwise
         """
-        try:
-            self.logger.info(f"Connecting to chiller {self.device_id} on {self.port}")
-            self.serial_connection = serial.Serial(
-                self.port, self.baudrate, timeout=self.timeout
-            )
-            self.is_connected = True
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to connect to chiller: {e}")
-            return False
+        with self.thread_lock:
+            try:
+                self.logger.info(f"Connecting to chiller {self.device_id} on {self.port}")
+                self.serial_connection = serial.Serial(
+                    self.port, self.baudrate, timeout=self.timeout
+                )
+                self.is_connected = True
+                return True
+            except Exception as e:
+                self.logger.error(f"Failed to connect to chiller: {e}")
+                return False
 
     def disconnect(self) -> bool:
         """
@@ -139,15 +183,19 @@ class Chiller:
         Returns:
             bool: True if disconnection successful, False otherwise
         """
-        try:
-            if self.serial_connection:
-                self.serial_connection.close()
-            self.is_connected = False
-            self.logger.info(f"Disconnected from chiller {self.device_id}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to disconnect from chiller: {e}")
-            return False
+        # Stop housekeeping first
+        self.stop_housekeeping()
+        
+        with self.thread_lock:
+            try:
+                if self.serial_connection:
+                    self.serial_connection.close()
+                self.is_connected = False
+                self.logger.info(f"Disconnected from chiller {self.device_id}")
+                return True
+            except Exception as e:
+                self.logger.error(f"Failed to disconnect from chiller: {e}")
+                return False
 
     def read_dev(self, command: str) -> str:
         """
@@ -163,16 +211,17 @@ class Chiller:
             Exception: If serial connection is not open
             ValueError: If response format is invalid
         """
-        if not self.serial_connection or not self.serial_connection.is_open:
-            raise Exception("Serial connection not open")
+        with self.thread_lock:
+            if not self.serial_connection or not self.serial_connection.is_open:
+                raise Exception("Serial connection not open")
 
-        self.serial_connection.write(command.encode("ascii"))
-        response = self.serial_connection.readline().decode("ascii").strip()
+            self.serial_connection.write(command.encode("ascii"))
+            response = self.serial_connection.readline().decode("ascii").strip()
 
-        try:
-            return response
-        except ValueError:
-            raise ValueError(f"Invalid response: {response}")
+            try:
+                return response
+            except ValueError:
+                raise ValueError(f"Invalid response: {response}")
 
     def set_param(self, param: str) -> None:
         """
@@ -184,15 +233,16 @@ class Chiller:
         Raises:
             Exception: If serial connection is not open or command fails
         """
-        if not self.serial_connection or not self.serial_connection.is_open:
-            raise Exception("Serial connection not open")
+        with self.thread_lock:
+            if not self.serial_connection or not self.serial_connection.is_open:
+                raise Exception("Serial connection not open")
 
-        command = f"{param}\r\n"
-        self.serial_connection.write(command.encode("ascii"))
-        response = self.serial_connection.readline().decode("ascii").strip()
+            command = f"{param}\r\n"
+            self.serial_connection.write(command.encode("ascii"))
+            response = self.serial_connection.readline().decode("ascii").strip()
 
-        if response != "OK":
-            raise Exception(f"Failed to set parameter {param}. Response: {response}")
+            if response != "OK":
+                raise Exception(f"Failed to set parameter {param}. Response: {response}")
 
     # =============================================================================
     #     Read device parameters
@@ -341,6 +391,158 @@ class Chiller:
         """
         self.set_param(ChillerCommands.STOP_DEVICE)
 
+    # =============================================================================
+    #     Housekeeping and Threading Methods
+    # =============================================================================
+
+    def start_housekeeping(self, interval=30, log_to_file=True) -> bool:
+        """
+        Start the housekeeping monitoring. Supports both internal and external thread management.
+        
+        Args:
+            interval (int): Monitoring interval in seconds (default: 30)
+            log_to_file (bool): Whether to enable file logging (default: True)
+        
+        Returns:
+            bool: True if started successfully, False otherwise
+        """
+        if not self.is_connected:
+            self.logger.warning("Cannot start housekeeping: device not connected")
+            return False
+            
+        try:
+            with self.hk_lock:
+                if self.hk_running:
+                    self.logger.warning("Housekeeping already running")
+                    return True
+                
+                self.hk_running = True
+                self.hk_interval = interval
+                self.hk_stop_event.clear()
+                
+                # Enable file logging if requested
+                if log_to_file:
+                    try:
+                        self.enable_file_logging()
+                    except Exception as e:
+                        self.logger.warning(f"Could not enable file logging: {e}")
+                
+                # Different behavior for external vs internal threads
+                if self.external_thread:
+                    # For external threads, just set the flag and let external code handle it
+                    self.logger.info(f"Housekeeping enabled (external thread mode) - interval: {interval}s")
+                    self.logger.info("Note: External thread must call hk_monitor() periodically")
+                else:
+                    # For internal threads, start our own monitoring thread
+                    if not self.hk_thread.is_alive():
+                        # Create new thread if the old one has finished
+                        self.hk_thread = threading.Thread(
+                            target=self._hk_worker,
+                            name=f"HK_{self.device_id}",
+                            daemon=True
+                        )
+                        self.hk_thread.start()
+                    
+                    self.logger.info(f"Housekeeping started (internal thread mode) - interval: {interval}s")
+                
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"Failed to start housekeeping: {e}")
+            self.hk_running = False
+            return False
+
+    def stop_housekeeping(self) -> bool:
+        """
+        Stop the housekeeping monitoring. Works with both internal and external threads.
+        
+        Returns:
+            bool: True if stopped successfully, False otherwise
+        """
+        if not self.hk_running:
+            return True
+            
+        try:
+            with self.hk_lock:
+                self.hk_running = False
+                self.hk_stop_event.set()
+                
+                if self.external_thread:
+                    # For external threads, just set the flag and notify
+                    self.logger.info("Housekeeping stopped (external thread mode)")
+                    self.logger.info("Note: External thread should check hk_running flag")
+                else:
+                    # For internal threads, wait for our thread to finish
+                    if self.hk_thread and self.hk_thread.is_alive():
+                        self.hk_thread.join(timeout=5.0)
+                        if self.hk_thread.is_alive():
+                            self.logger.warning("Housekeeping thread did not stop within timeout")
+                    
+                    self.logger.info(f"Housekeeping stopped (internal thread mode) for {self.device_id}")
+                
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"Failed to stop housekeeping: {e}")
+            return False
+
+    def _hk_worker(self) -> None:
+        """
+        Internal housekeeping worker thread function.
+        Runs continuously until stop_event is set.
+        """
+        self.logger.info(f"Housekeeping worker started for {self.device_id}")
+        
+        while not self.hk_stop_event.is_set() and self.hk_running:
+            try:
+                if self.is_connected:
+                    self.hk_monitor()
+                else:
+                    self.logger.warning("Device disconnected, pausing housekeeping")
+                    
+                # Wait for interval or stop event
+                self.hk_stop_event.wait(timeout=self.hk_interval)
+                
+            except Exception as e:
+                self.logger.error(f"Housekeeping error: {e}")
+                # Continue running even after errors
+                self.hk_stop_event.wait(timeout=self.hk_interval)
+                
+        self.logger.info(f"Housekeeping worker stopped for {self.device_id}")
+
+    def do_housekeeping_cycle(self) -> bool:
+        """
+        Perform a single housekeeping cycle. Convenient method for external threads.
+        This method is thread-safe and can be called from external threads.
+        
+        Returns:
+            bool: True if housekeeping cycle completed successfully, False otherwise
+        """
+        if not self.hk_running:
+            self.logger.debug("Housekeeping not enabled - skipping cycle")
+            return False
+            
+        if not self.is_connected:
+            self.logger.warning("Device not connected - skipping housekeeping cycle")
+            return False
+            
+        try:
+            with self.hk_lock:
+                self.hk_monitor()
+                return True
+        except Exception as e:
+            self.logger.error(f"Housekeeping cycle failed: {e}")
+            return False
+
+    def should_continue_housekeeping(self) -> bool:
+        """
+        Check if housekeeping should continue. Useful for external thread loops.
+        
+        Returns:
+            bool: True if housekeeping should continue, False if it should stop
+        """
+        return self.hk_running and not self.hk_stop_event.is_set()
+
     def get_status(self) -> Dict[str, Any]:
         """
         Get comprehensive device status information.
@@ -357,27 +559,46 @@ class Chiller:
             "current_temperature": self.current_temperature,
             "target_temperature": self.target_temperature,
             "is_cooling": self.is_cooling,
+            "housekeeping_running": self.hk_running,
+            "housekeeping_interval": self.hk_interval,
+            "thread_name": self.hk_thread.name if self.hk_thread else None,
         }
 
     def custom_logger(self, dev_name, port, measure, value, unit):
         return self.logger.info(f"{dev_name}   {port}   {measure}   {value}//{unit}")
 
     def hk_monitor(self):
-        self.custom_logger(
-            self.device_id, self.port, "Cur_Temp", self.read_temp(), "degC"
-        )
-        self.custom_logger(
-            self.device_id, self.port, "Set_Temp", self.read_temp(), "degC"
-        )
-        self.custom_logger(
-            self.device_id, self.port, "Run_Stat", self.read_running(), ""
-        )
-        self.custom_logger(
-            self.device_id, self.port, "Dev_Stat", self.read_status(), ""
-        )
-        self.custom_logger(
-            self.device_id, self.port, "Pump_Lvl", self.read_pump_level(), ""
-        )
-        self.custom_logger(
-            self.device_id, self.port, "Col_Stat", self.read_cooling(), ""
-        )
+        """
+        Perform housekeeping monitoring of all device parameters.
+        This method is thread-safe and can be called from the housekeeping thread
+        or manually from the main thread.
+        """
+        try:
+            # Each read operation already uses thread_lock via read_dev
+            self.custom_logger(
+                self.device_id, self.port, "Cur_Temp", self.read_temp(), "degC"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Set_Temp", self.read_set_temp(), "degC"  # Fixed bug: was read_temp()
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Run_Stat", self.read_running(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Dev_Stat", self.read_status(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Pump_Lvl", self.read_pump_level(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Col_Stat", self.read_cooling(), ""
+            )
+        except Exception as e:
+            self.logger.error(f"Housekeeping monitoring failed: {e}")
+
+    def __del__(self):
+        """Cleanup method to ensure housekeeping thread is stopped."""
+        try:
+            self.stop_housekeeping()
+        except:
+            pass  # Ignore errors during cleanup
