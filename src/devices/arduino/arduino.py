@@ -132,7 +132,7 @@ class Arduino:
         Parse temperature, fan and waterflow data.
         Expected format: "Temperature: 23.44 °C | Fan_PWR: 60 % | Waterflow: 15.2 L/min"
         """
-        pattern = r"Temperature:\s*([\d.]+)\s*°C\s*\|\s*Fan_PWR:\s*(\d+)\s*%\s*\|\s*Waterflow:\s*([\d.]+)\s*L/min"
+        pattern = r"Temperature:\s*([\d.]+)\s*°C\s*\|\s*Fan_PWR:\s*(\d+)\s*%\s*\|\s*H2O_FRate:\s*([\d.]+)\s*L/min"
         match = re.search(pattern, data_line)
 
         if match:
