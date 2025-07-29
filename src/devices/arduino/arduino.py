@@ -11,7 +11,6 @@ import logging
 from datetime import datetime
 from pathlib import Path
 import threading
-import time
 import re
 
 
@@ -69,29 +68,27 @@ class Arduino:
         self.hk_interval = hk_interval
         self.hk_running = False
         self.hk_stop_event = threading.Event()
-        
+
         # Determine if using external or internal thread management
         self.external_thread = hk_thread is not None
         self.external_lock = thread_lock is not None
-        
+
         # Setup thread lock (for serial communication)
         if thread_lock is not None:
             self.thread_lock = thread_lock
         else:
             self.thread_lock = threading.Lock()
-            
+
         # Setup housekeeping lock (separate from communication lock)
         self.hk_lock = threading.Lock()
-            
+
         # Setup housekeeping thread
         if hk_thread is not None:
             self.hk_thread = hk_thread
             # For external threads, we don't manage the thread lifecycle
         else:
             self.hk_thread = threading.Thread(
-                target=self._hk_worker,
-                name=f"HK_{device_id}",
-                daemon=True
+                target=self._hk_worker, name=f"HK_{device_id}", daemon=True
             )
 
         # Setup logger
@@ -133,7 +130,7 @@ class Arduino:
     def enable_file_logging(self) -> bool:
         """
         Enable file logging if not already enabled.
-        
+
         Returns:
             bool: True if file logging is enabled, False if it failed
         """
@@ -143,26 +140,26 @@ class Arduino:
                 if isinstance(handler, logging.FileHandler):
                     self.logger.info("File logging already enabled")
                     return True
-            
+
             # Create logs directory if it doesn't exist
             logs_dir = Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
             logs_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Create new file handler with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             log_filename = f"Arduino_{self.device_id}_HK_{timestamp}.log"
             log_filepath = logs_dir / log_filename
-            
+
             file_handler = logging.FileHandler(log_filepath)
             formatter = logging.Formatter(
                 "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
             file_handler.setFormatter(formatter)
-            
+
             self.logger.addHandler(file_handler)
             self.logger.info(f"File logging enabled: {log_filepath}")
             return True
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to enable file logging: {e}")
             return False
@@ -195,7 +192,7 @@ class Arduino:
         try:
             # Stop housekeeping before disconnecting
             self.stop_housekeeping()
-            
+
             if self.serial_connection:
                 self.serial_connection.close()
             self.is_connected = False
@@ -338,7 +335,7 @@ class Arduino:
         else:
             self.logger.debug("No data received from Arduino.")
             return None
-        
+
     def custom_logger(self, dev_name, port, measure, value, unit):
         return self.logger.info(f"{dev_name}   {port}   {measure}   {value}//{unit}")
 
@@ -359,7 +356,11 @@ class Arduino:
                     self.device_id, self.port, "Fan_PWR", rtn.get("fan_power"), "%"
                 )
                 self.custom_logger(
-                    self.device_id, self.port, "H2O_FRate", rtn.get("waterflow"), "L/min"
+                    self.device_id,
+                    self.port,
+                    "H2O_FRate",
+                    rtn.get("waterflow"),
+                    "L/min",
                 )
             elif rtn and self.data_parser == "trafo_locker":
                 # Log parsed data for trafo locker
@@ -386,29 +387,29 @@ class Arduino:
     #     Housekeeping and Threading Methods
     # =============================================================================
 
-    def start_housekeeping(self, interval = -1, log_to_file=True) -> bool:
+    def start_housekeeping(self, interval=-1, log_to_file=True) -> bool:
         """
         Start housekeeping monitoring. Works automatically in both internal and external thread modes.
-        
+
         - Internal mode (no thread passed to __init__): Creates and manages its own thread
         - External mode (thread passed to __init__): Enables monitoring for external thread control
-        
+
         Args:
             interval (int): Monitoring interval in seconds (default: 30)
             log_to_file (bool): Whether to enable file logging (default: True)
-        
+
         Returns:
             bool: True if started successfully, False otherwise
         """
         if not self.is_connected:
             self.logger.warning("Cannot start housekeeping: device not connected")
             return False
-            
+
         with self.hk_lock:
             if self.hk_running:
                 self.logger.warning("Housekeeping already running")
                 return True
-            
+
             try:
                 self.hk_running = True
                 if interval > 0:
@@ -417,29 +418,35 @@ class Arduino:
                     interval = self.hk_interval
 
                 self.hk_stop_event.clear()
-                
+
                 # Enable file logging if requested
                 if log_to_file:
                     self.enable_file_logging()
-                
+
                 if self.external_thread:
                     # External mode: Just enable monitoring, external code controls the thread
-                    self.logger.info(f"Housekeeping enabled (external mode) - interval: {interval}s")
-                    self.logger.info("Use do_housekeeping_cycle() in your external thread")
+                    self.logger.info(
+                        f"Housekeeping enabled (external mode) - interval: {interval}s"
+                    )
+                    self.logger.info(
+                        "Use do_housekeeping_cycle() in your external thread"
+                    )
                 else:
                     # Internal mode: Start our own thread
                     if not self.hk_thread.is_alive():
                         self.hk_thread = threading.Thread(
                             target=self._hk_worker,
                             name=f"HK_{self.device_id}",
-                            daemon=True
+                            daemon=True,
                         )
                         self.hk_thread.start()
-                    
-                    self.logger.info(f"Housekeeping started (internal mode) - interval: {interval}s")
-                
+
+                    self.logger.info(
+                        f"Housekeeping started (internal mode) - interval: {interval}s"
+                    )
+
                 return True
-                
+
             except Exception as e:
                 self.logger.error(f"Failed to start housekeeping: {e}")
                 self.hk_running = False
@@ -448,18 +455,18 @@ class Arduino:
     def stop_housekeeping(self) -> bool:
         """
         Stop housekeeping monitoring. Works in both internal and external modes.
-        
+
         Returns:
             bool: True if stopped successfully, False otherwise
         """
         if not self.hk_running:
             return True
-            
+
         with self.hk_lock:
             try:
                 self.hk_running = False
                 self.hk_stop_event.set()
-                
+
                 if self.external_thread:
                     # External mode: Just signal to stop
                     self.logger.info("Housekeeping stopped (external mode)")
@@ -468,12 +475,14 @@ class Arduino:
                     if self.hk_thread and self.hk_thread.is_alive():
                         self.hk_thread.join(timeout=5.0)
                         if self.hk_thread.is_alive():
-                            self.logger.warning("Housekeeping thread did not stop within timeout")
-                    
-                    self.logger.info(f"Housekeeping stopped (internal mode)")
-                
+                            self.logger.warning(
+                                "Housekeeping thread did not stop within timeout"
+                            )
+
+                    self.logger.info("Housekeeping stopped (internal mode)")
+
                 return True
-                
+
             except Exception as e:
                 self.logger.error(f"Failed to stop housekeeping: {e}")
                 return False
@@ -484,37 +493,37 @@ class Arduino:
         Runs continuously until stop_event is set.
         """
         self.logger.info(f"Housekeeping worker started for {self.device_id}")
-        
+
         while not self.hk_stop_event.is_set() and self.hk_running:
             try:
                 if self.is_connected:
                     self.hk_monitor()
                 else:
                     self.logger.warning("Device disconnected, pausing housekeeping")
-                    
+
                 # Wait for interval or stop event
                 self.hk_stop_event.wait(timeout=self.hk_interval)
-                
+
             except Exception as e:
                 self.logger.error(f"Housekeeping error: {e}")
                 # Continue running even after errors
                 self.hk_stop_event.wait(timeout=self.hk_interval)
-                
+
         self.logger.info(f"Housekeeping worker stopped for {self.device_id}")
 
     def do_housekeeping_cycle(self) -> bool:
         """
         Perform one housekeeping cycle. Use this in external threads.
-        
+
         This is the main method for external thread control - call it periodically
         in your external thread loop.
-        
+
         Returns:
             bool: True if cycle completed successfully, False otherwise
         """
         if not self.hk_running:
             return False
-            
+
         try:
             if self.is_connected:
                 self.hk_monitor()
@@ -522,7 +531,7 @@ class Arduino:
             else:
                 self.logger.warning("Device not connected during housekeeping cycle")
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"Housekeeping cycle error: {e}")
             return False
