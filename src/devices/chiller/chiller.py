@@ -96,11 +96,14 @@ class Chiller:
         self.external_thread = hk_thread is not None
         self.external_lock = thread_lock is not None
         
-        # Setup thread lock
+        # Setup thread lock (for serial communication)
         if thread_lock is not None:
             self.thread_lock = thread_lock
         else:
             self.thread_lock = threading.Lock()
+            
+        # Setup housekeeping lock (separate from communication lock)
+        self.hk_lock = threading.Lock()
             
         # Setup housekeeping thread
         if hk_thread is not None:
@@ -156,6 +159,43 @@ class Chiller:
                     self.logger.info("Using external thread lock")
                 else:
                     self.logger.info("Using internal thread lock")
+
+    def enable_file_logging(self) -> bool:
+        """
+        Enable file logging if not already enabled.
+        
+        Returns:
+            bool: True if file logging is enabled, False if it failed
+        """
+        try:
+            # Check if we already have a file handler
+            for handler in self.logger.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    self.logger.info("File logging already enabled")
+                    return True
+            
+            # Create logs directory if it doesn't exist
+            logs_dir = Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create new file handler with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_filename = f"Chiller_{self.device_id}_HK_{timestamp}.log"
+            log_filepath = logs_dir / log_filename
+            
+            file_handler = logging.FileHandler(log_filepath)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            file_handler.setFormatter(formatter)
+            
+            self.logger.addHandler(file_handler)
+            self.logger.info(f"File logging enabled: {log_filepath}")
+            return True
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to enable file logging: {e}")
+            return False
 
     def connect(self) -> bool:
         """
@@ -397,7 +437,10 @@ class Chiller:
 
     def start_housekeeping(self, interval=30, log_to_file=True) -> bool:
         """
-        Start the housekeeping monitoring. Supports both internal and external thread management.
+        Start housekeeping monitoring. Works automatically in both internal and external thread modes.
+        
+        - Internal mode (no thread passed to __init__): Creates and manages its own thread
+        - External mode (thread passed to __init__): Enables monitoring for external thread control
         
         Args:
             interval (int): Monitoring interval in seconds (default: 30)
@@ -410,32 +453,27 @@ class Chiller:
             self.logger.warning("Cannot start housekeeping: device not connected")
             return False
             
-        try:
-            with self.hk_lock:
-                if self.hk_running:
-                    self.logger.warning("Housekeeping already running")
-                    return True
-                
+        with self.hk_lock:
+            if self.hk_running:
+                self.logger.warning("Housekeeping already running")
+                return True
+            
+            try:
                 self.hk_running = True
                 self.hk_interval = interval
                 self.hk_stop_event.clear()
                 
                 # Enable file logging if requested
                 if log_to_file:
-                    try:
-                        self.enable_file_logging()
-                    except Exception as e:
-                        self.logger.warning(f"Could not enable file logging: {e}")
+                    self.enable_file_logging()
                 
-                # Different behavior for external vs internal threads
                 if self.external_thread:
-                    # For external threads, just set the flag and let external code handle it
-                    self.logger.info(f"Housekeeping enabled (external thread mode) - interval: {interval}s")
-                    self.logger.info("Note: External thread must call hk_monitor() periodically")
+                    # External mode: Just enable monitoring, external code controls the thread
+                    self.logger.info(f"Housekeeping enabled (external mode) - interval: {interval}s")
+                    self.logger.info("Use do_housekeeping_cycle() in your external thread")
                 else:
-                    # For internal threads, start our own monitoring thread
+                    # Internal mode: Start our own thread
                     if not self.hk_thread.is_alive():
-                        # Create new thread if the old one has finished
                         self.hk_thread = threading.Thread(
                             target=self._hk_worker,
                             name=f"HK_{self.device_id}",
@@ -443,18 +481,18 @@ class Chiller:
                         )
                         self.hk_thread.start()
                     
-                    self.logger.info(f"Housekeeping started (internal thread mode) - interval: {interval}s")
+                    self.logger.info(f"Housekeeping started (internal mode) - interval: {interval}s")
                 
                 return True
                 
-        except Exception as e:
-            self.logger.error(f"Failed to start housekeeping: {e}")
-            self.hk_running = False
-            return False
+            except Exception as e:
+                self.logger.error(f"Failed to start housekeeping: {e}")
+                self.hk_running = False
+                return False
 
     def stop_housekeeping(self) -> bool:
         """
-        Stop the housekeeping monitoring. Works with both internal and external threads.
+        Stop housekeeping monitoring. Works in both internal and external modes.
         
         Returns:
             bool: True if stopped successfully, False otherwise
@@ -462,29 +500,28 @@ class Chiller:
         if not self.hk_running:
             return True
             
-        try:
-            with self.hk_lock:
+        with self.hk_lock:
+            try:
                 self.hk_running = False
                 self.hk_stop_event.set()
                 
                 if self.external_thread:
-                    # For external threads, just set the flag and notify
-                    self.logger.info("Housekeeping stopped (external thread mode)")
-                    self.logger.info("Note: External thread should check hk_running flag")
+                    # External mode: Just signal to stop
+                    self.logger.info("Housekeeping stopped (external mode)")
                 else:
-                    # For internal threads, wait for our thread to finish
+                    # Internal mode: Wait for our thread to finish
                     if self.hk_thread and self.hk_thread.is_alive():
                         self.hk_thread.join(timeout=5.0)
                         if self.hk_thread.is_alive():
                             self.logger.warning("Housekeeping thread did not stop within timeout")
                     
-                    self.logger.info(f"Housekeeping stopped (internal thread mode) for {self.device_id}")
+                    self.logger.info(f"Housekeeping stopped (internal mode)")
                 
                 return True
                 
-        except Exception as e:
-            self.logger.error(f"Failed to stop housekeeping: {e}")
-            return False
+            except Exception as e:
+                self.logger.error(f"Failed to stop housekeeping: {e}")
+                return False
 
     def _hk_worker(self) -> None:
         """
@@ -512,31 +549,31 @@ class Chiller:
 
     def do_housekeeping_cycle(self) -> bool:
         """
-        Perform a single housekeeping cycle. Convenient method for external threads.
-        This method is thread-safe and can be called from external threads.
+        Perform one housekeeping cycle. Use this in external threads.
+        
+        This is the main method for external thread control - call it periodically
+        in your external thread loop.
         
         Returns:
-            bool: True if housekeeping cycle completed successfully, False otherwise
+            bool: True if cycle completed successfully, False otherwise
         """
         if not self.hk_running:
-            self.logger.debug("Housekeeping not enabled - skipping cycle")
             return False
             
         if not self.is_connected:
-            self.logger.warning("Device not connected - skipping housekeeping cycle")
+            self.logger.warning("Device not connected - skipping housekeeping")
             return False
             
         try:
-            with self.hk_lock:
-                self.hk_monitor()
-                return True
+            self.hk_monitor()  # This method is already thread-safe
+            return True
         except Exception as e:
             self.logger.error(f"Housekeeping cycle failed: {e}")
             return False
 
     def should_continue_housekeeping(self) -> bool:
         """
-        Check if housekeeping should continue. Useful for external thread loops.
+        Check if housekeeping should continue. Use this in external thread loops.
         
         Returns:
             bool: True if housekeeping should continue, False if it should stop
