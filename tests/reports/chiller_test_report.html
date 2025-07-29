@@ -428,11 +428,11 @@ function filterTable(elem) { // eslint-disable-line no-unused-vars
     notFoundMessage.hidden = !allRowsHidden;
 }
 </script>
-    <h1>test_report.html</h1>
-    <p>Report generated on 25-Jul-2025 at 14:49:33 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h1>chiller_test_report.html</h1>
+    <p>Report generated on 29-Jul-2025 at 12:00:19 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
     <h2>Summary</h2>
-    <p>34 tests ran in 0.55 seconds. </p>
-    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">34 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <p>57 tests ran in 0.74 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">57 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
     <h2>Results</h2>
     <table id="results-table">
       <thead id="results-table-head">
@@ -451,7 +451,9 @@ function filterTable(elem) { // eslint-disable-line no-unused-vars
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_test_chiller_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;test_chiller&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_test_chiller_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;test_chiller&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_test_chiller_20250729_120019:chiller.py:156 Using internal thread: HK_test_chiller
+INFO     Chiller_test_chiller_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -469,7 +471,9 @@ function filterTable(elem) { // eslint-disable-line no-unused-vars
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_status_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;status_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_status_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;status_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_status_test_20250729_120019:chiller.py:156 Using internal thread: HK_status_test
+INFO     Chiller_status_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -478,8 +482,10 @@ function filterTable(elem) { // eslint-disable-line no-unused-vars
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_connect_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;connect_test&#x27; on port &#x27;COM3&#x27;
-INFO     Chiller_connect_test_20250725_144933:chiller.py:125 Connecting to chiller connect_test on COM3<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_connect_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;connect_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_connect_test_20250729_120019:chiller.py:156 Using internal thread: HK_connect_test
+INFO     Chiller_connect_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_connect_test_20250729_120019:chiller.py:209 Connecting to chiller connect_test on COM3<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -488,9 +494,11 @@ INFO     Chiller_connect_test_20250725_144933:chiller.py:125 Connecting to chill
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_connect_fail_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;connect_fail_test&#x27; on port &#x27;COM3&#x27;
-INFO     Chiller_connect_fail_test_20250725_144933:chiller.py:125 Connecting to chiller connect_fail_test on COM3
-ERROR    Chiller_connect_fail_test_20250725_144933:chiller.py:132 Failed to connect to chiller: Port not found<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_connect_fail_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;connect_fail_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_connect_fail_test_20250729_120019:chiller.py:156 Using internal thread: HK_connect_fail_test
+INFO     Chiller_connect_fail_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_connect_fail_test_20250729_120019:chiller.py:209 Connecting to chiller connect_fail_test on COM3
+ERROR    Chiller_connect_fail_test_20250729_120019:chiller.py:216 Failed to connect to chiller: Port not found<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -499,8 +507,10 @@ ERROR    Chiller_connect_fail_test_20250725_144933:chiller.py:132 Failed to conn
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_disconnect_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;disconnect_test&#x27; on port &#x27;COM3&#x27;
-INFO     Chiller_disconnect_test_20250725_144933:chiller.py:146 Disconnected from chiller disconnect_test<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_disconnect_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;disconnect_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_disconnect_test_20250729_120019:chiller.py:156 Using internal thread: HK_disconnect_test
+INFO     Chiller_disconnect_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_disconnect_test_20250729_120019:chiller.py:234 Disconnected from chiller disconnect_test<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -509,8 +519,10 @@ INFO     Chiller_disconnect_test_20250725_144933:chiller.py:146 Disconnected fro
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;disconnect_none_test&#x27; on port &#x27;COM3&#x27;
-INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnected from chiller disconnect_none_test<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_disconnect_none_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;disconnect_none_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_disconnect_none_test_20250729_120019:chiller.py:156 Using internal thread: HK_disconnect_none_test
+INFO     Chiller_disconnect_none_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_disconnect_none_test_20250729_120019:chiller.py:234 Disconnected from chiller disconnect_none_test<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -519,7 +531,10 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_status_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_read_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_test
+INFO     Chiller_read_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -528,7 +543,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_not_connected_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_not_connected_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_not_connected_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_not_connected_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_not_connected_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_not_connected_test
+INFO     Chiller_read_not_connected_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -537,7 +554,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_param_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;set_param_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_param_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;set_param_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_set_param_test_20250729_120019:chiller.py:156 Using internal thread: HK_set_param_test
+INFO     Chiller_set_param_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -546,7 +565,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_param_fail_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;set_param_fail_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_param_fail_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;set_param_fail_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_set_param_fail_test_20250729_120019:chiller.py:156 Using internal thread: HK_set_param_fail_test
+INFO     Chiller_set_param_fail_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -555,7 +576,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_param_not_connected_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;set_param_not_connected_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_param_not_connected_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;set_param_not_connected_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_set_param_not_connected_test_20250729_120019:chiller.py:156 Using internal thread: HK_set_param_not_connected_test
+INFO     Chiller_set_param_not_connected_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -564,7 +587,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_temp_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_temp_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_temp_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_temp_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_temp_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_temp_test
+INFO     Chiller_read_temp_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -573,7 +598,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_set_temp_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_set_temp_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_set_temp_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_set_temp_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_set_temp_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_set_temp_test
+INFO     Chiller_read_set_temp_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -582,7 +609,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_pump_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_pump_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_pump_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_pump_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_pump_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_pump_test
+INFO     Chiller_read_pump_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -591,7 +620,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_cooling_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_cooling_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_cooling_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_cooling_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_cooling_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_cooling_test
+INFO     Chiller_read_cooling_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -600,7 +631,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_keylock_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_keylock_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_keylock_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_keylock_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_keylock_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_keylock_test
+INFO     Chiller_read_keylock_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -609,7 +642,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_running_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_running_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_running_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_running_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_running_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_running_test
+INFO     Chiller_read_running_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -618,7 +653,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_status_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_status_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_status_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_status_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_status_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_status_test
+INFO     Chiller_read_status_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -627,7 +664,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_diagnostics_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;read_diagnostics_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_read_diagnostics_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;read_diagnostics_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_read_diagnostics_test_20250729_120019:chiller.py:156 Using internal thread: HK_read_diagnostics_test
+INFO     Chiller_read_diagnostics_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -636,7 +675,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_temp_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;set_temp_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_temp_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;set_temp_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_set_temp_test_20250729_120019:chiller.py:156 Using internal thread: HK_set_temp_test
+INFO     Chiller_set_temp_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -645,7 +686,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_pump_valid_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;set_pump_valid_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_pump_valid_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;set_pump_valid_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_set_pump_valid_test_20250729_120019:chiller.py:156 Using internal thread: HK_set_pump_valid_test
+INFO     Chiller_set_pump_valid_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -654,7 +697,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_pump_invalid_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;set_pump_invalid_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_pump_invalid_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;set_pump_invalid_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_set_pump_invalid_test_20250729_120019:chiller.py:156 Using internal thread: HK_set_pump_invalid_test
+INFO     Chiller_set_pump_invalid_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -663,7 +708,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_keylock_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;set_keylock_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_set_keylock_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;set_keylock_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_set_keylock_test_20250729_120019:chiller.py:156 Using internal thread: HK_set_keylock_test
+INFO     Chiller_set_keylock_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -672,7 +719,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_start_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;start_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_start_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;start_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_start_test_20250729_120019:chiller.py:156 Using internal thread: HK_start_test
+INFO     Chiller_start_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -681,7 +730,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_stop_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;stop_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_stop_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;stop_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_stop_test_20250729_120019:chiller.py:156 Using internal thread: HK_stop_test
+INFO     Chiller_stop_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -690,25 +741,9 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_logger_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;logger_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
-      <tbody class="passed results-table-row">
-        <tr>
-          <td class="col-result">Passed</td>
-          <td class="col-name">tests/chiller/test_chiller.py::TestChiller::test_hk_monitor</td>
-          <td class="col-duration">0.00</td>
-          <td class="col-links"></td></tr>
-        <tr>
-          <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;hk_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
-      <tbody class="passed results-table-row">
-        <tr>
-          <td class="col-result">Passed</td>
-          <td class="col-name">tests/chiller/test_chiller.py::TestChiller::test_hk_monitor_with_exceptions</td>
-          <td class="col-duration">0.00</td>
-          <td class="col-links"></td></tr>
-        <tr>
-          <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_exception_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;hk_exception_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_logger_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;logger_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_logger_test_20250729_120019:chiller.py:156 Using internal thread: HK_logger_test
+INFO     Chiller_logger_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -735,9 +770,11 @@ INFO     Chiller_disconnect_none_test_20250725_144933:chiller.py:146 Disconnecte
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_integration_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;integration_test&#x27; on port &#x27;COM3&#x27;
-INFO     Chiller_integration_test_20250725_144933:chiller.py:125 Connecting to chiller integration_test on COM3
-INFO     Chiller_integration_test_20250725_144933:chiller.py:146 Disconnected from chiller integration_test<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_integration_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;integration_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_integration_test_20250729_120019:chiller.py:156 Using internal thread: HK_integration_test
+INFO     Chiller_integration_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_integration_test_20250729_120019:chiller.py:209 Connecting to chiller integration_test on COM3
+INFO     Chiller_integration_test_20250729_120019:chiller.py:234 Disconnected from chiller integration_test<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -746,7 +783,9 @@ INFO     Chiller_integration_test_20250725_144933:chiller.py:146 Disconnected fr
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_error_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;error_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_error_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;error_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_error_test_20250729_120019:chiller.py:156 Using internal thread: HK_error_test
+INFO     Chiller_error_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
       <tbody class="passed results-table-row">
         <tr>
           <td class="col-result">Passed</td>
@@ -755,4 +794,323 @@ INFO     Chiller_integration_test_20250725_144933:chiller.py:146 Disconnected fr
           <td class="col-links"></td></tr>
         <tr>
           <td class="extra" colspan="4">
-            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_logger_integration_test_20250725_144933:chiller.py:113 Chiller logger initialized for device &#x27;logger_integration_test&#x27; on port &#x27;COM3&#x27;<br/></div></td></tr></tbody></table></body></html>
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_logger_integration_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;logger_integration_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_logger_integration_test_20250729_120019:chiller.py:156 Using internal thread: HK_logger_integration_test
+INFO     Chiller_logger_integration_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_internal_thread_mode_initialization</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_internal_thread_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;internal_thread_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_internal_thread_test_20250729_120019:chiller.py:156 Using internal thread: HK_internal_thread_test
+INFO     Chiller_internal_thread_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_external_thread_mode_initialization</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_external_thread_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;external_thread_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_external_thread_test_20250729_120019:chiller.py:154 Using external thread: TestExternalThread
+INFO     Chiller_external_thread_test_20250729_120019:chiller.py:159 Using external thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_enable_file_logging_existing_handler</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_file_logging_existing_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;file_logging_existing_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_file_logging_existing_test_20250729_120019:chiller.py:156 Using internal thread: HK_file_logging_existing_test
+INFO     Chiller_file_logging_existing_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_start_housekeeping_internal_mode_success</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_internal_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_internal_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_internal_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_internal_test
+INFO     Chiller_hk_internal_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_hk_internal_test_20250729_120019:chiller.py:488 Housekeeping started (internal mode) - interval: 5s<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_start_housekeeping_external_mode_success</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_external_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_external_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_external_test_20250729_120019:chiller.py:154 Using external thread: TestThread
+INFO     Chiller_hk_external_test_20250729_120019:chiller.py:161 Using internal thread lock
+WARNING  Chiller_hk_internal_test_20250729_120019:chiller.py:520 Housekeeping thread did not stop within timeout
+INFO     Chiller_hk_internal_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_hk_external_test_20250729_120019:chiller.py:476 Housekeeping enabled (external mode) - interval: 3s
+INFO     Chiller_hk_external_test_20250729_120019:chiller.py:477 Use do_housekeeping_cycle() in your external thread
+INFO     Chiller_hk_external_test_20250729_120019:chiller.py:514 Housekeeping stopped (external mode)<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_start_housekeeping_default_interval</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_default_interval_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_default_interval_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_default_interval_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_default_interval_test
+INFO     Chiller_hk_default_interval_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_hk_default_interval_test_20250729_120019:chiller.py:535 Housekeeping worker started for hk_default_interval_test
+INFO     Chiller_hk_default_interval_test_20250729_120019:chiller.py:488 Housekeeping started (internal mode) - interval: 25.0s
+ERROR    Chiller_hk_default_interval_test_20250729_120019:chiller.py:638 Housekeeping monitoring failed: Serial connection not open<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_start_housekeeping_not_connected</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_not_connected_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_not_connected_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_not_connected_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_not_connected_test
+INFO     Chiller_hk_not_connected_test_20250729_120019:chiller.py:161 Using internal thread lock
+WARNING  Chiller_hk_not_connected_test_20250729_120019:chiller.py:453 Cannot start housekeeping: device not connected<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_start_housekeeping_already_running</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_already_running_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_already_running_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_already_running_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_already_running_test
+INFO     Chiller_hk_already_running_test_20250729_120019:chiller.py:161 Using internal thread lock
+WARNING  Chiller_hk_already_running_test_20250729_120019:chiller.py:458 Housekeeping already running<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_stop_housekeeping_internal_mode</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_stop_hk_internal_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;stop_hk_internal_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_stop_hk_internal_test_20250729_120019:chiller.py:156 Using internal thread: HK_stop_hk_internal_test
+INFO     Chiller_stop_hk_internal_test_20250729_120019:chiller.py:161 Using internal thread lock
+WARNING  Chiller_stop_hk_internal_test_20250729_120019:chiller.py:520 Housekeeping thread did not stop within timeout
+INFO     Chiller_stop_hk_internal_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_stop_housekeeping_external_mode</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_stop_hk_external_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;stop_hk_external_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_stop_hk_external_test_20250729_120019:chiller.py:154 Using external thread: TestThread
+INFO     Chiller_stop_hk_external_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_stop_hk_external_test_20250729_120019:chiller.py:514 Housekeeping stopped (external mode)<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_stop_housekeeping_not_running</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_stop_hk_not_running_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;stop_hk_not_running_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_stop_hk_not_running_test_20250729_120019:chiller.py:156 Using internal thread: HK_stop_hk_not_running_test
+INFO     Chiller_stop_hk_not_running_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_do_housekeeping_cycle_success</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_already_running_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_hk_cycle_success_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_cycle_success_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_cycle_success_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_cycle_success_test
+INFO     Chiller_hk_cycle_success_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_do_housekeeping_cycle_not_running</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_cycle_not_running_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_cycle_not_running_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_cycle_not_running_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_cycle_not_running_test
+INFO     Chiller_hk_cycle_not_running_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_do_housekeeping_cycle_not_connected</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_cycle_not_connected_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_cycle_not_connected_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_cycle_not_connected_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_cycle_not_connected_test
+INFO     Chiller_hk_cycle_not_connected_test_20250729_120019:chiller.py:161 Using internal thread lock
+WARNING  Chiller_hk_cycle_not_connected_test_20250729_120019:chiller.py:568 Device not connected - skipping housekeeping<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_do_housekeeping_cycle_exception</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_cycle_exception_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_cycle_exception_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_cycle_exception_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_cycle_exception_test
+INFO     Chiller_hk_cycle_exception_test_20250729_120019:chiller.py:161 Using internal thread lock
+ERROR    Chiller_hk_cycle_exception_test_20250729_120019:chiller.py:575 Housekeeping cycle failed: Test error<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_should_continue_housekeeping_true</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_should_continue_true_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;should_continue_true_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_should_continue_true_test_20250729_120019:chiller.py:156 Using internal thread: HK_should_continue_true_test
+INFO     Chiller_should_continue_true_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_should_continue_housekeeping_false_not_running</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_should_continue_false_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;should_continue_false_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_should_continue_false_test_20250729_120019:chiller.py:156 Using internal thread: HK_should_continue_false_test
+INFO     Chiller_should_continue_false_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_should_continue_housekeeping_false_stop_event</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_cycle_success_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_hk_cycle_not_connected_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_hk_cycle_exception_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_should_continue_true_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_should_continue_stop_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;should_continue_stop_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_should_continue_stop_test_20250729_120019:chiller.py:156 Using internal thread: HK_should_continue_stop_test
+INFO     Chiller_should_continue_stop_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_hk_worker_function</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_hk_worker_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;hk_worker_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_hk_worker_test_20250729_120019:chiller.py:156 Using internal thread: HK_hk_worker_test
+INFO     Chiller_hk_worker_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_hk_worker_test_20250729_120019:chiller.py:535 Housekeeping worker started for hk_worker_test
+INFO     Chiller_hk_worker_test_20250729_120019:chiller.py:552 Housekeeping worker stopped for hk_worker_test<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_get_status_with_threading_info</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_status_threading_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;status_threading_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_status_threading_test_20250729_120019:chiller.py:154 Using external thread: TestStatusThread
+INFO     Chiller_status_threading_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_status_threading_test_20250729_120019:chiller.py:514 Housekeeping stopped (external mode)<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_thread_safety_concurrent_access</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_thread_safety_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;thread_safety_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_thread_safety_test_20250729_120019:chiller.py:156 Using internal thread: HK_thread_safety_test
+INFO     Chiller_thread_safety_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_disconnect_stops_housekeeping</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_disconnect_hk_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;disconnect_hk_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_disconnect_hk_test_20250729_120019:chiller.py:156 Using internal thread: HK_disconnect_hk_test
+INFO     Chiller_disconnect_hk_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_hk_worker_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_disconnect_hk_test_20250729_120019:chiller.py:234 Disconnected from chiller disconnect_hk_test<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_cleanup_destructor</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_cleanup_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;cleanup_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_cleanup_test_20250729_120019:chiller.py:156 Using internal thread: HK_cleanup_test
+INFO     Chiller_cleanup_test_20250729_120019:chiller.py:161 Using internal thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_threading_attributes_consistency</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_attr_internal_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;attr_internal_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_attr_internal_test_20250729_120019:chiller.py:156 Using internal thread: HK_attr_internal_test
+INFO     Chiller_attr_internal_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_attr_external_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;attr_external_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_attr_external_test_20250729_120019:chiller.py:154 Using external thread: TestThread
+INFO     Chiller_attr_external_test_20250729_120019:chiller.py:159 Using external thread lock<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/chiller/test_chiller.py::TestChillerIntegration::test_interval_parameter_handling</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     Chiller_interval_test_20250729_120019:chiller.py:150 Chiller logger initialized for device &#x27;interval_test&#x27; on port &#x27;COM3&#x27;
+INFO     Chiller_interval_test_20250729_120019:chiller.py:156 Using internal thread: HK_interval_test
+INFO     Chiller_interval_test_20250729_120019:chiller.py:161 Using internal thread lock
+INFO     Chiller_interval_test_20250729_120019:chiller.py:535 Housekeeping worker started for interval_test
+INFO     Chiller_interval_test_20250729_120019:chiller.py:488 Housekeeping started (internal mode) - interval: 10s
+ERROR    Chiller_interval_test_20250729_120019:chiller.py:638 Housekeeping monitoring failed: Serial connection not open
+INFO     Chiller_interval_test_20250729_120019:chiller.py:552 Housekeeping worker stopped for interval_test
+INFO     Chiller_interval_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_interval_test_20250729_120019:chiller.py:535 Housekeeping worker started for interval_test
+INFO     Chiller_interval_test_20250729_120019:chiller.py:488 Housekeeping started (internal mode) - interval: 10s
+ERROR    Chiller_interval_test_20250729_120019:chiller.py:638 Housekeeping monitoring failed: Serial connection not open
+INFO     Chiller_interval_test_20250729_120019:chiller.py:552 Housekeeping worker stopped for interval_test
+INFO     Chiller_interval_test_20250729_120019:chiller.py:522 Housekeeping stopped (internal mode)
+INFO     Chiller_interval_test_20250729_120019:chiller.py:535 Housekeeping worker started for interval_test
+INFO     Chiller_interval_test_20250729_120019:chiller.py:488 Housekeeping started (internal mode) - interval: 10s
+ERROR    Chiller_interval_test_20250729_120019:chiller.py:638 Housekeeping monitoring failed: Serial connection not open<br/></div></td></tr></tbody></table></body></html>
