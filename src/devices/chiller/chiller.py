@@ -435,7 +435,7 @@ class Chiller:
     #     Housekeeping and Threading Methods
     # =============================================================================
 
-    def start_housekeeping(self, interval=30, log_to_file=True) -> bool:
+    def start_housekeeping(self, interval = -1, log_to_file=True) -> bool:
         """
         Start housekeeping monitoring. Works automatically in both internal and external thread modes.
         
@@ -460,7 +460,11 @@ class Chiller:
             
             try:
                 self.hk_running = True
-                self.hk_interval = interval
+                if interval > 0:
+                    self.hk_interval = interval
+                else:
+                    interval = self.hk_interval
+
                 self.hk_stop_event.clear()
                 
                 # Enable file logging if requested
