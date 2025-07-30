@@ -226,7 +226,7 @@ class HiScroll12(PfeifferBaseDevice):
     def get_standby_mode(self) -> bool:
         """Get standby mode status."""
         response = self.query_parameter(2)
-        return self.data_converter.booleanOld_2_bool(response)
+        return self.data_converter.boolean_old_2_bool(response)
 
     def set_standby_mode(self, enable: bool) -> None:
         """
@@ -235,7 +235,7 @@ class HiScroll12(PfeifferBaseDevice):
         Args:
             enable: True to enable standby, False to disable
         """
-        data_str = self.data_converter.bool_2_booleanOld(enable)
+        data_str = self.data_converter.bool_2_boolean_old(enable)
         self.write_parameter(2, data_str)
 
     def enable_standby(self) -> None:
@@ -253,7 +253,7 @@ class HiScroll12(PfeifferBaseDevice):
     def get_pump_enable(self) -> bool:
         """Get pump enable status."""
         response = self.query_parameter(10)
-        return self.data_converter.booleanOld_2_bool(response)
+        return self.data_converter.boolean_old_2_bool(response)
 
     def set_pump_enable(self, enable: bool) -> None:
         """
@@ -262,7 +262,7 @@ class HiScroll12(PfeifferBaseDevice):
         Args:
             enable: True to enable pump, False to disable
         """
-        data_str = self.data_converter.bool_2_booleanOld(enable)
+        data_str = self.data_converter.bool_2_boolean_old(enable)
         self.write_parameter(10, data_str)
 
     def enable_pump(self) -> None:
@@ -275,7 +275,7 @@ class HiScroll12(PfeifferBaseDevice):
 
     def reset_to_factory_settings(self) -> None:
         """Reset device to factory settings."""
-        data_str = self.data_converter.bool_2_booleanOld(True)
+        data_str = self.data_converter.bool_2_boolean_old(True)
         self.write_parameter(95, data_str)
 
     # =============================================================================
