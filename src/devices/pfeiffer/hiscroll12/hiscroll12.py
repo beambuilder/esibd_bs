@@ -32,7 +32,7 @@ class HiScroll12(PfeifferBaseDevice):
         self,
         device_id: str,
         port: str,
-        device_address: int = 1,
+        device_address: int = 2, # because standard address of HiScroll12 is 2
         baudrate: int = 9600,
         timeout: float = 2.0,
         logger: Optional[logging.Logger] = None,
@@ -75,97 +75,103 @@ class HiScroll12(PfeifferBaseDevice):
 
     def get_error(self) -> str:
         """Get error status from the pump."""
-        return self.query_parameter(303)
+        response = self.query_parameter(303)
+        return self.data_converter.string_2_str(response)
 
     def get_overtemp_electronics(self) -> str:
         """Get electronics overtemperature status."""
-        return self.query_parameter(304)
+        response = self.query_parameter(304)
+        return self.data_converter.boolean_old_2_bool(response)
 
     def get_overtemp_pump(self) -> str:
         """Get pump overtemperature status."""
-        return self.query_parameter(305)
+        response = self.query_parameter(305)
+        return self.data_converter.boolean_old_2_bool(response)
 
     def get_set_rotation_speed_hz(self) -> float:
         """Get set rotation speed in Hz."""
         response = self.query_parameter(308)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_actual_rotation_speed_hz(self) -> float:
         """Get actual rotation speed in Hz."""
         response = self.query_parameter(309)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_drive_current(self) -> float:
         """Get drive current."""
         response = self.query_parameter(310)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_real_2_float(response)
 
     def get_pump_operating_time(self) -> int:
         """Get pump operating time in hours."""
         response = self.query_parameter(311)
-        return int(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_software_version(self) -> str:
         """Get software version."""
-        return self.query_parameter(312)
+        response = self.query_parameter(312)
+        return self.data_converter.string_2_str(response)
 
     def get_drive_voltage(self) -> float:
         """Get drive voltage."""
         response = self.query_parameter(313)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_real_2_float(response)
 
     def get_electronics_operating_time(self) -> int:
         """Get electronics operating time in hours."""
         response = self.query_parameter(314)
-        return int(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_nominal_speed_hz(self) -> float:
         """Get nominal speed in Hz."""
         response = self.query_parameter(315)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_drive_power(self) -> float:
         """Get drive power."""
         response = self.query_parameter(316)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_temp_power_stage(self) -> float:
-        """Get power stage temperature in °C."""
+        """Get power stage temperature in degC."""
         response = self.query_parameter(324)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_temp_electronics(self) -> float:
-        """Get electronics temperature in °C."""
+        """Get electronics temperature in degC."""
         response = self.query_parameter(326)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_temp_motor(self) -> float:
-        """Get motor temperature in °C."""
+        """Get motor temperature in degC."""
         response = self.query_parameter(346)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_electronics_name(self) -> str:
         """Get electronics name."""
-        return self.query_parameter(349)
+        response = self.query_parameter(349)
+        return self.data_converter.string_2_str(response)
 
     def get_serial_number(self) -> str:
         """Get device serial number."""
-        return self.query_parameter(355)
+        response = self.query_parameter(355)
+        return self.data_converter.string16_2_str(response)
 
     def get_set_rotation_speed_rpm(self) -> float:
         """Get set rotation speed in RPM."""
         response = self.query_parameter(397)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_actual_rotation_speed_rpm(self) -> float:
         """Get actual rotation speed in RPM."""
         response = self.query_parameter(398)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     def get_nominal_speed_rpm(self) -> float:
         """Get nominal speed in RPM."""
         response = self.query_parameter(399)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_integer_2_int(response)
 
     # =============================================================================
     #     Setpoint Specification
@@ -174,7 +180,7 @@ class HiScroll12(PfeifferBaseDevice):
     def get_speed_setpoint(self) -> float:
         """Get speed setpoint value (40-100%)."""
         response = self.query_parameter(707)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_real_2_float(response)
 
     def set_speed_setpoint(self, value: float) -> None:
         """
@@ -189,13 +195,13 @@ class HiScroll12(PfeifferBaseDevice):
         if not 40 <= value <= 100:
             raise ValueError("Speed setpoint must be between 40 and 100%")
 
-        data_str = self.data_converter.u_real_2_str(value)
+        data_str = self.data_converter.float_2_u_real(value)
         self.write_parameter(707, data_str)
 
     def get_standby_setpoint(self) -> float:
         """Get standby setpoint value (40-100%)."""
         response = self.query_parameter(717)
-        return self.data_converter.str_2_u_real(response)
+        return self.data_converter.u_real_2_float(response)
 
     def set_standby_setpoint(self, value: float) -> None:
         """
@@ -210,7 +216,7 @@ class HiScroll12(PfeifferBaseDevice):
         if not 40 <= value <= 100:
             raise ValueError("Standby setpoint must be between 40 and 100%")
 
-        data_str = self.data_converter.u_real_2_str(value)
+        data_str = self.data_converter.float_2_u_real(value)
         self.write_parameter(717, data_str)
 
     # =============================================================================
