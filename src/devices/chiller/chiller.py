@@ -118,7 +118,9 @@ class Chiller:
         # Setup logger
         if logger is not None:
             self.logger = logger
+            self._external_logger_provided = True
         else:
+            self._external_logger_provided = False
             # Create logger with file handler and timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             logger_name = f"Chiller_{device_id}_{timestamp}"
@@ -158,42 +160,44 @@ class Chiller:
                     self.logger.info("Using external thread lock")
                 else:
                     self.logger.info("Using internal thread lock")
+                    
+        # Log external logger usage if applicable
+        if self._external_logger_provided:
+            self.logger.info(f"Using external logger for device '{device_id}'")
+        else:
+            self.logger.info(f"Using internal logger for device '{device_id}'")
 
     def enable_file_logging(self) -> bool:
         """
         Enable file logging if not already enabled.
         
+        If an external logger was passed to the constructor, this method will not
+        create additional file handlers and will use the external logger instead.
+        For internal loggers, this method checks if file logging is already enabled.
+        
         Returns:
             bool: True if file logging is enabled, False if it failed
         """
         try:
-            # Check if we already have a file handler
+            # If external logger was provided, don't create additional file handlers
+            # The external logger should handle its own file logging
+            if self._external_logger_provided:
+                self.logger.info("Using external logger - no additional file logging needed")
+                return True
+            
+            # For internal loggers, check if we already have a file handler
             for handler in self.logger.handlers:
                 if isinstance(handler, logging.FileHandler):
                     self.logger.info("File logging already enabled")
                     return True
             
-            # Create logs directory if it doesn't exist
-            logs_dir = Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
-            logs_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Create new file handler with timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            log_filename = f"Chiller_{self.device_id}_HK_{timestamp}.log"
-            log_filepath = logs_dir / log_filename
-            
-            file_handler = logging.FileHandler(log_filepath)
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-            file_handler.setFormatter(formatter)
-            
-            self.logger.addHandler(file_handler)
-            self.logger.info(f"File logging enabled: {log_filepath}")
-            return True
+            # This should not happen for internal loggers since we create the file handler
+            # during initialization, but just in case...
+            self.logger.warning("Internal logger missing file handler - this should not happen")
+            return False
             
         except Exception as e:
-            self.logger.warning(f"Failed to enable file logging: {e}")
+            self.logger.warning(f"Failed to check file logging: {e}")
             return False
 
     def connect(self) -> bool:
