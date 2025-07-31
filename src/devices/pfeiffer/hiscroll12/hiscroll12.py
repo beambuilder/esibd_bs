@@ -173,6 +173,11 @@ class HiScroll12(PfeifferBaseDevice):
         response = self.query_parameter(399)
         return self.data_converter.u_integer_2_int(response)
 
+    def get_rs485_address(self) -> int:
+        """Get RS485 address."""
+        response = self.query_parameter(797)
+        return self.data_converter.u_integer_2_int(response)
+
     # =============================================================================
     #     Setpoint Specification
     # =============================================================================
