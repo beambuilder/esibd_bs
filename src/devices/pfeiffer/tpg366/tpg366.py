@@ -321,7 +321,7 @@ class TPG366(PfeifferBaseDevice):
     def get_firmware_version(self) -> str:
         """Alias for get_software_version."""
         return self.get_software_version()
-
+    #ToDO: get sensor name, try if get serial number works on sensors as well as on base device
     def get_device_name(self) -> str:
         """Alias for get_electronics_name."""
         return self.get_electronics_name()
