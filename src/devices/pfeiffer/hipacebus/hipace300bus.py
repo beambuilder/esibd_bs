@@ -191,11 +191,10 @@ class HiPace300Bus(PfeifferBaseDevice):
         response = self._query_channel_parameter('omnicontrol', 355)
         return self.data_converter.string16_2_str(response)
 
-    # TODO Adjust for GaugeIO
-    #def get_omni_pressure(self) -> float:
-    #    """Get pressure value from OmniControl."""
-    #    response = self._query_channel_parameter('omnicontrol', 740)
-    #    return self.data_converter.u_expo_new_2_float(response)
+    def get_gauge_pressure(self) -> float:
+        """Get pressure value from OmniControl with Gauge."""
+        response = self._query_channel_parameter('gauge1', 740)
+        return self.data_converter.u_expo_new_2_float(response)
 
     # TODO Delete
     #def set_omni_pressure_zero(self, zero_on: bool) -> None:
