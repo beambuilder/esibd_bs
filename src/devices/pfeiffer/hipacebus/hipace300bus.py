@@ -32,13 +32,15 @@ class HiPace300Bus(PfeifferBaseDevice):
         self,
         device_id: str,
         port: str,
-        device_address: int = 1,  # HiPace300Bus standard address
+        device_address: int = 1,  # OmniControl base address
+        tc400_address: int = 2,  # TC400 address (independent)
+        gauge1_address: Optional[int] = None,  # Optional gauge address
         baudrate: int = 9600,
         timeout: float = 2.0,
         logger: Optional[logging.Logger] = None,
         hk_thread: Optional[threading.Thread] = None,
         thread_lock: Optional[threading.Lock] = None,
-        hk_interval: float = 30.0,
+        hk_interval: float = 1.0,
         **kwargs,
     ):
         """
@@ -47,19 +49,21 @@ class HiPace300Bus(PfeifferBaseDevice):
         Args:
             device_id: Unique identifier for the device
             port: Serial port (e.g., 'COM7' on Windows, '/dev/ttyUSB0' on Linux)
-            device_address: Pfeiffer device address (1-255, default: 1)
+            device_address: OmniControl device address (1-255, default: 1)
+            tc400_address: TC400 device address (1-255, default: 2)
+            gauge1_address: Optional gauge device address (1-255)
             baudrate: Communication speed (default: 9600)
             timeout: Serial communication timeout in seconds (default: 2.0)
             logger: Optional custom logger. If None, creates file logger in debugging/logs/
             hk_thread: Optional housekeeping thread. If None, creates one automatically
             thread_lock: Optional thread lock. If None, creates one automatically
-            hk_interval: Housekeeping monitoring interval in seconds (default: 30.0)
+            hk_interval: Housekeeping monitoring interval in seconds (default: 1.0)
             **kwargs: Additional connection parameters
         """
         super().__init__(
             device_id=device_id,
             port=port,
-            device_address=device_address,
+            device_address=device_address,  # This becomes the OmniControl address
             baudrate=baudrate,
             timeout=timeout,
             logger=logger,
@@ -68,107 +72,94 @@ class HiPace300Bus(PfeifferBaseDevice):
             hk_interval=hk_interval,
             **kwargs
         )
+        
+        # Store device addresses
+        self.omnicontrol_address = device_address
+        self.tc400_address = tc400_address
+        self.gauge1_address = gauge1_address
+        
+        # Create channel mapping
+        self.channel_addresses = {
+            'omnicontrol': self.omnicontrol_address,
+            'tc400': self.tc400_address,
+        }
+        
+        # Add gauge if provided
+        if gauge1_address is not None:
+            self.channel_addresses['gauge1'] = gauge1_address
 
     # =============================================================================
-    #     Bus Communication Helpers
+    #     Channel-Specific Communication Helper
     # =============================================================================
     
-    def _query_omnicontrol_parameter(self, param_num: int) -> str:
+    def _query_channel_parameter(self, channel, param_num: int) -> str:
         """
-        Query a parameter from the OmniControl device (base device).
+        Query a parameter from a specific device channel on the HiPace300Bus.
         
         Args:
+            channel: Device channel identifier ('omnicontrol', 'tc400', 'gauge1') or address (int)
             param_num: Parameter number to query
             
         Returns:
             str: Raw response from device
             
         Raises:
+            ValueError: If channel is invalid
             Exception: If device not connected or communication fails
         """
+        # Resolve channel to device address
+        if isinstance(channel, str):
+            if channel not in self.channel_addresses:
+                raise ValueError(f"Unknown channel '{channel}'. Available: {list(self.channel_addresses.keys())}")
+            device_address = self.channel_addresses[channel]
+        elif isinstance(channel, int):
+            device_address = channel
+        else:
+            raise ValueError("Channel must be a string identifier or integer address")
+            
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
-
-        try:
-            with self.thread_lock:  # Thread-safe communication
-                from ..pfeifferVacuumProtocol import query_data
-                return query_data(self.serial_connection, self.device_address, param_num)
-        except Exception as e:
-            self.logger.error(f"Failed to query OmniControl parameter {param_num}: {e}")
-            raise
-
-    def _set_omnicontrol_parameter(self, param_num: int, value: str) -> None:
-        """
-        Set a parameter on the OmniControl device (base device).
-        
-        Args:
-            param_num: Parameter number to set
-            value: Value to set
-            
-        Raises:
-            Exception: If device not connected or communication fails
-        """
-        if not self.is_connected or not self.serial_connection:
-            raise Exception("Device not connected. Call connect() first.")
-
-        try:
-            with self.thread_lock:  # Thread-safe communication
-                from ..pfeifferVacuumProtocol import write_command
-                write_command(self.serial_connection, self.device_address, param_num, value)
-        except Exception as e:
-            self.logger.error(f"Failed to set OmniControl parameter {param_num}: {e}")
-            raise
-
-    def _query_tc400_parameter(self, param_num: int) -> str:
-        """
-        Query a parameter from the TC400 device (turbo controller).
-        
-        Args:
-            param_num: Parameter number to query
-            
-        Returns:
-            str: Raw response from device
-            
-        Raises:
-            Exception: If device not connected or communication fails
-        """
-        if not self.is_connected or not self.serial_connection:
-            raise Exception("Device not connected. Call connect() first.")
-
-        # TC400 address is base_address + 1
-        tc400_address = self.device_address + 1
         
         try:
             with self.thread_lock:  # Thread-safe communication
                 from ..pfeifferVacuumProtocol import query_data
-                return query_data(self.serial_connection, tc400_address, param_num)
+                return query_data(self.serial_connection, device_address, param_num)
         except Exception as e:
-            self.logger.error(f"Failed to query TC400 parameter {param_num}: {e}")
+            self.logger.error(f"Failed to query channel {channel} (addr: {device_address}) parameter {param_num}: {e}")
             raise
 
-    def _set_tc400_parameter(self, param_num: int, value: str) -> None:
+    def _set_channel_parameter(self, channel, param_num: int, value: str) -> None:
         """
-        Set a parameter on the TC400 device (turbo controller).
+        Set a parameter on a specific device channel on the HiPace300Bus.
         
         Args:
+            channel: Device channel identifier ('omnicontrol', 'tc400', 'gauge1') or address (int)
             param_num: Parameter number to set
             value: Value to set
             
         Raises:
+            ValueError: If channel is invalid
             Exception: If device not connected or communication fails
         """
+        # Resolve channel to device address
+        if isinstance(channel, str):
+            if channel not in self.channel_addresses:
+                raise ValueError(f"Unknown channel '{channel}'. Available: {list(self.channel_addresses.keys())}")
+            device_address = self.channel_addresses[channel]
+        elif isinstance(channel, int):
+            device_address = channel
+        else:
+            raise ValueError("Channel must be a string identifier or integer address")
+            
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
-
-        # TC400 address is base_address + 1
-        tc400_address = self.device_address + 1
         
         try:
             with self.thread_lock:  # Thread-safe communication
                 from ..pfeifferVacuumProtocol import write_command
-                write_command(self.serial_connection, tc400_address, param_num, value)
+                write_command(self.serial_connection, device_address, param_num, value)
         except Exception as e:
-            self.logger.error(f"Failed to set TC400 parameter {param_num}: {e}")
+            self.logger.error(f"Failed to set channel {channel} (addr: {device_address}) parameter {param_num}: {e}")
             raise
 
     # =============================================================================
@@ -177,42 +168,42 @@ class HiPace300Bus(PfeifferBaseDevice):
 
     def get_omni_error_code(self) -> str:
         """Get error code from OmniControl."""
-        response = self._query_omnicontrol_parameter(303)
+        response = self._query_channel_parameter('omnicontrol', 303)
         return self.data_converter.string_2_str(response)
 
     def get_omni_firmware_version(self) -> str:
         """Get firmware version from OmniControl."""
-        response = self._query_omnicontrol_parameter(312)
+        response = self._query_channel_parameter('omnicontrol', 312)
         return self.data_converter.string_2_str(response)
 
     def get_omni_device_name(self) -> str:
         """Get device designation from OmniControl."""
-        response = self._query_omnicontrol_parameter(349)
+        response = self._query_channel_parameter('omnicontrol', 349)
         return self.data_converter.string_2_str(response)
 
     def get_omni_hardware_version(self) -> str:
         """Get hardware version from OmniControl."""
-        response = self._query_omnicontrol_parameter(354)
+        response = self._query_channel_parameter('omnicontrol', 354)
         return self.data_converter.string_2_str(response)
 
     def get_omni_serial_number(self) -> str:
         """Get serial number from OmniControl."""
-        response = self._query_omnicontrol_parameter(355)
+        response = self._query_channel_parameter('omnicontrol', 355)
         return self.data_converter.string16_2_str(response)
 
     def get_omni_pressure(self) -> float:
         """Get pressure value from OmniControl."""
-        response = self._query_omnicontrol_parameter(740)
+        response = self._query_channel_parameter('omnicontrol', 740)
         return self.data_converter.u_expo_new_2_float(response)
 
     def set_omni_pressure_zero(self, zero_on: bool) -> None:
         """Set pressure zero function (0=zero on, not 0=zero off)."""
         value = "000000" if zero_on else "000001"
-        self._set_omnicontrol_parameter(740, value)
+        self._set_channel_parameter('omnicontrol', 740, value)
 
     def get_omni_rs485_address(self) -> int:
         """Get RS485 interface address from OmniControl."""
-        response = self._query_omnicontrol_parameter(797)
+        response = self._query_channel_parameter('omnicontrol', 797)
         return self.data_converter.u_integer_2_int(response)
 
     def set_omni_rs485_address(self, address: int) -> None:
@@ -220,7 +211,7 @@ class HiPace300Bus(PfeifferBaseDevice):
         if not (1 <= address <= 255):
             raise ValueError("RS485 address must be between 1-255")
         value = self.data_converter.int_2_u_integer(address)
-        self._set_omnicontrol_parameter(797, value)
+        self._set_channel_parameter('omnicontrol', 797, value)
 
     # =============================================================================
     #     TC400 Pump Control Methods
@@ -229,32 +220,32 @@ class HiPace300Bus(PfeifferBaseDevice):
     def enable_pump(self) -> None:
         """Enable/start the turbo pump."""
         value = self.data_converter.bool_2_boolean_old(True)
-        self._set_tc400_parameter(10, value)
+        self._set_channel_parameter('tc400', 10, value)
 
     def disable_pump(self) -> None:
         """Disable/stop the turbo pump."""
         value = self.data_converter.bool_2_boolean_old(False)
-        self._set_tc400_parameter(10, value)
+        self._set_channel_parameter('tc400', 10, value)
 
     def enable_heating(self) -> None:
         """Enable pump heating."""
         value = self.data_converter.bool_2_boolean_old(True)
-        self._set_tc400_parameter(1, value)
+        self._set_channel_parameter('tc400', 1, value)
 
     def disable_heating(self) -> None:
         """Disable pump heating."""
         value = self.data_converter.bool_2_boolean_old(False)
-        self._set_tc400_parameter(1, value)
+        self._set_channel_parameter('tc400', 1, value)
 
     def set_standby(self, enabled: bool) -> None:
         """Set pump standby mode."""
         value = self.data_converter.bool_2_boolean_old(enabled)
-        self._set_tc400_parameter(2, value)
+        self._set_channel_parameter('tc400', 2, value)
 
     def acknowledge_error(self) -> None:
         """Acknowledge pump errors."""
         value = self.data_converter.bool_2_boolean_old(True)
-        self._set_tc400_parameter(9, value)
+        self._set_channel_parameter('tc400', 9, value)
 
     # =============================================================================
     #     TC400 Status Query Methods
@@ -262,77 +253,77 @@ class HiPace300Bus(PfeifferBaseDevice):
 
     def get_pump_error_code(self) -> str:
         """Get error code from TC400."""
-        response = self._query_tc400_parameter(303)
+        response = self._query_channel_parameter('tc400', 303)
         return self.data_converter.string_2_str(response)
 
     def get_pump_firmware_version(self) -> str:
         """Get firmware version from TC400."""
-        response = self._query_tc400_parameter(312)
+        response = self._query_channel_parameter('tc400', 312)
         return self.data_converter.string_2_str(response)
 
     def get_pump_device_name(self) -> str:
         """Get device designation from TC400."""
-        response = self._query_tc400_parameter(349)
+        response = self._query_channel_parameter('tc400', 349)
         return self.data_converter.string_2_str(response)
 
     def get_actual_speed_hz(self) -> int:
         """Get actual pump speed in Hz."""
-        response = self._query_tc400_parameter(309)
+        response = self._query_channel_parameter('tc400', 309)
         return self.data_converter.u_integer_2_int(response)
 
     def get_actual_speed_rpm(self) -> int:
         """Get actual pump speed in RPM."""
-        response = self._query_tc400_parameter(398)
+        response = self._query_channel_parameter('tc400', 398)
         return self.data_converter.u_integer_2_int(response)
 
     def get_target_speed_hz(self) -> int:
         """Get target pump speed in Hz."""
-        response = self._query_tc400_parameter(308)
+        response = self._query_channel_parameter('tc400', 308)
         return self.data_converter.u_integer_2_int(response)
 
     def get_drive_current(self) -> float:
         """Get drive current in A."""
-        response = self._query_tc400_parameter(310)
+        response = self._query_channel_parameter('tc400', 310)
         return self.data_converter.u_real_2_float(response)
 
     def get_drive_voltage(self) -> float:
         """Get drive voltage in V."""
-        response = self._query_tc400_parameter(313)
+        response = self._query_channel_parameter('tc400', 313)
         return self.data_converter.u_real_2_float(response)
 
     def get_drive_power(self) -> int:
         """Get drive power in W."""
-        response = self._query_tc400_parameter(316)
+        response = self._query_channel_parameter('tc400', 316)
         return self.data_converter.u_integer_2_int(response)
 
     def get_operating_hours_pump(self) -> int:
         """Get operating hours of pump in hours."""
-        response = self._query_tc400_parameter(311)
+        response = self._query_channel_parameter('tc400', 311)
         return self.data_converter.u_integer_2_int(response)
 
     def get_electronics_temperature(self) -> int:
         """Get electronics temperature in °C."""
-        response = self._query_tc400_parameter(326)
+        response = self._query_channel_parameter('tc400', 326)
         return self.data_converter.u_integer_2_int(response)
 
     def get_pump_bottom_temperature(self) -> int:
         """Get pump bottom temperature in °C."""
-        response = self._query_tc400_parameter(330)
+        response = self._query_channel_parameter('tc400', 330)
         return self.data_converter.u_integer_2_int(response)
 
     def get_bearing_temperature(self) -> int:
         """Get bearing temperature in °C."""
-        response = self._query_tc400_parameter(342)
+        response = self._query_channel_parameter('tc400', 342)
         return self.data_converter.u_integer_2_int(response)
 
     def is_target_speed_reached(self) -> bool:
         """Check if target speed is reached."""
-        response = self._query_tc400_parameter(306)
+        response = self._query_channel_parameter('tc400', 306)
         return self.data_converter.boolean_old_2_bool(response)
 
     def is_pump_accelerating(self) -> bool:
         """Check if pump is accelerating."""
-        response = self._query_tc400_parameter(307)
+        response = self._query_channel_parameter('tc400', 307)
         return self.data_converter.boolean_old_2_bool(response)
 
     # =============================================================================
@@ -344,11 +335,11 @@ class HiPace300Bus(PfeifferBaseDevice):
         if not (0.0 <= speed_percent <= 100.0):
             raise ValueError("Speed setpoint must be between 0-100%")
         value = self.data_converter.float_2_u_real(speed_percent)
-        self._set_tc400_parameter(707, value)
+        self._set_channel_parameter('tc400', 707, value)
 
     def get_speed_setpoint(self) -> float:
         """Get speed control setpoint in percent."""
-        response = self._query_tc400_parameter(707)
+        response = self._query_channel_parameter('tc400', 707)
         return self.data_converter.u_real_2_float(response)
 
     def set_rs485_address(self, address: int) -> None:
@@ -356,11 +347,11 @@ class HiPace300Bus(PfeifferBaseDevice):
         if not (1 <= address <= 255):
             raise ValueError("RS485 address must be between 1-255")
         value = self.data_converter.int_2_u_integer(address)
-        self._set_tc400_parameter(797, value)
+        self._set_channel_parameter('tc400', 797, value)
 
     def get_rs485_address(self) -> int:
         """Get RS485 address from TC400."""
-        response = self._query_tc400_parameter(797)
+        response = self._query_channel_parameter('tc400', 797)
         return self.data_converter.u_integer_2_int(response)
 
     # =============================================================================
