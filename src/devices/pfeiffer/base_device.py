@@ -41,7 +41,7 @@ class PfeifferBaseDevice:
         logger: Optional[logging.Logger] = None,
         hk_thread: Optional[threading.Thread] = None,
         thread_lock: Optional[threading.Lock] = None,
-        hk_interval: float = 30.0,  # Housekeeping interval in seconds
+        hk_interval: float = 1.0,  # Housekeeping interval in seconds
         **kwargs,
     ):
         """

@@ -29,17 +29,17 @@ class TPG366(PfeifferBaseDevice):
     """
 
     def __init__(
-        self,
-        device_id: str,
-        port: str,
-        device_address: int = 1,  # TPG366 standard address
-        baudrate: int = 9600,
-        timeout: float = 2.0,
-        logger: Optional[logging.Logger] = None,
-        hk_thread: Optional[threading.Thread] = None,
-        thread_lock: Optional[threading.Lock] = None,
-        hk_interval: float = 30.0,
-        **kwargs,
+            self,
+            device_id: str,
+            port: str,
+            device_address: int = 1,  # TPG366 standard address
+            baudrate: int = 9600,
+            timeout: float = 2.0,
+            logger: Optional[logging.Logger] = None,
+            hk_thread: Optional[threading.Thread] = None,
+            thread_lock: Optional[threading.Lock] = None,
+            hk_interval: float = 30.0,
+            **kwargs,
     ):
         """
         Initialize TPG366 device.
@@ -72,7 +72,7 @@ class TPG366(PfeifferBaseDevice):
     # =============================================================================
     #     Channel-Specific Communication Helper
     # =============================================================================
-    
+
     def _query_channel_parameter(self, channel: int, param_num: int) -> str:
         """
         Query a parameter from a specific TPG366 sensor channel.
@@ -90,13 +90,13 @@ class TPG366(PfeifferBaseDevice):
         """
         if not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
-            
+
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
 
         # Calculate channel address: base_address + channel
         channel_address = self.device_address + channel
-        
+
         try:
             with self.thread_lock:  # Thread-safe communication
                 from ..pfeifferVacuumProtocol import query_data
@@ -120,13 +120,13 @@ class TPG366(PfeifferBaseDevice):
         """
         if not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
-            
+
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
 
         # Calculate channel address: base_address + channel
         channel_address = self.device_address + channel
-        
+
         try:
             with self.thread_lock:  # Thread-safe communication
                 from ..pfeifferVacuumProtocol import write_command
@@ -239,7 +239,7 @@ class TPG366(PfeifferBaseDevice):
         """
         if not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
-            
+
         response = self._query_channel_parameter(channel, 740)
         return self.data_converter.u_expo_new_2_float(response)
 
@@ -321,7 +321,7 @@ class TPG366(PfeifferBaseDevice):
     def get_firmware_version(self) -> str:
         """Alias for get_software_version."""
         return self.get_software_version()
-    #ToDO: get sensor name, try if get serial number works on sensors as well as on base device
+
     def get_device_name(self) -> str:
         """Alias for get_electronics_name."""
         return self.get_electronics_name()
@@ -376,5 +376,26 @@ class TPG366(PfeifferBaseDevice):
                 self.logger.error(f"Failed to set correction factor for channel {channel}: {e}")
 
     def hk_monitor(self):
-        #TODO: Implement housekeeping monitoring for TPG366
-        return super().hk_monitor()
+        try:
+            a = self.read_all_pressures()
+
+            self.custom_logger(
+                self.device_id, self.port, "Sensor_CH1_Press", a[1], "hPa"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Sensor_CH2_Press", a[2], "hPa"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Sensor_CH3_Press", a[3], "hPa"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Sensor_CH4_Press", a[4], "hPa"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Sensor_CH5_Press", a[5], "hPa"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Sensor_CH6_Press", a[6], "hPa"
+            )
+        except Exception as e:
+            self.logger.error(f"Housekeeping monitoring failed: {e}")
