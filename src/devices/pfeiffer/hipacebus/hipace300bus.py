@@ -196,12 +196,6 @@ class HiPace300Bus(PfeifferBaseDevice):
         response = self._query_channel_parameter('gauge1', 740)
         return self.data_converter.u_expo_new_2_float(response)
 
-    # TODO Delete
-    #def set_omni_pressure_zero(self, zero_on: bool) -> None:
-    #    """Set pressure zero function (0=zero on, not 0=zero off)."""
-    #    value = "000000" if zero_on else "000001"
-    #    self._set_channel_parameter('omnicontrol', 740, value)
-
     def get_omni_rs485_address(self) -> int:
         """Get RS485 interface address from OmniControl."""
         response = self._query_channel_parameter('omnicontrol', 797)
@@ -242,6 +236,11 @@ class HiPace300Bus(PfeifferBaseDevice):
         """Set pump standby mode."""
         value = self.data_converter.bool_2_boolean_old(enabled)
         self._set_channel_parameter('tc400', 2, value)
+
+    def get_standby(self) -> bool:
+        """Get pump standby mode status."""
+        response = self._query_channel_parameter('tc400', 2)
+        return self.data_converter.boolean_old_2_bool(response)
 
     def acknowledge_error(self) -> None:
         """Acknowledge pump errors."""
