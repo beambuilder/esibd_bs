@@ -5,6 +5,8 @@ This module provides the HiPace300Bus class for communicating with Pfeiffer
 HiPace300Bus turbo molecular pumps via serial communication using the 
 telegram frame protocol.
 """
+# TODO: Configure operation modes (see Manual)
+
 from typing import Optional
 import logging
 import threading
@@ -212,16 +214,6 @@ class HiPace300Bus(PfeifferBaseDevice):
     #     TC400 Pump Control Methods
     # =============================================================================
 
-    def enable_pump(self) -> None:
-        """Enable/start the turbo pump."""
-        value = self.data_converter.bool_2_boolean_old(True)
-        self._set_channel_parameter('tc400', 10, value)
-
-    def disable_pump(self) -> None:
-        """Disable/stop the turbo pump."""
-        value = self.data_converter.bool_2_boolean_old(False)
-        self._set_channel_parameter('tc400', 10, value)
-
     def enable_heating(self) -> None:
         """Enable pump heating."""
         value = self.data_converter.bool_2_boolean_old(True)
@@ -247,9 +239,174 @@ class HiPace300Bus(PfeifferBaseDevice):
         value = self.data_converter.bool_2_boolean_old(True)
         self._set_channel_parameter('tc400', 9, value)
 
+    def enable_pumpStatn(self) -> None:
+        """Enable/start the turbo pump Station."""
+        value = self.data_converter.bool_2_boolean_old(True)
+        self._set_channel_parameter('tc400', 10, value)
+
+    def disable_pumpStatn(self) -> None:
+        """Disable/stop the turbo pump Station."""
+        value = self.data_converter.bool_2_boolean_old(False)
+        self._set_channel_parameter('tc400', 10, value)
+
+    def get_pumpStatn_enabled(self) -> bool:
+        """Get pump station enabled status."""
+        response = self._query_channel_parameter('tc400', 10)
+        return self.data_converter.boolean_old_2_bool(response)
+
+    def enable_vent(self) -> None:
+        """Enable venting (EnableVent)."""
+        value = self.data_converter.bool_2_boolean_old(True)
+        self._set_channel_parameter('tc400', 12, value)
+
+    def disable_vent(self) -> None:
+        """Disable venting (EnableVent)."""
+        value = self.data_converter.bool_2_boolean_old(False)
+        self._set_channel_parameter('tc400', 12, value)
+
+    def get_vent_enabled(self) -> bool:
+        """Get venting enabled status (EnableVent)."""
+        response = self._query_channel_parameter('tc400', 12)
+        return self.data_converter.boolean_old_2_bool(response)
+
+    def enable_motor_pump(self) -> None:
+        """Enable motor pump (MotorPump)."""
+        value = self.data_converter.bool_2_boolean_old(True)
+        self._set_channel_parameter('tc400', 23, value)
+
+    def disable_motor_pump(self) -> None:
+        """Disable motor pump (MotorPump)."""
+        value = self.data_converter.bool_2_boolean_old(False)
+        self._set_channel_parameter('tc400', 23, value)
+
+    def get_motor_pump_enabled(self) -> bool:
+        """Get motor pump enabled status (MotorPump)."""
+        response = self._query_channel_parameter('tc400', 23)
+        return self.data_converter.boolean_old_2_bool(response)
+
+    def enable_speed_set_mode(self) -> None:
+        """Enable rotation speed setting mode (SpdSetMode)."""
+        value = self.data_converter.int_2_u_short_int(1)
+        self._set_channel_parameter('tc400', 26, value)
+
+    def disable_speed_set_mode(self) -> None:
+        """Disable rotation speed setting mode (SpdSetMode)."""
+        value = self.data_converter.int_2_u_short_int(0)
+        self._set_channel_parameter('tc400', 26, value)
+
+    def get_speed_set_mode_enabled(self) -> bool:
+        """Get rotation speed setting mode status (SpdSetMode)."""
+        response = self._query_channel_parameter('tc400', 26)
+        mode_value = self.data_converter.u_short_int_2_int(response)
+        return mode_value == 1
+
+    def set_gas_mode(self, mode: int) -> None:
+        """Set gas mode (GasMode). 0=heavy gases, 1=light gases, 2=helium."""
+        if mode not in [0, 1, 2]:
+            raise ValueError("Gas mode must be 0 (heavy gases), 1 (light gases), or 2 (helium)")
+        value = self.data_converter.int_2_u_short_int(mode)
+        self._set_channel_parameter('tc400', 27, value)
+
+    def get_gas_mode(self) -> int:
+        """Get gas mode (GasMode). 0=heavy gases, 1=light gases, 2=helium."""
+        response = self._query_channel_parameter('tc400', 27)
+        return self.data_converter.u_short_int_2_int(response)
+
+    def set_vent_mode(self, mode: int) -> None:
+        """Set venting mode (VentMode). 0=delayed venting, 1=no venting, 2=direct venting."""
+        if mode not in [0, 1, 2]:
+            raise ValueError("Vent mode must be 0 (delayed venting), 1 (no venting), or 2 (direct venting)")
+        value = self.data_converter.int_2_u_short_int(mode)
+        self._set_channel_parameter('tc400', 30, value)
+
+    def get_vent_mode(self) -> int:
+        """Get venting mode (VentMode). 0=delayed venting, 1=no venting, 2=direct venting."""
+        response = self._query_channel_parameter('tc400', 30)
+        return self.data_converter.u_short_int_2_int(response)
+
+    def _validate_accessory_config(self, config: int) -> None:
+        """Validate accessory configuration value."""
+        valid_configs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14]
+        if config not in valid_configs:
+            raise ValueError(f"Configuration must be one of {valid_configs}")
+
+    def _set_accessory_config(self, connection: str, param_num: int, config: int) -> None:
+        """Set configuration for an accessory connection."""
+        self._validate_accessory_config(config)
+        value = self.data_converter.int_2_u_short_int(config)
+        self._set_channel_parameter('tc400', param_num, value)
+
+    def _get_accessory_config(self, param_num: int) -> int:
+        """Get configuration for an accessory connection."""
+        response = self._query_channel_parameter('tc400', param_num)
+        return self.data_converter.u_short_int_2_int(response)
+
+    def set_cfg_acc_a1(self, config: int) -> None:
+        """
+        Set configuration for accessory connection A1 (CfgAccA1).
+        
+        Args:
+            config: Configuration value:
+                0 = Fan, 1 = Venting valve, 2 = Heating, 3 = Backing pump,
+                4 = Fan (temperature controlled), 5 = Sealing gas, 6 = Always "0",
+                7 = Always "1", 8 = Power failure venting unit, 9 = TMS Heating,
+                10 = TMS Cooling, 12 = Second venting valve, 13 = Sealing Gas monitoring,
+                14 = Heating (bottom part temperature controlled)
+        """
+        self._set_accessory_config('A1', 35, config)
+
+    def get_cfg_acc_a1(self) -> int:
+        """Get configuration for accessory connection A1 (CfgAccA1)."""
+        return self._get_accessory_config(35)
+
+    def set_cfg_acc_b1(self, config: int) -> None:
+        """
+        Set configuration for accessory connection B1 (CfgAccB1).
+        
+        Args:
+            config: Configuration value (same options as A1)
+        """
+        self._set_accessory_config('B1', 36, config)
+
+    def get_cfg_acc_b1(self) -> int:
+        """Get configuration for accessory connection B1 (CfgAccB1)."""
+        return self._get_accessory_config(36)
+
+    def set_cfg_acc_a2(self, config: int) -> None:
+        """
+        Set configuration for accessory connection A2 (CfgAccA2).
+        
+        Args:
+            config: Configuration value (same options as A1)
+        """
+        self._set_accessory_config('A2', 37, config)
+
+    def get_cfg_acc_a2(self) -> int:
+        """Get configuration for accessory connection A2 (CfgAccA2)."""
+        return self._get_accessory_config(37)
+
+    def set_cfg_acc_b2(self, config: int) -> None:
+        """
+        Set configuration for accessory connection B2 (CfgAccB2).
+        
+        Args:
+            config: Configuration value (same options as A1)
+        """
+        self._set_accessory_config('B2', 38, config)
+
+    def get_cfg_acc_b2(self) -> int:
+        """Get configuration for accessory connection B2 (CfgAccB2)."""
+        return self._get_accessory_config(38)
+
+
     # =============================================================================
     #     TC400 Status Query Methods
     # =============================================================================
+
+    def get_rotationspd_SwP_reached(self) -> str:
+        """Rotationspeed switchpointed reached."""
+        response = self._query_channel_parameter('tc400', 302)
+        return self.data_converter.boolean_old_2_bool(response)
 
     def get_pump_error_code(self) -> str:
         """Get error code from TC400."""
@@ -408,6 +565,18 @@ class HiPace300Bus(PfeifferBaseDevice):
         """Get speed control setpoint in percent."""
         response = self._query_channel_parameter('tc400', 707)
         return self.data_converter.u_real_2_float(response)
+
+    def set_power_setpoint(self, power_percent: int) -> None:
+        """Set power consumption setpoint in percent (PwrSVal)."""
+        if not (10 <= power_percent <= 100):
+            raise ValueError("Power setpoint must be between 10-100%")
+        value = self.data_converter.int_2_u_short_int(power_percent)
+        self._set_channel_parameter('tc400', 708, value)
+
+    def get_power_setpoint(self) -> int:
+        """Get power consumption setpoint in percent (PwrSVal)."""
+        response = self._query_channel_parameter('tc400', 708)
+        return self.data_converter.u_short_int_2_int(response)
 
     def set_rs485_address(self, address: int) -> None:
         """
