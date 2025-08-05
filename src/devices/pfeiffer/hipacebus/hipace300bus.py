@@ -256,65 +256,15 @@ class HiPace300Bus(PfeifferBaseDevice):
         response = self._query_channel_parameter('tc400', 303)
         return self.data_converter.string_2_str(response)
 
-    def get_pump_firmware_version(self) -> str:
-        """Get firmware version from TC400."""
-        response = self._query_channel_parameter('tc400', 312)
-        return self.data_converter.string_2_str(response)
+    def is_overtemperature_electronics(self) -> bool:
+        """Check if drive electronics is overtemperature (OvTempElec)."""
+        response = self._query_channel_parameter('tc400', 304)
+        return self.data_converter.boolean_old_2_bool(response)
 
-    def get_pump_device_name(self) -> str:
-        """Get device designation from TC400."""
-        response = self._query_channel_parameter('tc400', 349)
-        return self.data_converter.string_2_str(response)
-
-    def get_actual_speed_hz(self) -> int:
-        """Get actual pump speed in Hz."""
-        response = self._query_channel_parameter('tc400', 309)
-        return self.data_converter.u_integer_2_int(response)
-
-    def get_actual_speed_rpm(self) -> int:
-        """Get actual pump speed in RPM."""
-        response = self._query_channel_parameter('tc400', 398)
-        return self.data_converter.u_integer_2_int(response)
-
-    def get_target_speed_hz(self) -> int:
-        """Get target pump speed in Hz."""
-        response = self._query_channel_parameter('tc400', 308)
-        return self.data_converter.u_integer_2_int(response)
-
-    def get_drive_current(self) -> float:
-        """Get drive current in A."""
-        response = self._query_channel_parameter('tc400', 310)
-        return self.data_converter.u_real_2_float(response)
-
-    def get_drive_voltage(self) -> float:
-        """Get drive voltage in V."""
-        response = self._query_channel_parameter('tc400', 313)
-        return self.data_converter.u_real_2_float(response)
-
-    def get_drive_power(self) -> int:
-        """Get drive power in W."""
-        response = self._query_channel_parameter('tc400', 316)
-        return self.data_converter.u_integer_2_int(response)
-
-    def get_operating_hours_pump(self) -> int:
-        """Get operating hours of pump in hours."""
-        response = self._query_channel_parameter('tc400', 311)
-        return self.data_converter.u_integer_2_int(response)
-
-    def get_electronics_temperature(self) -> int:
-        """Get electronics temperature in °C."""
-        response = self._query_channel_parameter('tc400', 326)
-        return self.data_converter.u_integer_2_int(response)
-
-    def get_pump_bottom_temperature(self) -> int:
-        """Get pump bottom temperature in °C."""
-        response = self._query_channel_parameter('tc400', 330)
-        return self.data_converter.u_integer_2_int(response)
-
-    def get_bearing_temperature(self) -> int:
-        """Get bearing temperature in °C."""
-        response = self._query_channel_parameter('tc400', 342)
-        return self.data_converter.u_integer_2_int(response)
+    def is_overtemperature_pump(self) -> bool:
+        """Check if vacuum pump is overtemperature (OvTempPump)."""
+        response = self._query_channel_parameter('tc400', 305)
+        return self.data_converter.boolean_old_2_bool(response)
 
     def is_target_speed_reached(self) -> bool:
         """Check if target speed is reached."""
@@ -325,6 +275,113 @@ class HiPace300Bus(PfeifferBaseDevice):
         """Check if pump is accelerating."""
         response = self._query_channel_parameter('tc400', 307)
         return self.data_converter.boolean_old_2_bool(response)
+
+    def get_set_speed_hz(self) -> int:
+        """Get set pump speed in Hz."""
+        response = self._query_channel_parameter('tc400', 308)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_actual_speed_hz(self) -> int:
+        """Get actual pump speed in Hz."""
+        response = self._query_channel_parameter('tc400', 309)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_drive_current(self) -> float:
+        """Get drive current in A."""
+        response = self._query_channel_parameter('tc400', 310)
+        return self.data_converter.u_real_2_float(response)
+    
+    def get_operating_hours_pump(self) -> int:
+        """Get operating hours of pump in hours."""
+        response = self._query_channel_parameter('tc400', 311)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_pump_firmware_version(self) -> str:
+        """Get firmware version from TC400."""
+        response = self._query_channel_parameter('tc400', 312)
+        return self.data_converter.string_2_str(response)
+    
+    def get_drive_voltage(self) -> float:
+        """Get drive voltage in V."""
+        response = self._query_channel_parameter('tc400', 313)
+        return self.data_converter.u_real_2_float(response)
+
+    def get_operating_hours_electronics(self) -> int:
+        """Get operating hours of drive electronics in hours (OpHrsElec)."""
+        response = self._query_channel_parameter('tc400', 314)
+        return self.data_converter.u_integer_2_int(response)
+    
+    def get_nominal_speed_hz(self) -> int:
+        """Get nominal pump speed in Hz."""
+        response = self._query_channel_parameter('tc400', 315)
+        return self.data_converter.u_integer_2_int(response)
+    
+    def get_drive_power(self) -> int:
+        """Get drive power in W."""
+        response = self._query_channel_parameter('tc400', 316)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_pump_cycles(self) -> int:
+        """Get number of pump cycles (PumpCycles)."""
+        response = self._query_channel_parameter('tc400', 319)
+        return self.data_converter.u_integer_2_int(response)
+    
+    def get_electronics_temperature(self) -> int:
+        """Get electronics temperature in °C."""
+        response = self._query_channel_parameter('tc400', 326)
+        return self.data_converter.u_integer_2_int(response)
+    
+    def get_pump_bottom_temperature(self) -> int:
+        """Get pump bottom temperature in °C."""
+        response = self._query_channel_parameter('tc400', 330)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_acceleration_deceleration(self) -> int:
+        """Get acceleration/deceleration in rpm/s (AccelDecel)."""
+        response = self._query_channel_parameter('tc400', 336)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_seal_gas_flow(self) -> int:
+        """Get seal gas flow in sccm (SealGasFlw)."""
+        response = self._query_channel_parameter('tc400', 337)
+        return self.data_converter.u_integer_2_int(response)
+    
+    def get_bearing_temperature(self) -> int:
+        """Get bearing temperature in °C."""
+        response = self._query_channel_parameter('tc400', 342)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_motor_temperature(self) -> int:
+        """Get motor temperature in °C (TempMotor)."""
+        response = self._query_channel_parameter('tc400', 346)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_pump_device_name(self) -> str:
+        """Get device designation from TC400."""
+        response = self._query_channel_parameter('tc400', 349)
+        return self.data_converter.string_2_str(response)
+
+    def get_pump_hardware_version(self) -> str:
+        """Get hardware version of drive electronics (Antriebselektronik)."""
+        response = self._query_channel_parameter('tc400', 354)
+        return self.data_converter.string_2_str(response)
+
+    def get_set_speed_rpm(self) -> int:
+        """Get set pump speed in RPM."""
+        response = self._query_channel_parameter('tc400', 397)
+        return self.data_converter.u_integer_2_int(response)
+
+    def get_actual_speed_rpm(self) -> int:
+        """Get actual pump speed in RPM."""
+        response = self._query_channel_parameter('tc400', 398)
+        return self.data_converter.u_integer_2_int(response)
+    
+    def get_nominal_speed_rpm(self) -> int:
+        """Get nominal pump speed in RPM."""
+        response = self._query_channel_parameter('tc400', 399)
+        return self.data_converter.u_integer_2_int(response)
+
+
 
     # =============================================================================
     #     TC400 Setpoint Methods
@@ -369,7 +426,7 @@ class HiPace300Bus(PfeifferBaseDevice):
         try:
             status['actual_speed_hz'] = self.get_actual_speed_hz()
             status['actual_speed_rpm'] = self.get_actual_speed_rpm()
-            status['target_speed_hz'] = self.get_target_speed_hz()
+            status['set_speed_hz'] = self.get_set_speed_hz()
             status['drive_current'] = self.get_drive_current()
             status['drive_voltage'] = self.get_drive_voltage()
             status['drive_power'] = self.get_drive_power()
