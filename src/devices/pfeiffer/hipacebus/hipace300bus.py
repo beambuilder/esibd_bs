@@ -381,16 +381,26 @@ class HiPace300Bus(PfeifferBaseDevice):
         response = self._query_channel_parameter('tc400', 399)
         return self.data_converter.u_integer_2_int(response)
 
-
-
     # =============================================================================
     #     TC400 Setpoint Methods
     # =============================================================================
 
+    def set_ramp_up_time(self, time_minutes: int) -> None:
+        """Set ramp-up time setpoint in minutes (RUTimeSVal)."""
+        if not (1 <= time_minutes <= 120):
+            raise ValueError("Ramp-up time must be between 1-120 minutes")
+        value = self.data_converter.int_2_u_integer(time_minutes)
+        self._set_channel_parameter('tc400', 700, value)
+
+    def get_ramp_up_time(self) -> int:
+        """Get ramp-up time setpoint in minutes (RUTimeSVal)."""
+        response = self._query_channel_parameter('tc400', 700)
+        return self.data_converter.u_integer_2_int(response)
+
     def set_speed_setpoint(self, speed_percent: float) -> None:
         """Set speed control setpoint in percent."""
-        if not (0.0 <= speed_percent <= 100.0):
-            raise ValueError("Speed setpoint must be between 0-100%")
+        if not (20.0 <= speed_percent <= 100.0):
+            raise ValueError("Speed setpoint must be between 20-100%")
         value = self.data_converter.float_2_u_real(speed_percent)
         self._set_channel_parameter('tc400', 707, value)
 
@@ -400,11 +410,55 @@ class HiPace300Bus(PfeifferBaseDevice):
         return self.data_converter.u_real_2_float(response)
 
     def set_rs485_address(self, address: int) -> None:
-        """Set RS485 address for TC400."""
+        """
+        Set RS485 address for TC400 and update class parameter if successful.
+        
+        This function sets the new RS485 address on the TC400 device, then verifies
+        the change by querying the device at the new address. If the device responds
+        correctly, the class tc400_address parameter is updated.
+        
+        Args:
+            address: New RS485 address (1-255)
+            
+        Raises:
+            ValueError: If address is out of valid range
+            Exception: If device communication fails or address change verification fails
+        """
         if not (1 <= address <= 255):
             raise ValueError("RS485 address must be between 1-255")
-        value = self.data_converter.int_2_u_integer(address)
-        self._set_channel_parameter('tc400', 797, value)
+        
+        # Store original address for rollback if needed
+        original_address = self.tc400_address
+        
+        try:
+            # Set the new address on the device
+            value = self.data_converter.int_2_u_integer(address)
+            self._set_channel_parameter('tc400', 797, value)
+            
+            # Update the class address temporarily for verification
+            self.tc400_address = address
+            self.channel_addresses['tc400'] = address
+            
+            # Verify the address change by querying the device at the new address
+            # Query parameter 797 (RS485 address) to confirm the change
+            response = self._query_channel_parameter('tc400', 797)
+            verified_address = self.data_converter.u_integer_2_int(response)
+            
+            if verified_address == address:
+                # Address change successful, keep the new address
+                self.logger.info(f"Successfully changed TC400 RS485 address from {original_address} to {address}")
+            else:
+                # Address verification failed, rollback
+                self.tc400_address = original_address
+                self.channel_addresses['tc400'] = original_address
+                raise Exception(f"Address verification failed. Expected {address}, got {verified_address}")
+                
+        except Exception as e:
+            # Rollback address change on any error
+            self.tc400_address = original_address
+            self.channel_addresses['tc400'] = original_address
+            self.logger.error(f"Failed to change TC400 RS485 address to {address}: {e}")
+            raise Exception(f"Failed to set RS485 address to {address}: {e}")
 
     def get_rs485_address(self) -> int:
         """Get RS485 address from TC400."""
