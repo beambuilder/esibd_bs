@@ -74,29 +74,27 @@ class PfeifferBaseDevice:
         self.hk_interval = hk_interval
         self.hk_running = False
         self.hk_stop_event = threading.Event()
-        
+
         # Determine if using external or internal thread management
         self.external_thread = hk_thread is not None
         self.external_lock = thread_lock is not None
-        
+
         # Setup thread lock (for serial communication)
         if thread_lock is not None:
             self.thread_lock = thread_lock
         else:
             self.thread_lock = threading.Lock()
-            
+
         # Setup housekeeping lock (separate from communication lock)
         self.hk_lock = threading.Lock()
-            
+
         # Setup housekeeping thread
         if hk_thread is not None:
             self.hk_thread = hk_thread
             # For external threads, we don't manage the thread lifecycle
         else:
             self.hk_thread = threading.Thread(
-                target=self._hk_worker,
-                name=f"HK_{device_id}",
-                daemon=True
+                target=self._hk_worker, name=f"HK_{device_id}", daemon=True
             )
 
         # Setup logger
@@ -140,11 +138,11 @@ class PfeifferBaseDevice:
     def enable_file_logging(self) -> bool:
         """
         Enable file logging if not already enabled.
-        
+
         If an external logger was passed to the constructor, this method will not
         create additional file handlers and will use the external logger instead.
         For internal loggers, this method checks if file logging is already enabled.
-        
+
         Returns:
             bool: True if file logging is enabled, False if it failed
         """
@@ -152,20 +150,24 @@ class PfeifferBaseDevice:
             # If external logger was provided, don't create additional file handlers
             # The external logger should handle its own file logging
             if self._external_logger_provided:
-                self.logger.info("Using external logger - no additional file logging needed")
+                self.logger.info(
+                    "Using external logger - no additional file logging needed"
+                )
                 return True
-            
+
             # For internal loggers, check if we already have a file handler
             for handler in self.logger.handlers:
                 if isinstance(handler, logging.FileHandler):
                     self.logger.info("File logging already enabled")
                     return True
-            
+
             # This should not happen for internal loggers since we create the file handler
             # during initialization, but just in case...
-            self.logger.warning("Internal logger missing file handler - this should not happen")
+            self.logger.warning(
+                "Internal logger missing file handler - this should not happen"
+            )
             return False
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to check file logging: {e}")
             return False
@@ -178,12 +180,16 @@ class PfeifferBaseDevice:
             bool: True if connection successful, False otherwise
         """
         try:
-            self.logger.info(f"Connecting to Pfeiffer device {self.device_id} on {self.port}")
+            self.logger.info(
+                f"Connecting to Pfeiffer device {self.device_id} on {self.port}"
+            )
             self.serial_connection = serial.Serial(
                 self.port, self.baudrate, timeout=self.timeout
             )
             self.is_connected = True
-            self.logger.info(f"Successfully connected to device at address {self.device_address}")
+            self.logger.info(
+                f"Successfully connected to device at address {self.device_address}"
+            )
             return True
         except Exception as e:
             self.logger.error(f"Failed to connect to Pfeiffer device: {e}")
@@ -199,7 +205,7 @@ class PfeifferBaseDevice:
         try:
             # Stop housekeeping before disconnecting
             self.stop_housekeeping()
-            
+
             if self.serial_connection:
                 self.serial_connection.close()
             self.is_connected = False
@@ -246,7 +252,9 @@ class PfeifferBaseDevice:
 
         try:
             with self.thread_lock:  # Thread-safe communication
-                return query_data(self.serial_connection, self.device_address, param_num)
+                return query_data(
+                    self.serial_connection, self.device_address, param_num
+                )
         except Exception as e:
             self.logger.error(f"Failed to query parameter {param_num}: {e}")
             raise
@@ -270,7 +278,9 @@ class PfeifferBaseDevice:
 
         try:
             with self.thread_lock:  # Thread-safe communication
-                return write_command(self.serial_connection, self.device_address, param_num, data_str)
+                return write_command(
+                    self.serial_connection, self.device_address, param_num, data_str
+                )
         except Exception as e:
             self.logger.error(f"Failed to write parameter {param_num}: {e}")
             raise
@@ -288,7 +298,11 @@ class PfeifferBaseDevice:
             # Base implementation - log basic status
             status = self.get_status()
             self.custom_logger(
-                self.device_id, self.port, "Status", "Connected" if self.is_connected else "Disconnected", ""
+                self.device_id,
+                self.port,
+                "Status",
+                "Connected" if self.is_connected else "Disconnected",
+                "",
             )
         except Exception as e:
             self.logger.error(f"Housekeeping monitoring failed: {e}")
@@ -300,26 +314,26 @@ class PfeifferBaseDevice:
     def start_housekeeping(self, interval=-1, log_to_file=True) -> bool:
         """
         Start housekeeping monitoring. Works automatically in both internal and external thread modes.
-        
+
         - Internal mode (no thread passed to __init__): Creates and manages its own thread
         - External mode (thread passed to __init__): Enables monitoring for external thread control
-        
+
         Args:
             interval (int): Monitoring interval in seconds (default: 30)
             log_to_file (bool): Whether to enable file logging (default: True)
-        
+
         Returns:
             bool: True if started successfully, False otherwise
         """
         if not self.is_connected:
             self.logger.warning("Cannot start housekeeping: device not connected")
             return False
-            
+
         with self.hk_lock:
             if self.hk_running:
                 self.logger.warning("Housekeeping already running")
                 return True
-            
+
             try:
                 self.hk_running = True
                 if interval > 0:
@@ -328,29 +342,35 @@ class PfeifferBaseDevice:
                     interval = self.hk_interval
 
                 self.hk_stop_event.clear()
-                
+
                 # Enable file logging if requested
                 if log_to_file:
                     self.enable_file_logging()
-                
+
                 if self.external_thread:
                     # External mode: Just enable monitoring, external code controls the thread
-                    self.logger.info(f"Housekeeping enabled (external mode) - interval: {interval}s")
-                    self.logger.info("Use do_housekeeping_cycle() in your external thread")
+                    self.logger.info(
+                        f"Housekeeping enabled (external mode) - interval: {interval}s"
+                    )
+                    self.logger.info(
+                        "Use do_housekeeping_cycle() in your external thread"
+                    )
                 else:
                     # Internal mode: Start our own thread
                     if not self.hk_thread.is_alive():
                         self.hk_thread = threading.Thread(
                             target=self._hk_worker,
                             name=f"HK_{self.device_id}",
-                            daemon=True
+                            daemon=True,
                         )
                         self.hk_thread.start()
-                    
-                    self.logger.info(f"Housekeeping started (internal mode) - interval: {interval}s")
-                
+
+                    self.logger.info(
+                        f"Housekeeping started (internal mode) - interval: {interval}s"
+                    )
+
                 return True
-                
+
             except Exception as e:
                 self.logger.error(f"Failed to start housekeeping: {e}")
                 self.hk_running = False
@@ -359,18 +379,18 @@ class PfeifferBaseDevice:
     def stop_housekeeping(self) -> bool:
         """
         Stop housekeeping monitoring. Works in both internal and external modes.
-        
+
         Returns:
             bool: True if stopped successfully, False otherwise
         """
         if not self.hk_running:
             return True
-            
+
         with self.hk_lock:
             try:
                 self.hk_running = False
                 self.hk_stop_event.set()
-                
+
                 if self.external_thread:
                     # External mode: Just signal to stop
                     self.logger.info("Housekeeping stopped (external mode)")
@@ -379,12 +399,14 @@ class PfeifferBaseDevice:
                     if self.hk_thread and self.hk_thread.is_alive():
                         self.hk_thread.join(timeout=5.0)
                         if self.hk_thread.is_alive():
-                            self.logger.warning("Housekeeping thread did not stop within timeout")
-                    
+                            self.logger.warning(
+                                "Housekeeping thread did not stop within timeout"
+                            )
+
                     self.logger.info("Housekeeping stopped (internal mode)")
-                
+
                 return True
-                
+
             except Exception as e:
                 self.logger.error(f"Failed to stop housekeeping: {e}")
                 return False
@@ -395,37 +417,37 @@ class PfeifferBaseDevice:
         Runs continuously until stop_event is set.
         """
         self.logger.info(f"Housekeeping worker started for {self.device_id}")
-        
+
         while not self.hk_stop_event.is_set() and self.hk_running:
             try:
                 if self.is_connected:
                     self.hk_monitor()
                 else:
                     self.logger.warning("Device disconnected, pausing housekeeping")
-                    
+
                 # Wait for interval or stop event
                 self.hk_stop_event.wait(timeout=self.hk_interval)
-                
+
             except Exception as e:
                 self.logger.error(f"Housekeeping error: {e}")
                 # Continue running even after errors
                 self.hk_stop_event.wait(timeout=self.hk_interval)
-                
+
         self.logger.info(f"Housekeeping worker stopped for {self.device_id}")
 
     def do_housekeeping_cycle(self) -> bool:
         """
         Perform one housekeeping cycle. Use this in external threads.
-        
+
         This is the main method for external thread control - call it periodically
         in your external thread loop.
-        
+
         Returns:
             bool: True if cycle completed successfully, False otherwise
         """
         if not self.hk_running:
             return False
-            
+
         try:
             if self.is_connected:
                 self.hk_monitor()
@@ -433,7 +455,7 @@ class PfeifferBaseDevice:
             else:
                 self.logger.warning("Device not connected during housekeeping cycle")
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"Housekeeping cycle error: {e}")
             return False
