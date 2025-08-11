@@ -287,7 +287,7 @@ class PfeifferBaseDevice:
 
     def custom_logger(self, dev_name, port, measure, value, unit):
         """Custom logging format for device measurements."""
-        return self.logger.info(f"{dev_name}   {port}   {measure}   {value}//{unit}")
+        return self.logger.info(f"{dev_name}//{port}//{measure}={value}//{unit}")
 
     def hk_monitor(self):
         """

@@ -688,8 +688,105 @@ class HiPace300Bus(PfeifferBaseDevice):
             info['pump_error_code'] = self.get_pump_error_code()
             
             # Current readings
-            info['pressure'] = self.get_omni_pressure()
+            if self.gauge1_address:
+                info['pressure'] = self.get_gauge_pressure()
         except Exception as e:
             self.logger.error(f"Failed to get system info: {e}")
             info['error'] = str(e)
         return info
+
+    # =============================================================================
+    #     Housekeeping Override
+    # =============================================================================
+
+    def hk_monitor(self):
+        """
+        Perform housekeeping monitoring of HiPace300Bus parameters.
+        Logs critical pump status information from both OmniControl and TC400.
+        """
+        try:
+            # TC400 Pump Parameters
+            self.custom_logger(
+                self.device_id, self.port, "Pump_Station_Enabled", self.get_pumpStatn_enabled(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Standby_Mode", self.get_standby(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Motor_Pump_Enabled", self.get_motor_pump_enabled(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Vent_Enabled", self.get_vent_enabled(), ""
+            )
+            
+            # Speed and Performance
+            self.custom_logger(
+                self.device_id, self.port, "Speed_Actual_Hz", self.get_actual_speed_hz(), "Hz"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Speed_Actual_RPM", self.get_actual_speed_rpm(), "RPM"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Speed_Set_Hz", self.get_set_speed_hz(), "Hz"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Target_Speed_Reached", self.is_target_speed_reached(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Pump_Accelerating", self.is_pump_accelerating(), ""
+            )
+            
+            # Electrical Parameters
+            self.custom_logger(
+                self.device_id, self.port, "Drive_Current", self.get_drive_current(), "A"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Drive_Voltage", self.get_drive_voltage(), "V"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Drive_Power", self.get_drive_power(), "W"
+            )
+            
+            # Temperature Monitoring
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Electronics", self.get_electronics_temperature(), "°C"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Pump_Bottom", self.get_pump_bottom_temperature(), "°C"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Bearing", self.get_bearing_temperature(), "°C"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Motor", self.get_motor_temperature(), "°C"
+            )
+            
+            # Status Monitoring
+            self.custom_logger(
+                self.device_id, self.port, "Overtemp_Electronics", self.is_overtemperature_electronics(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Overtemp_Pump", self.is_overtemperature_pump(), ""
+            )
+            
+            # Gas Flow (TC400 specific)
+            self.custom_logger(
+                self.device_id, self.port, "Seal_Gas_Flow", self.get_seal_gas_flow(), "sccm"
+            )
+            
+            # Operating Hours
+            self.custom_logger(
+                self.device_id, self.port, "Operating_Hours_Pump", self.get_operating_hours_pump(), "h"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Operating_Hours_Electronics", self.get_operating_hours_electronics(), "h"
+            )
+            
+            # Gauge Pressure (if available)
+            if self.gauge1_address:
+                self.custom_logger(
+                    self.device_id, self.port, "Gauge_Pressure", self.get_gauge_pressure(), "hPa"
+                )
+                
+        except Exception as e:
+            self.logger.error(f"HiPace300Bus housekeeping monitoring failed: {e}")

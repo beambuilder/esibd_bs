@@ -361,7 +361,13 @@ class HiScroll12(PfeifferBaseDevice):
                 self.device_id, self.port, "Temp_Electronics", self.get_temp_electronics(), "degC"
             )
             self.custom_logger(
+                self.device_id, self.port, "Temp_Power_Stage", self.get_temp_power_stage(), "degC"
+            )
+            self.custom_logger(
                 self.device_id, self.port, "Drive_Current", self.get_drive_current(), "A"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Drive_Voltage", self.get_drive_voltage(), "V"
             )
             self.custom_logger(
                 self.device_id, self.port, "Drive_Power", self.get_drive_power(), "W"

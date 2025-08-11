@@ -751,3 +751,116 @@ class HiPace80Bus(PfeifferBaseDevice):
             self.logger.error(f"Failed to get system info: {e}")
             info['error'] = str(e)
         return info
+
+    # =============================================================================
+    #     Housekeeping Override
+    # =============================================================================
+
+    def hk_monitor(self):
+        """
+        Perform housekeeping monitoring of HiPace80Bus parameters.
+        Logs critical pump status information from both OmniControl and TC80.
+        """
+        try:
+            # TC80 Pump Parameters
+            self.custom_logger(
+                self.device_id, self.port, "Pump_Station_Enabled", self.get_pumpStatn_enabled(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Standby_Mode", self.get_standby(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Motor_Pump_Enabled", self.get_motor_pump_enabled(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Vent_Enabled", self.get_vent_enabled(), ""
+            )
+            
+            # Speed and Performance
+            self.custom_logger(
+                self.device_id, self.port, "Speed_Actual_Hz", self.get_actual_speed_hz(), "Hz"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Speed_Actual_RPM", self.get_actual_speed_rpm(), "RPM"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Speed_Set_Hz", self.get_set_speed_hz(), "Hz"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Target_Speed_Reached", self.is_target_speed_reached(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Pump_Accelerating", self.is_pump_accelerating(), ""
+            )
+            
+            # Electrical Parameters
+            self.custom_logger(
+                self.device_id, self.port, "Drive_Current", self.get_drive_current(), "A"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Drive_Voltage", self.get_drive_voltage(), "V"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Drive_Power", self.get_drive_power(), "W"
+            )
+            
+            # Temperature Monitoring (TC80 specific temperatures)
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Electronics", self.get_electronics_temperature(), "°C"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Pump_Bottom", self.get_pump_bottom_temperature(), "°C"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Power_Stage", self.get_power_stage_temperature(), "°C"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Temp_Rotor", self.get_rotor_temperature(), "°C"
+            )
+            
+            # Status Monitoring
+            self.custom_logger(
+                self.device_id, self.port, "Overtemp_Electronics", self.is_overtemperature_electronics(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Overtemp_Pump", self.is_overtemperature_pump(), ""
+            )
+            
+            # Operating Hours
+            self.custom_logger(
+                self.device_id, self.port, "Operating_Hours_Pump", self.get_operating_hours_pump(), "h"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Operating_Hours_Electronics", self.get_operating_hours_electronics(), "h"
+            )
+            
+            # TC80 Specific Parameters
+            self.custom_logger(
+                self.device_id, self.port, "Pump_Identification", self.get_pump_identification(), ""
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Temperature_Management", self.get_temperature_management(), ""
+            )
+            
+            # Power Backup Parameters (TC80 specific)
+            self.custom_logger(
+                self.device_id, self.port, "Max_Power_Output_Time", self.get_max_power_output_time(), "s"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Fan_On_Temperature", self.get_fan_on_temperature(), "°C"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Power_Output_Voltage", self.get_power_output_voltage(), "V"
+            )
+            self.custom_logger(
+                self.device_id, self.port, "Power_Output_Threshold", self.get_power_output_threshold(), "W"
+            )
+            
+            # Gauge Pressure (if available)
+            if self.gauge1_address:
+                self.custom_logger(
+                    self.device_id, self.port, "Gauge_Pressure", self.get_gauge_pressure(), "hPa"
+                )
+                
+        except Exception as e:
+            self.logger.error(f"HiPace80Bus housekeeping monitoring failed: {e}")
