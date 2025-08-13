@@ -168,6 +168,26 @@ class HiPace300Bus(PfeifferBaseDevice):
     #     OmniControl Methods (Base Device)
     # =============================================================================
 
+    def set_deGas(self, enabled: bool) -> None:
+        """Set Gauge Degas. """
+        value = self.data_converter.bool_2_boolean_new(enabled)
+        self._set_channel_parameter('gauge1', 40, value)
+
+    def get_deGas(self) -> bool:
+        """Get pump standby mode status."""
+        response = self._query_channel_parameter('gauge1', 40)
+        return self.data_converter.boolean_new_2_bool(response)
+
+    def set_SensOnOff(self, enabled: bool) -> None:
+        """Set Gauge (Cold Cathode) On/Off. """
+        value = self.data_converter.int_2_u_short_int(enabled)
+        self._set_channel_parameter('gauge1', 41, value)
+
+    def get_SensOnOff(self) -> bool:
+        """Get pump standby mode status."""
+        response = self._query_channel_parameter('gauge1', 41)
+        return self.data_converter.u_short_int_2_int(response)
+
     def get_omni_error_code(self) -> str:
         """Get error code from OmniControl."""
         response = self._query_channel_parameter('omnicontrol', 303)
