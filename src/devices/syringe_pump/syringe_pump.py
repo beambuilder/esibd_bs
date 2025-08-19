@@ -37,6 +37,8 @@ class SyringePump:
         port: str,
         baudrate: int = 9600,
         timeout: float = 1.0,
+        x: int = 0,
+        mode: int = 0,
         logger: Optional[logging.Logger] = None,
         hk_thread: Optional[threading.Thread] = None,
         thread_lock: Optional[threading.Lock] = None,
@@ -51,6 +53,8 @@ class SyringePump:
             port: Serial port (e.g., "COM5" on Windows, "/dev/ttyUSB0" on Linux)
             baudrate: Communication baud rate (default: 9600)
             timeout: Serial communication timeout in seconds (default: 1.0)
+            x: Pump channel/axis identifier (default: 0, no prefix)
+            mode: Pump operation mode (default: 0, no mode suffix)
             logger: Optional custom logger. If None, creates file logger in debugging/logs/
             hk_thread: Optional housekeeping thread. If None, creates one automatically
             thread_lock: Optional thread lock. If None, creates one automatically
@@ -61,6 +65,8 @@ class SyringePump:
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
+        self.x = x
+        self.mode = mode
         self.is_connected = False
         self.serial_connection: Optional[serial.Serial] = None
 
@@ -246,6 +252,36 @@ class SyringePump:
             self.logger.error(f"Failed to get response: {e}")
             return []
 
+    def _add_mode(self, command: str) -> str:
+        """
+        Add mode suffix to command if mode is set.
+        
+        Args:
+            command: Base command string
+            
+        Returns:
+            str: Command with mode suffix if applicable
+        """
+        if self.mode == 0:
+            return command
+        else:
+            return command + ' ' + str(self.mode - 1)
+
+    def _add_x(self, command: str) -> str:
+        """
+        Add pump channel/axis prefix to command if x is set.
+        
+        Args:
+            command: Base command string
+            
+        Returns:
+            str: Command with x prefix if applicable
+        """
+        if self.x == 0:
+            return command
+        else:
+            return str(self.x) + ' ' + command
+
     def start_pump(self) -> list:
         """
         Start the syringe pump.
@@ -254,6 +290,8 @@ class SyringePump:
             list: Response from pump
         """
         command = 'start'
+        command = self._add_x(command)
+        command = self._add_mode(command)
         response = self._send_command(command)
         self.logger.info("Pump started")
         return response
@@ -266,6 +304,7 @@ class SyringePump:
             list: Response from pump
         """
         command = 'stop'
+        command = self._add_x(command)
         response = self._send_command(command)
         self.logger.info("Pump stopped")
         return response
@@ -278,6 +317,7 @@ class SyringePump:
             list: Response from pump
         """
         command = 'pause'
+        command = self._add_x(command)
         response = self._send_command(command)
         self.logger.info("Pump paused")
         return response
