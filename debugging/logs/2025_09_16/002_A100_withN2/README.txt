@@ -1,0 +1,5 @@
+- A100 Only
+- Nitrogen Connected:
+	- Pressure was increased gradually: Last setting 4 bar
+- Water Circuit only connected to A100 (A200) disconnected)
+- 

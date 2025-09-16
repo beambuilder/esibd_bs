@@ -1,0 +1,4 @@
+- A200 Only
+- Water Circuit disconnected from A100. only connected to A200
+- with Load: After some time, running with no load, valve was opened to position 375 gradually
+- Temperature Measurements since flipping circuit not really meaningful since heat exchanger can transport all heat away
