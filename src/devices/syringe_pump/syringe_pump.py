@@ -145,6 +145,42 @@ class SyringePump:
                 else:
                     self.logger.info("Using internal thread lock")
 
+        # File logging setup for housekeeping
+        self.file_logging_enabled = False
+        self.hk_log_file: Optional[Path] = None
+        self.hk_csv_writer = None
+        self.hk_file_handle = None
+
+    def enable_file_logging(self, log_filepath: Path = None) -> bool:
+        """
+        Enable file logging for housekeeping data.
+        
+        Args:
+            log_filepath: Optional custom log file path. If None, creates default path.
+            
+        Returns:
+            bool: True if file logging was successfully enabled, False otherwise
+        """
+        pass
+
+    def custom_logger(self, data: Dict[str, Any]):
+        """
+        Log housekeeping data to CSV file.
+        
+        Args:
+            data: Dictionary containing housekeeping data to log
+        """
+        pass
+
+    def get_status(self) -> Dict[str, Any]:
+        """
+        Get current device status.
+        
+        Returns:
+            dict: Current device status including connection state, parameters, etc.
+        """
+        pass
+
     def connect(self) -> bool:
         """
         Establish connection to the syringe pump.
@@ -534,6 +570,54 @@ class SyringePump:
             except (OSError, serial.SerialException):
                 pass
         return result
+
+    def start_housekeeping(self, interval: float = None, log_to_file: bool = True) -> bool:
+        """
+        Start housekeeping monitoring thread.
+        
+        Args:
+            interval: Monitoring interval in seconds. If None, uses self.hk_interval
+            log_to_file: Whether to enable file logging for housekeeping data
+            
+        Returns:
+            bool: True if housekeeping started successfully, False otherwise
+        """
+        pass
+
+    def stop_housekeeping(self) -> bool:
+        """
+        Stop housekeeping monitoring thread.
+        
+        Returns:
+            bool: True if housekeeping stopped successfully, False otherwise
+        """
+        pass
+
+    def do_housekeeping_cycle(self):
+        """
+        Perform one housekeeping monitoring cycle.
+        
+        Calls hk_monitor() to collect data and handles any errors.
+        """
+        pass
+
+    def should_continue_housekeeping(self) -> bool:
+        """
+        Check if housekeeping should continue running.
+        
+        Returns:
+            bool: True if housekeeping should continue, False otherwise
+        """
+        pass
+
+    def hk_monitor(self):
+        """
+        Monitor pump parameters and log data.
+        
+        This method should be implemented to define what parameters
+        to monitor during housekeeping cycles.
+        """
+        pass
 
     def _hk_worker(self):
         """
