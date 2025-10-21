@@ -1,0 +1,9 @@
+Revision History
+
+Rev.1-00
+========
+first public release
+
+Rev.1-01
+========
+64-bit version included
