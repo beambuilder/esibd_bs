@@ -2,6 +2,7 @@
 
 import ctypes
 import json
+import os
 
 class PSU:
     """PSU device class."""
@@ -27,12 +28,15 @@ class PSU:
 
         """
         
-        # Importing dll for hardware control
-        self.psu_dll_path = (r"PSU-CTRL-2D_1-01\x64\COM-HVPSU2D.dll")
+        # Get the directory where this file (psu.py) is located
+        self.class_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Importing dll for hardware control - path relative to psu.py
+        self.psu_dll_path = os.path.join(self.class_dir, r"PSU-CTRL-2D_1-01\x64\COM-HVPSU2D.dll")
         self.rf_psu_dll = ctypes.WinDLL(self.psu_dll_path)
 
-        #Importing error messages. See PSU manual.
-        self.err_path = r"Add_Ons\json_res\error_codes.json"
+        # Importing error messages. See PSU manual - path relative to cgc folder
+        self.err_path = os.path.join(os.path.dirname(self.class_dir), "error_codes.json")
         with open(self.err_path, "rb") as f:
             self.err_dict = json.load(f)
 
