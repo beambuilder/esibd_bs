@@ -31,56 +31,61 @@ class PSU:
     ERR_DEBUG_OPEN = -400
     ERR_DEBUG_CLOSE = -401
     
-    # Main state constants
-    STATE_ON = 0x0000
-    STATE_ERROR = 0x8000
-    STATE_ERR_VSUP = 0x8001
-    STATE_ERR_TEMP_LOW = 0x8002
-    STATE_ERR_TEMP_HIGH = 0x8003
-    STATE_ERR_ILOCK = 0x8004
-    STATE_ERR_PSU_DIS = 0x8005
+    # Main state constants dictionary
+    MAIN_STATE = {
+        0x0000: 'STATE_ON',
+        0x8000: 'STATE_ERROR',
+        0x8001: 'STATE_ERR_VSUP',
+        0x8002: 'STATE_ERR_TEMP_LOW',
+        0x8003: 'STATE_ERR_TEMP_HIGH',
+        0x8004: 'STATE_ERR_ILOCK',
+        0x8005: 'STATE_ERR_PSU_DIS'
+    }
     
-    # Device state constants
-    DEVST_OK = 0
-    DEVST_VCPU_FAIL = (1 << 0x00)
-    DEVST_VFAN_FAIL = (1 << 0x01)
-    DEVST_VPSU0_FAIL = (1 << 0x02)
-    DEVST_VPSU1_FAIL = (1 << 0x03)
-    DEVST_FAN1_FAIL = (1 << 0x08)
-    DEVST_FAN2_FAIL = (1 << 0x09)
-    DEVST_FAN3_FAIL = (1 << 0x0A)
-    DEVST_PSU_DIS = (1 << 0x0F)
-    DEVST_SEN1_HIGH = (1 << 0x10)
-    DEVST_SEN2_HIGH = (1 << 0x11)
-    DEVST_SEN3_HIGH = (1 << 0x12)
-    DEVST_SEN1_LOW = (1 << 0x18)
-    DEVST_SEN2_LOW = (1 << 0x19)
-    DEVST_SEN3_LOW = (1 << 0x1A)
+    # Device state constants dictionary (bit flags)
+    DEVICE_STATE = {
+        (1 << 0x00): 'DEVST_VCPU_FAIL',
+        (1 << 0x01): 'DEVST_VFAN_FAIL',
+        (1 << 0x02): 'DEVST_VPSU0_FAIL',
+        (1 << 0x03): 'DEVST_VPSU1_FAIL',
+        (1 << 0x08): 'DEVST_FAN1_FAIL',
+        (1 << 0x09): 'DEVST_FAN2_FAIL',
+        (1 << 0x0A): 'DEVST_FAN3_FAIL',
+        (1 << 0x0F): 'DEVST_PSU_DIS',
+        (1 << 0x10): 'DEVST_SEN1_HIGH',
+        (1 << 0x11): 'DEVST_SEN2_HIGH',
+        (1 << 0x12): 'DEVST_SEN3_HIGH',
+        (1 << 0x18): 'DEVST_SEN1_LOW',
+        (1 << 0x19): 'DEVST_SEN2_LOW',
+        (1 << 0x1A): 'DEVST_SEN3_LOW'
+    }
     
-    # PSU state constants
-    ST_ILIM_CTRL = (1 << 0)
-    ST_LED_CTRL_R = (1 << 1)
-    ST_LED_CTRL_G = (1 << 2)
-    ST_LED_CTRL_B = (1 << 3)
-    ST_PSU0_ENB_CTRL = (1 << 4)
-    ST_PSU1_ENB_CTRL = (1 << 5)
-    ST_PSU0_FULL_CTRL = (1 << 6)
-    ST_PSU1_FULL_CTRL = (1 << 7)
-    ST_ILOCK_OUT_DIS = (1 << 8)
-    ST_ILOCK_BNC_DIS = (1 << 9)
-    ST_PSU_ENB_CTRL = (1 << 10)
-    ST_ILIM_ACT = (1 << 12)
-    ST_PSU0_FULL_ACT = (1 << 13)
-    ST_PSU1_FULL_ACT = (1 << 14)
-    ST_RES_N = (1 << 15)
-    ST_ILOCK_OUT_ACT = (1 << 16)
-    ST_ILOCK_BNC_ACT = (1 << 17)
-    ST_ILOCK_ACT = (1 << 18)
-    ST_PSU_ENB_ACT = (1 << 19)
-    ST_PSU0_ENB_ACT = (1 << 20)
-    ST_PSU1_ENB_ACT = (1 << 21)
-    ST_ILOCK_OUT = (1 << 22)
-    ST_ILOCK_BNC = (1 << 23)
+    # PSU state constants dictionary (bit flags)
+    PSU_STATE = {
+        (1 << 0): 'ST_ILIM_CTRL',
+        (1 << 1): 'ST_LED_CTRL_R',
+        (1 << 2): 'ST_LED_CTRL_G',
+        (1 << 3): 'ST_LED_CTRL_B',
+        (1 << 4): 'ST_PSU0_ENB_CTRL',
+        (1 << 5): 'ST_PSU1_ENB_CTRL',
+        (1 << 6): 'ST_PSU0_FULL_CTRL',
+        (1 << 7): 'ST_PSU1_FULL_CTRL',
+        (1 << 8): 'ST_ILOCK_OUT_DIS',
+        (1 << 9): 'ST_ILOCK_BNC_DIS',
+        (1 << 10): 'ST_PSU_ENB_CTRL',
+        (1 << 12): 'ST_ILIM_ACT',
+        (1 << 13): 'ST_PSU0_FULL_ACT',
+        (1 << 14): 'ST_PSU1_FULL_ACT',
+        (1 << 15): 'ST_RES_N',
+        (1 << 16): 'ST_ILOCK_OUT_ACT',
+        (1 << 17): 'ST_ILOCK_BNC_ACT',
+        (1 << 18): 'ST_ILOCK_ACT',
+        (1 << 19): 'ST_PSU_ENB_ACT',
+        (1 << 20): 'ST_PSU0_ENB_ACT',
+        (1 << 21): 'ST_PSU1_ENB_ACT',
+        (1 << 22): 'ST_ILOCK_OUT',
+        (1 << 23): 'ST_ILOCK_BNC'
+    }
     
     # PSU numbers
     PSU_POS = 0
@@ -276,12 +281,15 @@ class PSU:
         Returns
         -------
         tuple
-            (status, state) where state is one of the STATE_* constants.
+            (status, state_hex, state_name) where state_hex is the hex value 
+            and state_name is the corresponding state name string.
 
         """
         state = ctypes.c_uint16()
         status = self.rf_psu_dll.COM_HVPSU2D_GetMainState(self.port, ctypes.byref(state))
-        return status, state.value
+        state_value = state.value
+        state_name = self.MAIN_STATE.get(state_value, f'UNKNOWN_STATE_0x{state_value:04X}')
+        return status, hex(state_value), state_name
 
     def get_device_state(self):
         """
@@ -290,12 +298,24 @@ class PSU:
         Returns
         -------
         tuple
-            (status, device_state) where device_state is a bitmask of DEVST_* flags.
+            (status, state_hex, state_names) where state_hex is the hex value 
+            and state_names is a list of active state flag names.
 
         """
         device_state = ctypes.c_uint32()
         status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceState(self.port, ctypes.byref(device_state))
-        return status, device_state.value
+        state_value = device_state.value
+        
+        # Check which flags are set
+        active_states = []
+        if state_value == 0:
+            active_states.append('DEVST_OK')
+        else:
+            for flag, name in self.DEVICE_STATE.items():
+                if state_value & flag:
+                    active_states.append(name)
+        
+        return status, hex(state_value), active_states
 
     def get_housekeeping(self):
         """
@@ -868,12 +888,21 @@ class PSU:
         Returns
         -------
         tuple
-            (status, state) where state is a bitmask of ST_* flags.
+            (status, state_hex, state_names) where state_hex is the hex value 
+            and state_names is a list of active state flag names.
 
         """
         state = ctypes.c_uint32()
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUState(self.port, ctypes.byref(state))
-        return status, state.value
+        state_value = state.value
+        
+        # Check which flags are set
+        active_states = []
+        for flag, name in self.PSU_STATE.items():
+            if state_value & flag:
+                active_states.append(name)
+        
+        return status, hex(state_value), active_states
 
     # Configuration Management
     
