@@ -6,100 +6,6 @@ import os
 
 class PSU:
     """PSU device class."""
-    
-    # Error codes
-    NO_ERR = 0
-    ERR_PORT_RANGE = -1
-    ERR_OPEN = -2
-    ERR_CLOSE = -3
-    ERR_PURGE = -4
-    ERR_CONTROL = -5
-    ERR_STATUS = -6
-    ERR_COMMAND_SEND = -7
-    ERR_DATA_SEND = -8
-    ERR_TERM_SEND = -9
-    ERR_COMMAND_RECEIVE = -10
-    ERR_DATA_RECEIVE = -11
-    ERR_TERM_RECEIVE = -12
-    ERR_COMMAND_WRONG = -13
-    ERR_ARGUMENT_WRONG = -14
-    ERR_ARGUMENT = -15
-    ERR_RATE = -16
-    ERR_NOT_CONNECTED = -100
-    ERR_NOT_READY = -101
-    ERR_READY = -102
-    ERR_DEBUG_OPEN = -400
-    ERR_DEBUG_CLOSE = -401
-    
-    # Main state constants
-    STATE_ON = 0x0000
-    STATE_ERROR = 0x8000
-    STATE_ERR_VSUP = 0x8001
-    STATE_ERR_TEMP_LOW = 0x8002
-    STATE_ERR_TEMP_HIGH = 0x8003
-    STATE_ERR_ILOCK = 0x8004
-    STATE_ERR_PSU_DIS = 0x8005
-    
-    # Device state constants
-    DEVST_OK = 0
-    DEVST_VCPU_FAIL = (1 << 0x00)
-    DEVST_VFAN_FAIL = (1 << 0x01)
-    DEVST_VPSU0_FAIL = (1 << 0x02)
-    DEVST_VPSU1_FAIL = (1 << 0x03)
-    DEVST_FAN1_FAIL = (1 << 0x08)
-    DEVST_FAN2_FAIL = (1 << 0x09)
-    DEVST_FAN3_FAIL = (1 << 0x0A)
-    DEVST_PSU_DIS = (1 << 0x0F)
-    DEVST_SEN1_HIGH = (1 << 0x10)
-    DEVST_SEN2_HIGH = (1 << 0x11)
-    DEVST_SEN3_HIGH = (1 << 0x12)
-    DEVST_SEN1_LOW = (1 << 0x18)
-    DEVST_SEN2_LOW = (1 << 0x19)
-    DEVST_SEN3_LOW = (1 << 0x1A)
-    
-    # PSU state constants
-    ST_ILIM_CTRL = (1 << 0)
-    ST_LED_CTRL_R = (1 << 1)
-    ST_LED_CTRL_G = (1 << 2)
-    ST_LED_CTRL_B = (1 << 3)
-    ST_PSU0_ENB_CTRL = (1 << 4)
-    ST_PSU1_ENB_CTRL = (1 << 5)
-    ST_PSU0_FULL_CTRL = (1 << 6)
-    ST_PSU1_FULL_CTRL = (1 << 7)
-    ST_ILOCK_OUT_DIS = (1 << 8)
-    ST_ILOCK_BNC_DIS = (1 << 9)
-    ST_PSU_ENB_CTRL = (1 << 10)
-    ST_ILIM_ACT = (1 << 12)
-    ST_PSU0_FULL_ACT = (1 << 13)
-    ST_PSU1_FULL_ACT = (1 << 14)
-    ST_RES_N = (1 << 15)
-    ST_ILOCK_OUT_ACT = (1 << 16)
-    ST_ILOCK_BNC_ACT = (1 << 17)
-    ST_ILOCK_ACT = (1 << 18)
-    ST_PSU_ENB_ACT = (1 << 19)
-    ST_PSU0_ENB_ACT = (1 << 20)
-    ST_PSU1_ENB_ACT = (1 << 21)
-    ST_ILOCK_OUT = (1 << 22)
-    ST_ILOCK_BNC = (1 << 23)
-    
-    # PSU numbers
-    PSU_POS = 0
-    PSU_NEG = 1
-    PSU_NUM = 2
-    
-    # Sensor numbers
-    SEN_NEG = 0
-    SEN_MID = 1
-    SEN_POS = 2
-    SEN_COUNT = 3
-    
-    # Fan constants
-    FAN_COUNT = 3
-    FAN_PWM_MAX = 1000
-    
-    # Configuration
-    MAX_CONFIG = 168
-    CONFIG_NAME_SIZE = 75
 
     def __init__(self, com, port, log=None, idn=""):
         """
@@ -145,31 +51,45 @@ class PSU:
 
         Parameters
         ----------
-        com : int
+        com : TYPE
             com port.
-        port : int
+        port : TYPE
             port number.
         Returns
         -------
-        int
-            Status code.
+        None.
 
         """
+            
         status = self.rf_psu_dll.COM_HVPSU2D_Open(port, com)
-        return status
+        
+        if status == 0:
+            print(f"Port {self.port} + Com {self.com} opened")
+        elif status != 0:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+
 
     def close_port(self):
         """
         closing the communication link
 
+        Parameters
+        ----------
+        logg : TYPE, optional
+            Wether to write to log file or not. The default is = True.
+
         Returns
         -------
-        int
-            Status code.
+        None.
 
         """
+        
         status = self.rf_psu_dll.COM_HVPSU2D_Close(self.port)
-        return status
+
+        if status == 0:
+            print(f"Port {self.port} + Com {self.com} closed")
+        elif status != 0:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
 
     def set_comspeed(self, baudrate):
         """
@@ -181,13 +101,18 @@ class PSU:
 
         Returns
         -------
-        int
-            Status code.
+        None.
 
         """
+        
         comspeed = ctypes.c_uint32(baudrate)
+        
         status = self.rf_psu_dll.COM_HVPSU2D_SetBaudRate(self.port, ctypes.byref(comspeed))
-        return status
+        
+        if status == 0:
+            print(f"Communication Speed set to {baudrate} baud")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check Manual")
 
     def purge(self):
         """
@@ -200,6 +125,12 @@ class PSU:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_Purge(self.port)
+        
+        if status == 0:
+            print(f"Port {self.port} purged")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def device_purge(self):
@@ -214,6 +145,12 @@ class PSU:
         """
         empty = ctypes.c_bool()
         status = self.rf_psu_dll.COM_HVPSU2D_DevicePurge(self.port, ctypes.byref(empty))
+        
+        if status == 0:
+            print(f"Device buffer purged. Empty: {empty.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, empty.value
 
     def get_buffer_state(self):
@@ -228,6 +165,12 @@ class PSU:
         """
         empty = ctypes.c_bool()
         status = self.rf_psu_dll.COM_HVPSU2D_GetBufferState(self.port, ctypes.byref(empty))
+        
+        if status == 0:
+            print(f"Buffer empty: {empty.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, empty.value
 
     # Device control
@@ -251,6 +194,12 @@ class PSU:
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetInterlockEnable(
             self.port, ctypes.c_bool(con_out), ctypes.c_bool(con_bnc))
+        
+        if status == 0:
+            print(f"Interlock set - Output: {con_out}, BNC: {con_bnc}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def get_interlock_enable(self):
@@ -267,6 +216,12 @@ class PSU:
         con_bnc = ctypes.c_bool()
         status = self.rf_psu_dll.COM_HVPSU2D_GetInterlockEnable(
             self.port, ctypes.byref(con_out), ctypes.byref(con_bnc))
+        
+        if status == 0:
+            print(f"Interlock - Output: {con_out.value}, BNC: {con_bnc.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, con_out.value, con_bnc.value
 
     def get_main_state(self):
@@ -276,11 +231,17 @@ class PSU:
         Returns
         -------
         tuple
-            (status, state) where state is one of the STATE_* constants.
+            (status, state) where state is one of the COM_HVPSU2D_STATE_* constants.
 
         """
         state = ctypes.c_uint16()
         status = self.rf_psu_dll.COM_HVPSU2D_GetMainState(self.port, ctypes.byref(state))
+        
+        if status == 0:
+            print(f"Main state: 0x{state.value:04X}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, state.value
 
     def get_device_state(self):
@@ -290,11 +251,17 @@ class PSU:
         Returns
         -------
         tuple
-            (status, device_state) where device_state is a bitmask of DEVST_* flags.
+            (status, device_state) where device_state is a bitmask of COM_HVPSU2D_DEVST_* flags.
 
         """
         device_state = ctypes.c_uint32()
         status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceState(self.port, ctypes.byref(device_state))
+        
+        if status == 0:
+            print(f"Device state: 0x{device_state.value:08X}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, device_state.value
 
     def get_housekeeping(self):
@@ -316,6 +283,12 @@ class PSU:
             self.port, ctypes.byref(volt_rect), ctypes.byref(volt_5v0), 
             ctypes.byref(volt_3v3), ctypes.byref(temp_cpu))
         
+        if status == 0:
+            print(f"Housekeeping - VRect: {volt_rect.value}V, V5V0: {volt_5v0.value}V, "
+                  f"V3V3: {volt_3v3.value}V, TempCPU: {temp_cpu.value}°C")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, volt_rect.value, volt_5v0.value, volt_3v3.value, temp_cpu.value
 
     def get_sensor_data(self):
@@ -330,7 +303,14 @@ class PSU:
         """
         temperature = (ctypes.c_double * 3)()
         status = self.rf_psu_dll.COM_HVPSU2D_GetSensorData(self.port, temperature)
+        
         temps = [temperature[i] for i in range(3)]
+        
+        if status == 0:
+            print(f"Sensor temps - Neg: {temps[0]}°C, Mid: {temps[1]}°C, Pos: {temps[2]}°C")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, temps
 
     def get_fan_data(self):
@@ -352,6 +332,11 @@ class PSU:
         status = self.rf_psu_dll.COM_HVPSU2D_GetFanData(
             self.port, enabled, failed, set_rpm, measured_rpm, pwm)
         
+        if status == 0:
+            print(f"Fan data retrieved")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return (status, [enabled[i] for i in range(3)], [failed[i] for i in range(3)],
                 [set_rpm[i] for i in range(3)], [measured_rpm[i] for i in range(3)],
                 [pwm[i] for i in range(3)])
@@ -372,6 +357,11 @@ class PSU:
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetLEDData(
             self.port, ctypes.byref(red), ctypes.byref(green), ctypes.byref(blue))
+        
+        if status == 0:
+            print(f"LED - Red: {red.value}, Green: {green.value}, Blue: {blue.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
         
         return status, red.value, green.value, blue.value
 
@@ -404,16 +394,14 @@ class PSU:
             ctypes.byref(volt_aldo), ctypes.byref(volt_dldo), ctypes.byref(volt_ref),
             ctypes.byref(temp_adc))
         
+        if status == 0:
+            print(f"ADC Housekeeping PSU{psu_num} - AVDD: {volt_avdd.value}V, "
+                  f"DVDD: {volt_dvdd.value}V, TempADC: {temp_adc.value}°C")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return (status, volt_avdd.value, volt_dvdd.value, volt_aldo.value,
                 volt_dldo.value, volt_ref.value, temp_adc.value)
-
-    def get_psu0_adc_housekeeping(self):
-        """Get ADC housekeeping data for PSU0 (positive)."""
-        return self.get_adc_housekeeping(self.PSU_POS)
-    
-    def get_psu1_adc_housekeeping(self):
-        """Get ADC housekeeping data for PSU1 (negative)."""
-        return self.get_adc_housekeeping(self.PSU_NEG)
 
     def get_psu_housekeeping(self, psu_num):
         """
@@ -439,15 +427,13 @@ class PSU:
             self.port, psu_num, ctypes.byref(volt_24vp), ctypes.byref(volt_12vp),
             ctypes.byref(volt_12vn), ctypes.byref(volt_ref))
         
+        if status == 0:
+            print(f"PSU{psu_num} Housekeeping - 24Vp: {volt_24vp.value}V, "
+                  f"12Vp: {volt_12vp.value}V, 12Vn: {volt_12vn.value}V")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, volt_24vp.value, volt_12vp.value, volt_12vn.value, volt_ref.value
-
-    def get_psu0_housekeeping(self):
-        """Get housekeeping data for PSU0 (positive)."""
-        return self.get_psu_housekeeping(self.PSU_POS)
-    
-    def get_psu1_housekeeping(self):
-        """Get housekeeping data for PSU1 (negative)."""
-        return self.get_psu_housekeeping(self.PSU_NEG)
 
     def get_psu_data(self, psu_num):
         """
@@ -472,15 +458,13 @@ class PSU:
             self.port, psu_num, ctypes.byref(voltage), ctypes.byref(current),
             ctypes.byref(volt_dropout))
         
+        if status == 0:
+            print(f"PSU{psu_num} Data - Voltage: {voltage.value}V, "
+                  f"Current: {current.value}A, Dropout: {volt_dropout.value}V")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, voltage.value, current.value, volt_dropout.value
-
-    def get_psu0_data(self):
-        """Get measured values for PSU0 (positive)."""
-        return self.get_psu_data(self.PSU_POS)
-    
-    def get_psu1_data(self):
-        """Get measured values for PSU1 (negative)."""
-        return self.get_psu_data(self.PSU_NEG)
 
     # PSU Management - Control
     
@@ -503,15 +487,13 @@ class PSU:
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputVoltage(
             self.port, psu_num, ctypes.c_double(voltage))
+        
+        if status == 0:
+            print(f"PSU{psu_num} output voltage set to {voltage}V")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
-
-    def set_psu0_output_voltage(self, voltage):
-        """Set PSU0 (positive) output voltage."""
-        return self.set_psu_output_voltage(self.PSU_POS, voltage)
-    
-    def set_psu1_output_voltage(self, voltage):
-        """Set PSU1 (negative) output voltage."""
-        return self.set_psu_output_voltage(self.PSU_NEG, voltage)
 
     def get_psu_output_voltage(self, psu_num):
         """
@@ -531,15 +513,13 @@ class PSU:
         voltage = ctypes.c_double()
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUOutputVoltage(
             self.port, psu_num, ctypes.byref(voltage))
+        
+        if status == 0:
+            print(f"PSU{psu_num} output voltage: {voltage.value}V")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, voltage.value
-
-    def get_psu0_output_voltage(self):
-        """Get PSU0 (positive) output voltage."""
-        return self.get_psu_output_voltage(self.PSU_POS)
-    
-    def get_psu1_output_voltage(self):
-        """Get PSU1 (negative) output voltage."""
-        return self.get_psu_output_voltage(self.PSU_NEG)
 
     def get_psu_set_output_voltage(self, psu_num):
         """
@@ -562,15 +542,12 @@ class PSU:
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUSetOutputVoltage(
             self.port, psu_num, ctypes.byref(voltage_set), ctypes.byref(voltage_limit))
         
+        if status == 0:
+            print(f"PSU{psu_num} set voltage: {voltage_set.value}V, limit: {voltage_limit.value}V")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, voltage_set.value, voltage_limit.value
-
-    def get_psu0_set_output_voltage(self):
-        """Get PSU0 (positive) set & limit output voltage."""
-        return self.get_psu_set_output_voltage(self.PSU_POS)
-    
-    def get_psu1_set_output_voltage(self):
-        """Get PSU1 (negative) set & limit output voltage."""
-        return self.get_psu_set_output_voltage(self.PSU_NEG)
 
     def set_psu_output_current(self, psu_num, current):
         """
@@ -591,15 +568,13 @@ class PSU:
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputCurrent(
             self.port, psu_num, ctypes.c_double(current))
+        
+        if status == 0:
+            print(f"PSU{psu_num} output current set to {current}A")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
-
-    def set_psu0_output_current(self, current):
-        """Set PSU0 (positive) output current."""
-        return self.set_psu_output_current(self.PSU_POS, current)
-    
-    def set_psu1_output_current(self, current):
-        """Set PSU1 (negative) output current."""
-        return self.set_psu_output_current(self.PSU_NEG, current)
 
     def get_psu_output_current(self, psu_num):
         """
@@ -619,15 +594,13 @@ class PSU:
         current = ctypes.c_double()
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUOutputCurrent(
             self.port, psu_num, ctypes.byref(current))
+        
+        if status == 0:
+            print(f"PSU{psu_num} output current: {current.value}A")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, current.value
-
-    def get_psu0_output_current(self):
-        """Get PSU0 (positive) output current."""
-        return self.get_psu_output_current(self.PSU_POS)
-    
-    def get_psu1_output_current(self):
-        """Get PSU1 (negative) output current."""
-        return self.get_psu_output_current(self.PSU_NEG)
 
     def get_psu_set_output_current(self, psu_num):
         """
@@ -650,15 +623,12 @@ class PSU:
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUSetOutputCurrent(
             self.port, psu_num, ctypes.byref(current_set), ctypes.byref(current_limit))
         
+        if status == 0:
+            print(f"PSU{psu_num} set current: {current_set.value}A, limit: {current_limit.value}A")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, current_set.value, current_limit.value
-
-    def get_psu0_set_output_current(self):
-        """Get PSU0 (positive) set & limit output current."""
-        return self.get_psu_set_output_current(self.PSU_POS)
-    
-    def get_psu1_set_output_current(self):
-        """Get PSU1 (negative) set & limit output current."""
-        return self.get_psu_set_output_current(self.PSU_NEG)
 
     # PSU Management - Configuration
     
@@ -681,17 +651,13 @@ class PSU:
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUEnable(
             self.port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
+        
+        if status == 0:
+            print(f"PSU enable - PSU0: {psu0}, PSU1: {psu1}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
-
-    def set_psu0_enable(self, enable):
-        """Set PSU0 (positive) enable state."""
-        _, _, current_psu1 = self.get_psu_enable()
-        return self.set_psu_enable(enable, current_psu1)
-    
-    def set_psu1_enable(self, enable):
-        """Set PSU1 (negative) enable state."""
-        _, current_psu0, _ = self.get_psu_enable()
-        return self.set_psu_enable(current_psu0, enable)
 
     def get_psu_enable(self):
         """
@@ -708,6 +674,11 @@ class PSU:
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUEnable(
             self.port, ctypes.byref(psu0), ctypes.byref(psu1))
+        
+        if status == 0:
+            print(f"PSU enable - PSU0: {psu0.value}, PSU1: {psu1.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
         
         return status, psu0.value, psu1.value
 
@@ -726,6 +697,11 @@ class PSU:
         
         status = self.rf_psu_dll.COM_HVPSU2D_HasPSUFullRange(
             self.port, ctypes.byref(psu0), ctypes.byref(psu1))
+        
+        if status == 0:
+            print(f"PSU has full range - PSU0: {psu0.value}, PSU1: {psu1.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
         
         return status, psu0.value, psu1.value
 
@@ -748,17 +724,13 @@ class PSU:
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUFullRange(
             self.port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
+        
+        if status == 0:
+            print(f"PSU full range - PSU0: {psu0}, PSU1: {psu1}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
-
-    def set_psu0_full_range(self, enable):
-        """Set PSU0 (positive) full range state."""
-        _, _, current_psu1 = self.get_psu_full_range()
-        return self.set_psu_full_range(enable, current_psu1)
-    
-    def set_psu1_full_range(self, enable):
-        """Set PSU1 (negative) full range state."""
-        _, current_psu0, _ = self.get_psu_full_range()
-        return self.set_psu_full_range(current_psu0, enable)
 
     def get_psu_full_range(self):
         """
@@ -776,6 +748,11 @@ class PSU:
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUFullRange(
             self.port, ctypes.byref(psu0), ctypes.byref(psu1))
         
+        if status == 0:
+            print(f"PSU full range - PSU0: {psu0.value}, PSU1: {psu1.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, psu0.value, psu1.value
 
     def get_psu_state(self):
@@ -785,11 +762,17 @@ class PSU:
         Returns
         -------
         tuple
-            (status, state) where state is a bitmask of ST_* flags.
+            (status, state) where state is a bitmask of COM_HVPSU2D_ST_* flags.
 
         """
         state = ctypes.c_uint32()
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUState(self.port, ctypes.byref(state))
+        
+        if status == 0:
+            print(f"PSU state: 0x{state.value:08X}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, state.value
 
     # Configuration Management
@@ -806,6 +789,12 @@ class PSU:
         """
         enable = ctypes.c_bool()
         status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceEnable(self.port, ctypes.byref(enable))
+        
+        if status == 0:
+            print(f"Device enable: {enable.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, enable.value
 
     def set_device_enable(self, enable):
@@ -824,6 +813,12 @@ class PSU:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetDeviceEnable(self.port, ctypes.c_bool(enable))
+        
+        if status == 0:
+            print(f"Device enable set to: {enable}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def reset_current_config(self):
@@ -837,6 +832,12 @@ class PSU:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_ResetCurrentConfig(self.port)
+        
+        if status == 0:
+            print("Current configuration reset")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def save_current_config(self, config_number):
@@ -855,6 +856,12 @@ class PSU:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SaveCurrentConfig(self.port, config_number)
+        
+        if status == 0:
+            print(f"Configuration {config_number} saved")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def load_current_config(self, config_number):
@@ -873,6 +880,12 @@ class PSU:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_LoadCurrentConfig(self.port, config_number)
+        
+        if status == 0:
+            print(f"Configuration {config_number} loaded")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def get_config_name(self, config_number):
@@ -892,6 +905,12 @@ class PSU:
         """
         name = ctypes.create_string_buffer(75)
         status = self.rf_psu_dll.COM_HVPSU2D_GetConfigName(self.port, config_number, name)
+        
+        if status == 0:
+            print(f"Config {config_number} name: {name.value.decode()}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, name.value.decode()
 
     def set_config_name(self, config_number, name):
@@ -913,6 +932,12 @@ class PSU:
         """
         name_buffer = ctypes.create_string_buffer(name.encode(), 75)
         status = self.rf_psu_dll.COM_HVPSU2D_SetConfigName(self.port, config_number, name_buffer)
+        
+        if status == 0:
+            print(f"Config {config_number} name set to: {name}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def get_config_flags(self, config_number):
@@ -935,6 +960,11 @@ class PSU:
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetConfigFlags(
             self.port, config_number, ctypes.byref(active), ctypes.byref(valid))
+        
+        if status == 0:
+            print(f"Config {config_number} - Active: {active.value}, Valid: {valid.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
         
         return status, active.value, valid.value
 
@@ -959,6 +989,12 @@ class PSU:
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetConfigFlags(
             self.port, config_number, ctypes.c_bool(active), ctypes.c_bool(valid))
+        
+        if status == 0:
+            print(f"Config {config_number} flags set - Active: {active}, Valid: {valid}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def get_config_list(self):
@@ -975,6 +1011,12 @@ class PSU:
         valid = (ctypes.c_bool * 168)()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetConfigList(self.port, active, valid)
+        
+        if status == 0:
+            print("Configuration list retrieved")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, [active[i] for i in range(168)], [valid[i] for i in range(168)]
 
     # System
@@ -990,6 +1032,12 @@ class PSU:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_Restart(self.port)
+        
+        if status == 0:
+            print("Controller restarting")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status
 
     def get_cpu_data(self):
@@ -1007,6 +1055,11 @@ class PSU:
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetCPUData(
             self.port, ctypes.byref(load), ctypes.byref(frequency))
+        
+        if status == 0:
+            print(f"CPU - Load: {load.value*100:.1f}%, Frequency: {frequency.value/1e6:.1f}MHz")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
         
         return status, load.value, frequency.value
 
@@ -1027,6 +1080,11 @@ class PSU:
         status = self.rf_psu_dll.COM_HVPSU2D_GetUptime(
             self.port, ctypes.byref(seconds), ctypes.byref(milliseconds), ctypes.byref(optime))
         
+        if status == 0:
+            print(f"Uptime: {seconds.value}s, Optime: {optime.value}s")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, seconds.value, milliseconds.value, optime.value
 
     def get_total_time(self):
@@ -1045,6 +1103,11 @@ class PSU:
         status = self.rf_psu_dll.COM_HVPSU2D_GetTotalTime(
             self.port, ctypes.byref(uptime), ctypes.byref(optime))
         
+        if status == 0:
+            print(f"Total - Uptime: {uptime.value}s, Optime: {optime.value}s")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, uptime.value, optime.value
 
     def get_hw_type(self):
@@ -1059,6 +1122,12 @@ class PSU:
         """
         hw_type = ctypes.c_uint32()
         status = self.rf_psu_dll.COM_HVPSU2D_GetHWType(self.port, ctypes.byref(hw_type))
+        
+        if status == 0:
+            print(f"Hardware type: 0x{hw_type.value:08X}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, hw_type.value
 
     def get_hw_version(self):
@@ -1073,6 +1142,12 @@ class PSU:
         """
         hw_version = ctypes.c_uint16()
         status = self.rf_psu_dll.COM_HVPSU2D_GetHWVersion(self.port, ctypes.byref(hw_version))
+        
+        if status == 0:
+            print(f"Hardware version: {hw_version.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, hw_version.value
 
     def get_fw_version(self):
@@ -1087,6 +1162,12 @@ class PSU:
         """
         version = ctypes.c_uint16()
         status = self.rf_psu_dll.COM_HVPSU2D_GetFWVersion(self.port, ctypes.byref(version))
+        
+        if status == 0:
+            print(f"Firmware version: {version.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, version.value
 
     def get_fw_date(self):
@@ -1101,6 +1182,12 @@ class PSU:
         """
         date_string = ctypes.create_string_buffer(16)
         status = self.rf_psu_dll.COM_HVPSU2D_GetFWDate(self.port, date_string)
+        
+        if status == 0:
+            print(f"Firmware date: {date_string.value.decode()}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, date_string.value.decode()
 
     def get_product_id(self):
@@ -1115,6 +1202,12 @@ class PSU:
         """
         identification = ctypes.create_string_buffer(60)
         status = self.rf_psu_dll.COM_HVPSU2D_GetProductID(self.port, identification)
+        
+        if status == 0:
+            print(f"Product ID: {identification.value.decode()}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, identification.value.decode()
 
     def get_product_no(self):
@@ -1129,6 +1222,12 @@ class PSU:
         """
         number = ctypes.c_uint32()
         status = self.rf_psu_dll.COM_HVPSU2D_GetProductNo(self.port, ctypes.byref(number))
+        
+        if status == 0:
+            print(f"Product number: {number.value}")
+        else:
+            print(f"{self.err_dict[str(status)]}. Check PSU Manual")
+        
         return status, number.value
 
     # Communication port status
@@ -1144,6 +1243,7 @@ class PSU:
 
         """
         state = self.rf_psu_dll.COM_HVPSU2D_GetInterfaceState(self.port)
+        print(f"Interface state: {state}")
         return state
 
     def get_error_message(self):
@@ -1156,9 +1256,10 @@ class PSU:
             Error message.
 
         """
-        self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage.restype = ctypes.c_char_p
         msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage(self.port)
+        self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage.restype = ctypes.c_char_p
         message = msg_ptr.decode() if msg_ptr else "No error"
+        print(f"Error message: {message}")
         return message
 
     def get_io_state(self):
@@ -1172,6 +1273,7 @@ class PSU:
 
         """
         state = self.rf_psu_dll.COM_HVPSU2D_GetIOState(self.port)
+        print(f"IO state: {state}")
         return state
 
     def get_io_error_message(self):
@@ -1184,7 +1286,9 @@ class PSU:
             Error message.
 
         """
-        self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage.restype = ctypes.c_char_p
         msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage(self.port)
+        self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage.restype = ctypes.c_char_p
         message = msg_ptr.decode() if msg_ptr else "No error"
+        print(f"IO error message: {message}")
         return message
+
