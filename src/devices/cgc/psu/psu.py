@@ -484,6 +484,78 @@ class PSU:
 
     # PSU Management - Control
     
+    def check_U_format(self, voltage):
+        """
+        Check if voltage is in the correct format (float with 3 decimal places).
+
+        Parameters
+        ----------
+        voltage : float
+            Voltage value to check.
+
+        Returns
+        -------
+        bool
+            True if format is correct, False otherwise.
+
+        Raises
+        ------
+        ValueError
+            If voltage is not a valid float or has more than 3 decimal places.
+
+        """
+        try:
+            # Convert to float if not already
+            voltage_float = float(voltage)
+            
+            # Check if it has at most 3 decimal places
+            # Convert to string and check decimal places
+            voltage_str = str(voltage)
+            if '.' in voltage_str:
+                decimal_part = voltage_str.split('.')[1]
+                if len(decimal_part) > 3:
+                    raise ValueError(f"Voltage must have at most 3 decimal places, got {len(decimal_part)}")
+            
+            return True
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid voltage format: {e}")
+
+    def check_I_format(self, current):
+        """
+        Check if current is in the correct format (float with 3 decimal places).
+
+        Parameters
+        ----------
+        current : float
+            Current value to check.
+
+        Returns
+        -------
+        bool
+            True if format is correct, False otherwise.
+
+        Raises
+        ------
+        ValueError
+            If current is not a valid float or has more than 3 decimal places.
+
+        """
+        try:
+            # Convert to float if not already
+            current_float = float(current)
+            
+            # Check if it has at most 3 decimal places
+            # Convert to string and check decimal places
+            current_str = str(current)
+            if '.' in current_str:
+                decimal_part = current_str.split('.')[1]
+                if len(decimal_part) > 3:
+                    raise ValueError(f"Current must have at most 3 decimal places, got {len(decimal_part)}")
+            
+            return True
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid current format: {e}")
+    
     def set_psu_output_voltage(self, psu_num, voltage):
         """
         Set PSU output voltage.
@@ -493,24 +565,30 @@ class PSU:
         psu_num : int
             PSU number (0 for positive, 1 for negative).
         voltage : float
-            Voltage to set.
+            Voltage to set (max 3 decimal places).
 
         Returns
         -------
         int
             Status code.
 
+        Raises
+        ------
+        ValueError
+            If voltage format is invalid.
+
         """
+        self.check_U_format(voltage)
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputVoltage(
             self.port, psu_num, ctypes.c_double(voltage))
         return status
 
     def set_psu0_output_voltage(self, voltage):
-        """Set PSU0 (positive) output voltage."""
+        """Set PSU0 (positive) output voltage (max 3 decimal places)."""
         return self.set_psu_output_voltage(self.PSU_POS, voltage)
     
     def set_psu1_output_voltage(self, voltage):
-        """Set PSU1 (negative) output voltage."""
+        """Set PSU1 (negative) output voltage (max 3 decimal places)."""
         return self.set_psu_output_voltage(self.PSU_NEG, voltage)
 
     def get_psu_output_voltage(self, psu_num):
@@ -581,24 +659,30 @@ class PSU:
         psu_num : int
             PSU number (0 for positive, 1 for negative).
         current : float
-            Current to set.
+            Current to set (max 3 decimal places).
 
         Returns
         -------
         int
             Status code.
 
+        Raises
+        ------
+        ValueError
+            If current format is invalid.
+
         """
+        self.check_I_format(current)
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputCurrent(
             self.port, psu_num, ctypes.c_double(current))
         return status
 
     def set_psu0_output_current(self, current):
-        """Set PSU0 (positive) output current."""
+        """Set PSU0 (positive) output current (max 3 decimal places)."""
         return self.set_psu_output_current(self.PSU_POS, current)
     
     def set_psu1_output_current(self, current):
-        """Set PSU1 (negative) output current."""
+        """Set PSU1 (negative) output current (max 3 decimal places)."""
         return self.set_psu_output_current(self.PSU_NEG, current)
 
     def get_psu_output_current(self, psu_num):
