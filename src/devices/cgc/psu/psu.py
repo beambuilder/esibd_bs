@@ -325,13 +325,12 @@ class PSU:
         Returns
         -------
         tuple
-            (status, temperatures) where temperatures is a list of 3 values.
+            (status, temp_sensor0, temp_sensor1, temp_sensor2).
 
         """
         temperature = (ctypes.c_double * 3)()
         status = self.rf_psu_dll.COM_HVPSU2D_GetSensorData(self.port, temperature)
-        temps = [temperature[i] for i in range(3)]
-        return status, temps
+        return status, temperature[0], temperature[1], temperature[2]
 
     def get_fan_data(self):
         """
