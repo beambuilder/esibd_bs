@@ -1,1302 +1,389 @@
-"""PSU (Power Supply Unit) device class for CGC."""
+﻿"""
+PSU (Power Supply Unit) device controller.
 
-import ctypes
-import json
-import os
+This module provides the PSU class for communicating with CGC power supply
+units via the PSU base hardware interface with added logging functionality.
+"""
+from typing import Optional
+import logging
+from datetime import datetime
+from pathlib import Path
+import threading
 
-class PSU:
-    """PSU device class."""
-    
-    # Error codes
-    NO_ERR = 0
-    ERR_PORT_RANGE = -1
-    ERR_OPEN = -2
-    ERR_CLOSE = -3
-    ERR_PURGE = -4
-    ERR_CONTROL = -5
-    ERR_STATUS = -6
-    ERR_COMMAND_SEND = -7
-    ERR_DATA_SEND = -8
-    ERR_TERM_SEND = -9
-    ERR_COMMAND_RECEIVE = -10
-    ERR_DATA_RECEIVE = -11
-    ERR_TERM_RECEIVE = -12
-    ERR_COMMAND_WRONG = -13
-    ERR_ARGUMENT_WRONG = -14
-    ERR_ARGUMENT = -15
-    ERR_RATE = -16
-    ERR_NOT_CONNECTED = -100
-    ERR_NOT_READY = -101
-    ERR_READY = -102
-    ERR_DEBUG_OPEN = -400
-    ERR_DEBUG_CLOSE = -401
-    
-    # Main state constants dictionary
-    MAIN_STATE = {
-        0x0000: 'STATE_ON',
-        0x8000: 'STATE_ERROR',
-        0x8001: 'STATE_ERR_VSUP',
-        0x8002: 'STATE_ERR_TEMP_LOW',
-        0x8003: 'STATE_ERR_TEMP_HIGH',
-        0x8004: 'STATE_ERR_ILOCK',
-        0x8005: 'STATE_ERR_PSU_DIS'
-    }
-    
-    # Device state constants dictionary (bit flags)
-    DEVICE_STATE = {
-        (1 << 0x00): 'DEVST_VCPU_FAIL',
-        (1 << 0x01): 'DEVST_VFAN_FAIL',
-        (1 << 0x02): 'DEVST_VPSU0_FAIL',
-        (1 << 0x03): 'DEVST_VPSU1_FAIL',
-        (1 << 0x08): 'DEVST_FAN1_FAIL',
-        (1 << 0x09): 'DEVST_FAN2_FAIL',
-        (1 << 0x0A): 'DEVST_FAN3_FAIL',
-        (1 << 0x0F): 'DEVST_PSU_DIS',
-        (1 << 0x10): 'DEVST_SEN1_HIGH',
-        (1 << 0x11): 'DEVST_SEN2_HIGH',
-        (1 << 0x12): 'DEVST_SEN3_HIGH',
-        (1 << 0x18): 'DEVST_SEN1_LOW',
-        (1 << 0x19): 'DEVST_SEN2_LOW',
-        (1 << 0x1A): 'DEVST_SEN3_LOW'
-    }
-    
-    # PSU state constants dictionary (bit flags)
-    PSU_STATE = {
-        (1 << 0): 'ST_ILIM_CTRL',
-        (1 << 1): 'ST_LED_CTRL_R',
-        (1 << 2): 'ST_LED_CTRL_G',
-        (1 << 3): 'ST_LED_CTRL_B',
-        (1 << 4): 'ST_PSU0_ENB_CTRL',
-        (1 << 5): 'ST_PSU1_ENB_CTRL',
-        (1 << 6): 'ST_PSU0_FULL_CTRL',
-        (1 << 7): 'ST_PSU1_FULL_CTRL',
-        (1 << 8): 'ST_ILOCK_OUT_DIS',
-        (1 << 9): 'ST_ILOCK_BNC_DIS',
-        (1 << 10): 'ST_PSU_ENB_CTRL',
-        (1 << 12): 'ST_ILIM_ACT',
-        (1 << 13): 'ST_PSU0_FULL_ACT',
-        (1 << 14): 'ST_PSU1_FULL_ACT',
-        (1 << 15): 'ST_RES_N',
-        (1 << 16): 'ST_ILOCK_OUT_ACT',
-        (1 << 17): 'ST_ILOCK_BNC_ACT',
-        (1 << 18): 'ST_ILOCK_ACT',
-        (1 << 19): 'ST_PSU_ENB_ACT',
-        (1 << 20): 'ST_PSU0_ENB_ACT',
-        (1 << 21): 'ST_PSU1_ENB_ACT',
-        (1 << 22): 'ST_ILOCK_OUT',
-        (1 << 23): 'ST_ILOCK_BNC'
-    }
-    
-    # PSU numbers
-    PSU_POS = 0
-    PSU_NEG = 1
-    PSU_NUM = 2
-    
-    # Sensor numbers
-    SEN_NEG = 0
-    SEN_MID = 1
-    SEN_POS = 2
-    SEN_COUNT = 3
-    
-    # Fan constants
-    FAN_COUNT = 3
-    FAN_PWM_MAX = 1000
-    
-    # Configuration
-    MAX_CONFIG = 168
-    CONFIG_NAME_SIZE = 75
+from .psu_base import PSUBase
 
-    def __init__(self, com, port, log=None, idn=""):
+
+class PSU(PSUBase):
+    """
+    PSU device communication class with logging functionality.
+
+    This class inherits from PSUBase and provides logging capabilities,
+    device identification, housekeeping thread management, and enhanced
+    function call monitoring similar to other devices in the system.
+
+    Example:
+        psu = PSU("main_psu", com=5, port=0)
+        psu.connect()
+        psu.set_psu0_output_voltage(100.5)
+        voltage = psu.get_psu0_output_voltage()
+        psu.disconnect()
+    """
+
+    def __init__(
+        self,
+        device_id: str,
+        com: int,
+        port: int = 0,
+        baudrate: int = 230400,
+        logger: Optional[logging.Logger] = None,
+        hk_thread: Optional[threading.Thread] = None,
+        thread_lock: Optional[threading.Lock] = None,
+        hk_interval: float = 5.0,
+        **kwargs,
+    ):
         """
-        Initialization
-
-        Parameters
-        ----------
-        com : int
-            COM Port Hardware Side
-        port : int
-            Portnumber Software Side. Up to 16 devices can be used
-        log : logfile, optional
-            Logging instance where information is logged
-        idn : string, optional
-            string to append to class name to distinguish between same devices. The default is empty.
-
-        Returns
-        -------
-        None.
-
+        Initialize PSU device with logging and threading support.
         """
-        
-        # Get the directory where this file (psu.py) is located
-        self.class_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Importing dll for hardware control - path relative to psu.py
-        self.psu_dll_path = os.path.join(self.class_dir, r"PSU-CTRL-2D_1-01\x64\COM-HVPSU2D.dll")
-        self.rf_psu_dll = ctypes.WinDLL(self.psu_dll_path)
-
-        # Importing error messages. See PSU manual - path relative to cgc folder
-        self.err_path = os.path.join(os.path.dirname(self.class_dir), "error_codes.json")
-        with open(self.err_path, "rb") as f:
-            self.err_dict = json.load(f)
-
+        # Store parameters for PSU functionality
+        self.device_id = device_id
         self.com = com
-        self.port = port
-        self.log = log
-        self.idn = idn
-
-    def open_port(self, com, port):
-        """
-        Opening communication link to device
-
-        Parameters
-        ----------
-        com : int
-            com port.
-        port : int
-            port number.
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_Open(port, com)
-        return status
-
-    def close_port(self):
-        """
-        closing the communication link
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_Close(self.port)
-        return status
-
-    def set_comspeed(self, baudrate):
-        """
-        set communication speed. usually set to max: 230400
-
-        Parameters
-        ----------
-        baudrate : int.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        comspeed = ctypes.c_uint32(baudrate)
-        status = self.rf_psu_dll.COM_HVPSU2D_SetBaudRate(self.port, ctypes.byref(comspeed))
-        return status
-
-    def purge(self):
-        """
-        Clear data buffers for the port.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_Purge(self.port)
-        return status
-
-    def device_purge(self):
-        """
-        Clear output data buffer of the device.
-
-        Returns
-        -------
-        tuple
-            (status, empty) where empty is True if buffer is empty.
-
-        """
-        empty = ctypes.c_bool()
-        status = self.rf_psu_dll.COM_HVPSU2D_DevicePurge(self.port, ctypes.byref(empty))
-        return status, empty.value
-
-    def get_buffer_state(self):
-        """
-        Return true if the input data buffer of the device is empty.
-
-        Returns
-        -------
-        tuple
-            (status, empty) where empty is True if buffer is empty.
-
-        """
-        empty = ctypes.c_bool()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetBufferState(self.port, ctypes.byref(empty))
-        return status, empty.value
-
-    # Device control
-    
-    def set_interlock_enable(self, con_out, con_bnc):
-        """
-        Set interlock enable for the output and the BNC connectors.
-
-        Parameters
-        ----------
-        con_out : bool
-            Enable interlock for output connector.
-        con_bnc : bool
-            Enable interlock for BNC connector.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_SetInterlockEnable(
-            self.port, ctypes.c_bool(con_out), ctypes.c_bool(con_bnc))
-        return status
-
-    def get_interlock_enable(self):
-        """
-        Get interlock enable for the output and the BNC connectors.
-
-        Returns
-        -------
-        tuple
-            (status, con_out, con_bnc).
-
-        """
-        con_out = ctypes.c_bool()
-        con_bnc = ctypes.c_bool()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetInterlockEnable(
-            self.port, ctypes.byref(con_out), ctypes.byref(con_bnc))
-        return status, con_out.value, con_bnc.value
-
-    def get_main_state(self):
-        """
-        Get the main device status.
-
-        Returns
-        -------
-        tuple
-            (status, state_hex, state_name) where state_hex is the hex value 
-            and state_name is the corresponding state name string.
-
-        """
-        state = ctypes.c_uint16()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetMainState(self.port, ctypes.byref(state))
-        state_value = state.value
-        state_name = self.MAIN_STATE.get(state_value, f'UNKNOWN_STATE_0x{state_value:04X}')
-        return status, hex(state_value), state_name
-
-    def get_device_state(self):
-        """
-        Get the device status.
-
-        Returns
-        -------
-        tuple
-            (status, state_hex, state_names) where state_hex is the hex value 
-            and state_names is a list of active state flag names.
-
-        """
-        device_state = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceState(self.port, ctypes.byref(device_state))
-        state_value = device_state.value
+        self.port_num = port
+        self.baudrate = baudrate
+        self.hk_interval = hk_interval
         
-        # Check which flags are set
-        active_states = []
-        if state_value == 0:
-            active_states.append('DEVST_OK')
+        # Connection status
+        self.connected = False
+        self.housekeeping_running = False
+        
+        # Setup threading
+        if thread_lock is not None:
+            self.thread_lock = thread_lock
+            self.external_lock = True
         else:
-            for flag, name in self.DEVICE_STATE.items():
-                if state_value & flag:
-                    active_states.append(name)
-        
-        return status, hex(state_value), active_states
+            self.thread_lock = threading.Lock()
+            self.external_lock = False
 
-    def get_housekeeping(self):
-        """
-        Get the housekeeping data.
+        if hk_thread is not None:
+            self.hk_thread = hk_thread
+            self.external_thread = True
+        else:
+            self.external_thread = False
+            self.hk_thread = threading.Thread(
+                target=self._hk_worker, name=f"HK_{device_id}", daemon=True
+            )
 
-        Returns
-        -------
-        tuple
-            (status, volt_rect, volt_5v0, volt_3v3, temp_cpu).
+        # Setup logger
+        if logger is not None:
+            self.logger = logger
+            self._external_logger_provided = True
+        else:
+            self._external_logger_provided = False
+            # Create logger with file handler and timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            logger_name = f"PSU_{device_id}_{timestamp}"
+            self.logger = logging.getLogger(logger_name)
 
-        """
-        volt_rect = ctypes.c_double()
-        volt_5v0 = ctypes.c_double()
-        volt_3v3 = ctypes.c_double()
-        temp_cpu = ctypes.c_double()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetHousekeeping(
-            self.port, ctypes.byref(volt_rect), ctypes.byref(volt_5v0), 
-            ctypes.byref(volt_3v3), ctypes.byref(temp_cpu))
-        
-        return status, volt_rect.value, volt_5v0.value, volt_3v3.value, temp_cpu.value
+            # Only add handler if logger doesn't already have one
+            if not self.logger.handlers:
+                # Create logs directory if it doesn't exist
+                logs_dir = (
+                    Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
+                )
+                logs_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_sensor_data(self):
-        """
-        Get sensor data (3 temperature sensors).
+                # Create file handler with timestamp
+                log_filename = f"PSU_{device_id}_{timestamp}.log"
+                log_filepath = logs_dir / log_filename
 
-        Returns
-        -------
-        tuple
-            (status, temp_sensor0, temp_sensor1, temp_sensor2).
+                file_handler = logging.FileHandler(log_filepath)
+                formatter = logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
+                file_handler.setFormatter(formatter)
 
-        """
-        temperature = (ctypes.c_double * 3)()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetSensorData(self.port, temperature)
-        return status, temperature[0], temperature[1], temperature[2]
+                self.logger.addHandler(file_handler)
+                self.logger.setLevel(logging.INFO)
 
-    def get_fan_data(self):
-        """
-        Get fan data (3 fans).
+                # Log the initialization
+                self.logger.info(
+                    f"PSU logger initialized for device '{device_id}' on COM{com}, port {port}"
+                )
+                self.logger.info(f"Baudrate: {baudrate}")
 
-        Returns
-        -------
-        tuple
-            (status, enabled, failed, set_rpm, measured_rpm, pwm).
+        # Initialize the base class
+        super().__init__(com=com, port=port, log=None, idn=device_id)
 
-        """
-        enabled = (ctypes.c_bool * 3)()
-        failed = (ctypes.c_bool * 3)()
-        set_rpm = (ctypes.c_uint16 * 3)()
-        measured_rpm = (ctypes.c_uint16 * 3)()
-        pwm = (ctypes.c_uint16 * 3)()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetFanData(
-            self.port, enabled, failed, set_rpm, measured_rpm, pwm)
-        
-        return (status, [enabled[i] for i in range(3)], [failed[i] for i in range(3)],
-                [set_rpm[i] for i in range(3)], [measured_rpm[i] for i in range(3)],
-                [pwm[i] for i in range(3)])
-
-    def get_led_data(self):
-        """
-        Get LED data.
-
-        Returns
-        -------
-        tuple
-            (status, red, green, blue).
-
-        """
-        red = ctypes.c_bool()
-        green = ctypes.c_bool()
-        blue = ctypes.c_bool()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetLEDData(
-            self.port, ctypes.byref(red), ctypes.byref(green), ctypes.byref(blue))
-        
-        return status, red.value, green.value, blue.value
-
-    # PSU Management - Monitoring
-    
-    def get_adc_housekeeping(self, psu_num):
-        """
-        Get ADC housekeeping data.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-
-        Returns
-        -------
-        tuple
-            (status, volt_avdd, volt_dvdd, volt_aldo, volt_dldo, volt_ref, temp_adc).
-
-        """
-        volt_avdd = ctypes.c_double()
-        volt_dvdd = ctypes.c_double()
-        volt_aldo = ctypes.c_double()
-        volt_dldo = ctypes.c_double()
-        volt_ref = ctypes.c_double()
-        temp_adc = ctypes.c_double()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetADCHousekeeping(
-            self.port, psu_num, ctypes.byref(volt_avdd), ctypes.byref(volt_dvdd),
-            ctypes.byref(volt_aldo), ctypes.byref(volt_dldo), ctypes.byref(volt_ref),
-            ctypes.byref(temp_adc))
-        
-        return (status, volt_avdd.value, volt_dvdd.value, volt_aldo.value,
-                volt_dldo.value, volt_ref.value, temp_adc.value)
-
-    def get_psu0_adc_housekeeping(self):
-        """Get ADC housekeeping data for PSU0 (positive)."""
-        return self.get_adc_housekeeping(self.PSU_POS)
-    
-    def get_psu1_adc_housekeeping(self):
-        """Get ADC housekeeping data for PSU1 (negative)."""
-        return self.get_adc_housekeeping(self.PSU_NEG)
-
-    def get_psu_housekeeping(self, psu_num):
-        """
-        Get PSU housekeeping data.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-
-        Returns
-        -------
-        tuple
-            (status, volt_24vp, volt_12vp, volt_12vn, volt_ref).
-
-        """
-        volt_24vp = ctypes.c_double()
-        volt_12vp = ctypes.c_double()
-        volt_12vn = ctypes.c_double()
-        volt_ref = ctypes.c_double()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUHousekeeping(
-            self.port, psu_num, ctypes.byref(volt_24vp), ctypes.byref(volt_12vp),
-            ctypes.byref(volt_12vn), ctypes.byref(volt_ref))
-        
-        return status, volt_24vp.value, volt_12vp.value, volt_12vn.value, volt_ref.value
-
-    def get_psu0_housekeeping(self):
-        """Get housekeeping data for PSU0 (positive)."""
-        return self.get_psu_housekeeping(self.PSU_POS)
-    
-    def get_psu1_housekeeping(self):
-        """Get housekeeping data for PSU1 (negative)."""
-        return self.get_psu_housekeeping(self.PSU_NEG)
-
-    def get_psu_data(self, psu_num):
-        """
-        Get measured PSU values.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-
-        Returns
-        -------
-        tuple
-            (status, voltage, current, volt_dropout).
-
-        """
-        voltage = ctypes.c_double()
-        current = ctypes.c_double()
-        volt_dropout = ctypes.c_double()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUData(
-            self.port, psu_num, ctypes.byref(voltage), ctypes.byref(current),
-            ctypes.byref(volt_dropout))
-        
-        return status, voltage.value, current.value, volt_dropout.value
-
-    def get_psu0_data(self):
-        """Get measured values for PSU0 (positive)."""
-        return self.get_psu_data(self.PSU_POS)
-    
-    def get_psu1_data(self):
-        """Get measured values for PSU1 (negative)."""
-        return self.get_psu_data(self.PSU_NEG)
-
-    # PSU Management - Control
-    
-    def check_U_format(self, voltage):
-        """
-        Check if voltage is in the correct format (float with 3 decimal places).
-
-        Parameters
-        ----------
-        voltage : float
-            Voltage value to check.
-
-        Returns
-        -------
-        bool
-            True if format is correct, False otherwise.
-
-        Raises
-        ------
-        ValueError
-            If voltage is not a valid float or has more than 3 decimal places.
-
-        """
+    def connect(self) -> bool:
+        """Connect to the PSU device."""
         try:
-            # Convert to float if not already
-            voltage_float = float(voltage)
+            self.logger.info(f"Connecting to PSU device {self.device_id} on COM{self.com}, port {self.port_num}")
             
-            # Check if it has at most 3 decimal places
-            # Convert to string and check decimal places
-            voltage_str = str(voltage)
-            if '.' in voltage_str:
-                decimal_part = voltage_str.split('.')[1]
-                if len(decimal_part) > 3:
-                    raise ValueError(f"Voltage must have at most 3 decimal places, got {len(decimal_part)}")
+            # Open port using base class method
+            status = self.open_port(self.com, self.port_num)
             
-            return True
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid voltage format: {e}")
+            if status == self.NO_ERR:
+                # Set communication speed
+                speed_status = self.set_comspeed(self.baudrate)
+                if speed_status == self.NO_ERR:
+                    self.connected = True
+                    self.logger.info(f"Successfully connected to PSU device {self.device_id}")
+                    return True
+                else:
+                    self.logger.error(f"Failed to set communication speed: status {speed_status}")
+                    return False
+            else:
+                self.logger.error(f"Failed to open port: status {status}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Connection error: {e}")
+            return False
 
-    def check_I_format(self, current):
-        """
-        Check if current is in the correct format (float with 3 decimal places).
-
-        Parameters
-        ----------
-        current : float
-            Current value to check.
-
-        Returns
-        -------
-        bool
-            True if format is correct, False otherwise.
-
-        Raises
-        ------
-        ValueError
-            If current is not a valid float or has more than 3 decimal places.
-
-        """
+    def disconnect(self) -> bool:
+        """Disconnect from the PSU device."""
         try:
-            # Convert to float if not already
-            current_float = float(current)
+            self.logger.info(f"Disconnecting PSU device {self.device_id}")
             
-            # Check if it has at most 3 decimal places
-            # Convert to string and check decimal places
-            current_str = str(current)
-            if '.' in current_str:
-                decimal_part = current_str.split('.')[1]
-                if len(decimal_part) > 3:
-                    raise ValueError(f"Current must have at most 3 decimal places, got {len(decimal_part)}")
+            # Close port using base class method
+            status = self.close_port()
             
-            return True
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid current format: {e}")
+            if status == self.NO_ERR:
+                self.connected = False
+                self.logger.info(f"Successfully disconnected PSU device {self.device_id}")
+                return True
+            else:
+                self.logger.error(f"Failed to close port: status {status}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Disconnection error: {e}")
+            return False
+
+    def _hk_worker(self):
+        """Housekeeping worker thread function."""
+        self.logger.info("Housekeeping worker thread started")
+        
+        while self.housekeeping_running and self.connected:
+            try:
+                with self.thread_lock:
+                    # Execute all housekeeping functions
+                    self._hk_product_info()
+                    self._hk_main_state()
+                    self._hk_device_state()
+                    self._hk_general_housekeeping()
+                    self._hk_sensor_data()
+                    self._hk_psu0_adc_housekeeping()
+                    self._hk_psu1_adc_housekeeping()
+                    self._hk_psu0_housekeeping()
+                    self._hk_psu1_housekeeping()
+                    self._hk_psu0_data()
+                    self._hk_psu1_data()
+                    
+            except Exception as e:
+                self.logger.error(f"Housekeeping worker error: {e}")
+
+            threading.Event().wait(self.hk_interval)
+
+        self.logger.info("Housekeeping worker thread stopped")
+
+    # Individual housekeeping functions with structured logging
+    
+    def _hk_product_info(self):
+        """Get and log product information."""
+        status, product_no = self.get_product_no()
+        if status == self.NO_ERR:
+            self.logger.debug(f"Product number: {product_no}")
+        return status == self.NO_ERR
+
+    def _hk_main_state(self):
+        """Get and log main device state."""
+        status, state_hex, state_name = self.get_main_state()
+        if status == self.NO_ERR:
+            self.logger.debug(f"Main state: {state_name}")
+        return status == self.NO_ERR
+
+    def _hk_device_state(self):
+        """Get and log device state."""
+        status, state_hex, state_names = self.get_device_state()
+        if status == self.NO_ERR:
+            self.logger.debug(f"Device state: {', '.join(state_names)}")
+        return status == self.NO_ERR
+
+    def _hk_general_housekeeping(self):
+        """Get and log general housekeeping data."""
+        status, volt_rect, volt_5v0, volt_3v3, temp_cpu = self.get_housekeeping()
+        if status == self.NO_ERR:
+            self.logger.debug("get_housekeeping() results:")
+            self.logger.debug(f"  Rectifier Voltage: {volt_rect:.2f}V")
+            self.logger.debug(f"  5V Supply: {volt_5v0:.2f}V")
+            self.logger.debug(f"  3.3V Supply: {volt_3v3:.2f}V")
+            self.logger.debug(f"  CPU Temperature: {temp_cpu:.1f}°C")
+        return status == self.NO_ERR
+
+    def _hk_sensor_data(self):
+        """Get and log sensor data."""
+        status, temp0, temp1, temp2 = self.get_sensor_data()
+        if status == self.NO_ERR:
+            self.logger.debug("get_sensor_data() results:")
+            self.logger.debug(f"  Sensor 0 Temperature: {temp0:.1f}°C")
+            self.logger.debug(f"  Sensor 1 Temperature: {temp1:.1f}°C")
+            self.logger.debug(f"  Sensor 2 Temperature: {temp2:.1f}°C")
+        return status == self.NO_ERR
+
+    def _hk_psu0_adc_housekeeping(self):
+        """Get and log PSU0 ADC housekeeping data."""
+        status, volt_avdd, volt_dvdd, volt_aldo, volt_dldo, volt_ref, temp_adc = self.get_psu0_adc_housekeeping()
+        if status == self.NO_ERR:
+            self.logger.debug("get_psu0_adc_housekeeping() results:")
+            self.logger.debug(f"  AVDD Voltage: {volt_avdd:.2f}V")
+            self.logger.debug(f"  DVDD Voltage: {volt_dvdd:.2f}V")
+            self.logger.debug(f"  ALDO Voltage: {volt_aldo:.2f}V")
+            self.logger.debug(f"  DLDO Voltage: {volt_dldo:.2f}V")
+            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
+            self.logger.debug(f"  ADC Temperature: {temp_adc:.1f}°C")
+        return status == self.NO_ERR
+
+    def _hk_psu1_adc_housekeeping(self):
+        """Get and log PSU1 ADC housekeeping data."""
+        status, volt_avdd, volt_dvdd, volt_aldo, volt_dldo, volt_ref, temp_adc = self.get_psu1_adc_housekeeping()
+        if status == self.NO_ERR:
+            self.logger.debug("get_psu1_adc_housekeeping() results:")
+            self.logger.debug(f"  AVDD Voltage: {volt_avdd:.2f}V")
+            self.logger.debug(f"  DVDD Voltage: {volt_dvdd:.2f}V")
+            self.logger.debug(f"  ALDO Voltage: {volt_aldo:.2f}V")
+            self.logger.debug(f"  DLDO Voltage: {volt_dldo:.2f}V")
+            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
+            self.logger.debug(f"  ADC Temperature: {temp_adc:.1f}°C")
+        return status == self.NO_ERR
+
+    def _hk_psu0_housekeeping(self):
+        """Get and log PSU0 housekeeping data."""
+        status, volt_24vp, volt_12vp, volt_12vn, volt_ref = self.get_psu0_housekeeping()
+        if status == self.NO_ERR:
+            self.logger.debug("get_psu0_housekeeping() results:")
+            self.logger.debug(f"  24V+ Supply: {volt_24vp:.2f}V")
+            self.logger.debug(f"  12V+ Supply: {volt_12vp:.2f}V")
+            self.logger.debug(f"  12V- Supply: {volt_12vn:.2f}V")
+            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
+        return status == self.NO_ERR
+
+    def _hk_psu1_housekeeping(self):
+        """Get and log PSU1 housekeeping data."""
+        status, volt_24vp, volt_12vp, volt_12vn, volt_ref = self.get_psu1_housekeeping()
+        if status == self.NO_ERR:
+            self.logger.debug("get_psu1_housekeeping() results:")
+            self.logger.debug(f"  24V+ Supply: {volt_24vp:.2f}V")
+            self.logger.debug(f"  12V+ Supply: {volt_12vp:.2f}V")
+            self.logger.debug(f"  12V- Supply: {volt_12vn:.2f}V")
+            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
+        return status == self.NO_ERR
+
+    def _hk_psu0_data(self):
+        """Get and log PSU0 measured data."""
+        status, voltage, current, volt_dropout = self.get_psu0_data()
+        if status == self.NO_ERR:
+            self.logger.debug("get_psu0_data() results:")
+            self.logger.debug(f"  Output Voltage: {voltage:.3f}V")
+            self.logger.debug(f"  Output Current: {current:.3f}A")
+            self.logger.debug(f"  Dropout Voltage: {volt_dropout:.2f}V")
+        return status == self.NO_ERR
+
+    def _hk_psu1_data(self):
+        """Get and log PSU1 measured data."""
+        status, voltage, current, volt_dropout = self.get_psu1_data()
+        if status == self.NO_ERR:
+            self.logger.debug("get_psu1_data() results:")
+            self.logger.debug(f"  Output Voltage: {voltage:.3f}V")
+            self.logger.debug(f"  Output Current: {current:.3f}A")
+            self.logger.debug(f"  Dropout Voltage: {volt_dropout:.2f}V")
+        return status == self.NO_ERR
+
+    # Override key methods with logging
     
     def set_psu_output_voltage(self, psu_num, voltage):
-        """
-        Set PSU output voltage.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-        voltage : float
-            Voltage to set (max 3 decimal places).
-
-        Returns
-        -------
-        int
-            Status code.
-
-        Raises
-        ------
-        ValueError
-            If voltage format is invalid.
-
-        """
-        self.check_U_format(voltage)
-        status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputVoltage(
-            self.port, psu_num, ctypes.c_double(voltage))
-        return status
+        """Set PSU output voltage with logging."""
+        psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
+        self.logger.info(f"Setting {psu_name} output voltage to {voltage:.3f}V")
+        try:
+            status = super().set_psu_output_voltage(psu_num, voltage)
+            if status == self.NO_ERR:
+                self.logger.info(f"{psu_name} output voltage set successfully")
+            else:
+                self.logger.error(f"Failed to set {psu_name} output voltage: status {status}")
+            return status
+        except ValueError as e:
+            self.logger.error(f"Invalid voltage format for {psu_name}: {e}")
+            raise
 
     def set_psu0_output_voltage(self, voltage):
-        """Set PSU0 (positive) output voltage (max 3 decimal places)."""
+        """Set PSU0 output voltage with logging."""
         return self.set_psu_output_voltage(self.PSU_POS, voltage)
     
     def set_psu1_output_voltage(self, voltage):
-        """Set PSU1 (negative) output voltage (max 3 decimal places)."""
+        """Set PSU1 output voltage with logging."""
         return self.set_psu_output_voltage(self.PSU_NEG, voltage)
 
     def get_psu_output_voltage(self, psu_num):
-        """
-        Get PSU output voltage.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-
-        Returns
-        -------
-        tuple
-            (status, voltage).
-
-        """
-        voltage = ctypes.c_double()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUOutputVoltage(
-            self.port, psu_num, ctypes.byref(voltage))
-        return status, voltage.value
+        """Get PSU output voltage with logging."""
+        status, voltage = super().get_psu_output_voltage(psu_num)
+        if status == self.NO_ERR:
+            psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
+            self.logger.debug(f"{psu_name} output voltage: {voltage:.3f}V")
+        else:
+            self.logger.warning(f"Failed to get PSU{psu_num} output voltage: status {status}")
+        return status, voltage
 
     def get_psu0_output_voltage(self):
-        """Get PSU0 (positive) output voltage."""
+        """Get PSU0 output voltage with logging."""
         return self.get_psu_output_voltage(self.PSU_POS)
     
     def get_psu1_output_voltage(self):
-        """Get PSU1 (negative) output voltage."""
+        """Get PSU1 output voltage with logging."""
         return self.get_psu_output_voltage(self.PSU_NEG)
 
-    def get_psu_set_output_voltage(self, psu_num):
+    def __getattr__(self, name):
         """
-        Get PSU set & limit output voltage.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-
-        Returns
-        -------
-        tuple
-            (status, voltage_set, voltage_limit).
-
-        """
-        voltage_set = ctypes.c_double()
-        voltage_limit = ctypes.c_double()
+        Automatically wrap base class methods with logging.
         
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUSetOutputVoltage(
-            self.port, psu_num, ctypes.byref(voltage_set), ctypes.byref(voltage_limit))
+        This method is called when an attribute is not found in the current class.
+        It will look for the method in the base class and wrap it with logging.
+        """
+        # Get the method from the base class
+        if hasattr(PSUBase, name):
+            base_method = getattr(PSUBase, name)
+            
+            # Check if it's a callable method (not a constant or property)
+            if callable(base_method):
+                def logged_method(*args, **kwargs):
+                    """Wrapper method that adds logging to base class methods."""
+                    # Log the method call
+                    self.logger.debug(f"Calling {name} with args={args[1:]} kwargs={kwargs}")
+                    
+                    try:
+                        # Call the original method with self as first argument
+                        result = base_method(self, *args, **kwargs)
+                        
+                        # Log successful execution
+                        if isinstance(result, tuple) and len(result) >= 1:
+                            # Most PSU methods return (status, ...) tuples
+                            status = result[0]
+                            if status == self.NO_ERR:
+                                self.logger.debug(f"{name} completed successfully")
+                            else:
+                                self.logger.warning(f"{name} returned status {status}")
+                        else:
+                            self.logger.debug(f"{name} completed")
+                        
+                        return result
+                        
+                    except Exception as e:
+                        self.logger.error(f"Error in {name}: {e}")
+                        raise
+                
+                return logged_method
+            else:
+                # For non-callable attributes, return them directly
+                return base_method
         
-        return status, voltage_set.value, voltage_limit.value
-
-    def get_psu0_set_output_voltage(self):
-        """Get PSU0 (positive) set & limit output voltage."""
-        return self.get_psu_set_output_voltage(self.PSU_POS)
-    
-    def get_psu1_set_output_voltage(self):
-        """Get PSU1 (negative) set & limit output voltage."""
-        return self.get_psu_set_output_voltage(self.PSU_NEG)
-
-    def set_psu_output_current(self, psu_num, current):
-        """
-        Set PSU output current.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-        current : float
-            Current to set (max 3 decimal places).
-
-        Returns
-        -------
-        int
-            Status code.
-
-        Raises
-        ------
-        ValueError
-            If current format is invalid.
-
-        """
-        self.check_I_format(current)
-        status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputCurrent(
-            self.port, psu_num, ctypes.c_double(current))
-        return status
-
-    def set_psu0_output_current(self, current):
-        """Set PSU0 (positive) output current (max 3 decimal places)."""
-        return self.set_psu_output_current(self.PSU_POS, current)
-    
-    def set_psu1_output_current(self, current):
-        """Set PSU1 (negative) output current (max 3 decimal places)."""
-        return self.set_psu_output_current(self.PSU_NEG, current)
-
-    def get_psu_output_current(self, psu_num):
-        """
-        Get PSU output current.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-
-        Returns
-        -------
-        tuple
-            (status, current).
-
-        """
-        current = ctypes.c_double()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUOutputCurrent(
-            self.port, psu_num, ctypes.byref(current))
-        return status, current.value
-
-    def get_psu0_output_current(self):
-        """Get PSU0 (positive) output current."""
-        return self.get_psu_output_current(self.PSU_POS)
-    
-    def get_psu1_output_current(self):
-        """Get PSU1 (negative) output current."""
-        return self.get_psu_output_current(self.PSU_NEG)
-
-    def get_psu_set_output_current(self, psu_num):
-        """
-        Get PSU set & limit output current.
-
-        Parameters
-        ----------
-        psu_num : int
-            PSU number (0 for positive, 1 for negative).
-
-        Returns
-        -------
-        tuple
-            (status, current_set, current_limit).
-
-        """
-        current_set = ctypes.c_double()
-        current_limit = ctypes.c_double()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUSetOutputCurrent(
-            self.port, psu_num, ctypes.byref(current_set), ctypes.byref(current_limit))
-        
-        return status, current_set.value, current_limit.value
-
-    def get_psu0_set_output_current(self):
-        """Get PSU0 (positive) set & limit output current."""
-        return self.get_psu_set_output_current(self.PSU_POS)
-    
-    def get_psu1_set_output_current(self):
-        """Get PSU1 (negative) set & limit output current."""
-        return self.get_psu_set_output_current(self.PSU_NEG)
-
-    # PSU Management - Configuration
-    
-    def set_psu_enable(self, psu0, psu1):
-        """
-        Set PSU enable.
-
-        Parameters
-        ----------
-        psu0 : bool
-            Enable PSU 0 (positive).
-        psu1 : bool
-            Enable PSU 1 (negative).
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_SetPSUEnable(
-            self.port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
-        return status
-
-    def set_psu0_enable(self, enable):
-        """Set PSU0 (positive) enable state."""
-        _, _, current_psu1 = self.get_psu_enable()
-        return self.set_psu_enable(enable, current_psu1)
-    
-    def set_psu1_enable(self, enable):
-        """Set PSU1 (negative) enable state."""
-        _, current_psu0, _ = self.get_psu_enable()
-        return self.set_psu_enable(current_psu0, enable)
-
-    def get_psu_enable(self):
-        """
-        Get PSU enable.
-
-        Returns
-        -------
-        tuple
-            (status, psu0, psu1).
-
-        """
-        psu0 = ctypes.c_bool()
-        psu1 = ctypes.c_bool()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUEnable(
-            self.port, ctypes.byref(psu0), ctypes.byref(psu1))
-        
-        return status, psu0.value, psu1.value
-
-    def has_psu_full_range(self):
-        """
-        Get PSU range-switching implementation.
-
-        Returns
-        -------
-        tuple
-            (status, psu0, psu1).
-
-        """
-        psu0 = ctypes.c_bool()
-        psu1 = ctypes.c_bool()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_HasPSUFullRange(
-            self.port, ctypes.byref(psu0), ctypes.byref(psu1))
-        
-        return status, psu0.value, psu1.value
-
-    def set_psu_full_range(self, psu0, psu1):
-        """
-        Set PSU full range.
-
-        Parameters
-        ----------
-        psu0 : bool
-            Full range for PSU 0.
-        psu1 : bool
-            Full range for PSU 1.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_SetPSUFullRange(
-            self.port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
-        return status
-
-    def set_psu0_full_range(self, enable):
-        """Set PSU0 (positive) full range state."""
-        _, _, current_psu1 = self.get_psu_full_range()
-        return self.set_psu_full_range(enable, current_psu1)
-    
-    def set_psu1_full_range(self, enable):
-        """Set PSU1 (negative) full range state."""
-        _, current_psu0, _ = self.get_psu_full_range()
-        return self.set_psu_full_range(current_psu0, enable)
-
-    def get_psu_full_range(self):
-        """
-        Get PSU full range.
-
-        Returns
-        -------
-        tuple
-            (status, psu0, psu1).
-
-        """
-        psu0 = ctypes.c_bool()
-        psu1 = ctypes.c_bool()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUFullRange(
-            self.port, ctypes.byref(psu0), ctypes.byref(psu1))
-        
-        return status, psu0.value, psu1.value
-
-    def get_psu_state(self):
-        """
-        Get PSU state.
-
-        Returns
-        -------
-        tuple
-            (status, state_hex, state_names) where state_hex is the hex value 
-            and state_names is a list of active state flag names.
-
-        """
-        state = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUState(self.port, ctypes.byref(state))
-        state_value = state.value
-        
-        # Check which flags are set
-        active_states = []
-        for flag, name in self.PSU_STATE.items():
-            if state_value & flag:
-                active_states.append(name)
-        
-        return status, hex(state_value), active_states
-
-    # Configuration Management
-    
-    def get_device_enable(self):
-        """
-        Get the enable state of the device.
-
-        Returns
-        -------
-        tuple
-            (status, enable).
-
-        """
-        enable = ctypes.c_bool()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceEnable(self.port, ctypes.byref(enable))
-        return status, enable.value
-
-    def set_device_enable(self, enable):
-        """
-        Set the enable state of the device.
-
-        Parameters
-        ----------
-        enable : bool
-            Enable state.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_SetDeviceEnable(self.port, ctypes.c_bool(enable))
-        return status
-
-    def reset_current_config(self):
-        """
-        Reset current configuration.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_ResetCurrentConfig(self.port)
-        return status
-
-    def save_current_config(self, config_number):
-        """
-        Save current configuration to NVM.
-
-        Parameters
-        ----------
-        config_number : int
-            Configuration number (0-167).
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_SaveCurrentConfig(self.port, config_number)
-        return status
-
-    def load_current_config(self, config_number):
-        """
-        Load current configuration from NVM.
-
-        Parameters
-        ----------
-        config_number : int
-            Configuration number (0-167).
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_LoadCurrentConfig(self.port, config_number)
-        return status
-
-    def get_config_name(self, config_number):
-        """
-        Get configuration name.
-
-        Parameters
-        ----------
-        config_number : int
-            Configuration number (0-167).
-
-        Returns
-        -------
-        tuple
-            (status, name).
-
-        """
-        name = ctypes.create_string_buffer(75)
-        status = self.rf_psu_dll.COM_HVPSU2D_GetConfigName(self.port, config_number, name)
-        return status, name.value.decode()
-
-    def set_config_name(self, config_number, name):
-        """
-        Set configuration name.
-
-        Parameters
-        ----------
-        config_number : int
-            Configuration number (0-167).
-        name : str
-            Configuration name (max 74 characters).
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        name_buffer = ctypes.create_string_buffer(name.encode(), 75)
-        status = self.rf_psu_dll.COM_HVPSU2D_SetConfigName(self.port, config_number, name_buffer)
-        return status
-
-    def get_config_flags(self, config_number):
-        """
-        Get configuration flags.
-
-        Parameters
-        ----------
-        config_number : int
-            Configuration number (0-167).
-
-        Returns
-        -------
-        tuple
-            (status, active, valid).
-
-        """
-        active = ctypes.c_bool()
-        valid = ctypes.c_bool()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetConfigFlags(
-            self.port, config_number, ctypes.byref(active), ctypes.byref(valid))
-        
-        return status, active.value, valid.value
-
-    def set_config_flags(self, config_number, active, valid):
-        """
-        Set configuration flags.
-
-        Parameters
-        ----------
-        config_number : int
-            Configuration number (0-167).
-        active : bool
-            Active flag.
-        valid : bool
-            Valid flag.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_SetConfigFlags(
-            self.port, config_number, ctypes.c_bool(active), ctypes.c_bool(valid))
-        return status
-
-    def get_config_list(self):
-        """
-        Get configuration list.
-
-        Returns
-        -------
-        tuple
-            (status, active_list, valid_list) where lists contain 168 boolean values.
-
-        """
-        active = (ctypes.c_bool * 168)()
-        valid = (ctypes.c_bool * 168)()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetConfigList(self.port, active, valid)
-        return status, [active[i] for i in range(168)], [valid[i] for i in range(168)]
-
-    # System
-    
-    def restart(self):
-        """
-        Restart the controller.
-
-        Returns
-        -------
-        int
-            Status code.
-
-        """
-        status = self.rf_psu_dll.COM_HVPSU2D_Restart(self.port)
-        return status
-
-    def get_cpu_data(self):
-        """
-        Get CPU load (0-1) and frequency (Hz).
-
-        Returns
-        -------
-        tuple
-            (status, load, frequency).
-
-        """
-        load = ctypes.c_double()
-        frequency = ctypes.c_double()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetCPUData(
-            self.port, ctypes.byref(load), ctypes.byref(frequency))
-        
-        return status, load.value, frequency.value
-
-    def get_uptime(self):
-        """
-        Get device uptime and operation time.
-
-        Returns
-        -------
-        tuple
-            (status, seconds, milliseconds, optime).
-
-        """
-        seconds = ctypes.c_uint32()
-        milliseconds = ctypes.c_uint16()
-        optime = ctypes.c_uint32()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetUptime(
-            self.port, ctypes.byref(seconds), ctypes.byref(milliseconds), ctypes.byref(optime))
-        
-        return status, seconds.value, milliseconds.value, optime.value
-
-    def get_total_time(self):
-        """
-        Get total device uptime and operation time.
-
-        Returns
-        -------
-        tuple
-            (status, uptime, optime).
-
-        """
-        uptime = ctypes.c_uint32()
-        optime = ctypes.c_uint32()
-        
-        status = self.rf_psu_dll.COM_HVPSU2D_GetTotalTime(
-            self.port, ctypes.byref(uptime), ctypes.byref(optime))
-        
-        return status, uptime.value, optime.value
-
-    def get_hw_type(self):
-        """
-        Get the hardware type.
-
-        Returns
-        -------
-        tuple
-            (status, hw_type).
-
-        """
-        hw_type = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetHWType(self.port, ctypes.byref(hw_type))
-        return status, hw_type.value
-
-    def get_hw_version(self):
-        """
-        Get the hardware version.
-
-        Returns
-        -------
-        tuple
-            (status, hw_version).
-
-        """
-        hw_version = ctypes.c_uint16()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetHWVersion(self.port, ctypes.byref(hw_version))
-        return status, hw_version.value
-
-    def get_fw_version(self):
-        """
-        Get the firmware version.
-
-        Returns
-        -------
-        tuple
-            (status, version).
-
-        """
-        version = ctypes.c_uint16()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetFWVersion(self.port, ctypes.byref(version))
-        return status, version.value
-
-    def get_fw_date(self):
-        """
-        Get the firmware date.
-
-        Returns
-        -------
-        tuple
-            (status, date_string).
-
-        """
-        date_string = ctypes.create_string_buffer(16)
-        status = self.rf_psu_dll.COM_HVPSU2D_GetFWDate(self.port, date_string)
-        return status, date_string.value.decode()
-
-    def get_product_id(self):
-        """
-        Get the product identification.
-
-        Returns
-        -------
-        tuple
-            (status, identification).
-
-        """
-        identification = ctypes.create_string_buffer(60)
-        status = self.rf_psu_dll.COM_HVPSU2D_GetProductID(self.port, identification)
-        return status, identification.value.decode()
-
-    def get_product_no(self):
-        """
-        Get the product number.
-
-        Returns
-        -------
-        tuple
-            (status, number).
-
-        """
-        number = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetProductNo(self.port, ctypes.byref(number))
-        return status, number.value
-
-    # Communication port status
-    
-    def get_interface_state(self):
-        """
-        Get software interface state.
-
-        Returns
-        -------
-        int
-            Interface state code.
-
-        """
-        state = self.rf_psu_dll.COM_HVPSU2D_GetInterfaceState(self.port)
-        return state
-
-    def get_error_message(self):
-        """
-        Get the error message corresponding to the software interface state.
-
-        Returns
-        -------
-        str
-            Error message.
-
-        """
-        self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage.restype = ctypes.c_char_p
-        msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage(self.port)
-        message = msg_ptr.decode() if msg_ptr else "No error"
-        return message
-
-    def get_io_state(self):
-        """
-        Get serial port interface state.
-
-        Returns
-        -------
-        int
-            IO state code.
-
-        """
-        state = self.rf_psu_dll.COM_HVPSU2D_GetIOState(self.port)
-        return state
-
-    def get_io_error_message(self):
-        """
-        Get the error message corresponding to the serial port interface state.
-
-        Returns
-        -------
-        str
-            Error message.
-
-        """
-        self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage.restype = ctypes.c_char_p
-        msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage(self.port)
-        message = msg_ptr.decode() if msg_ptr else "No error"
-        return message
+        # If attribute not found in base class, raise AttributeError
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
