@@ -172,15 +172,6 @@ class SyringePump:
         """
         pass
 
-    def get_status(self) -> Dict[str, Any]:
-        """
-        Get current device status.
-        
-        Returns:
-            dict: Current device status including connection state, parameters, etc.
-        """
-        pass
-
     def connect(self) -> bool:
         """
         Establish connection to the syringe pump.
@@ -257,7 +248,7 @@ class SyringePump:
                 # Send command with carriage return
                 arg = bytes(str(command), 'utf8') + b'\r'
                 self.serial_connection.write(arg)
-                time.sleep(0.5)  # Wait for response
+                time.sleep(0.05)  # Wait for response
                 
                 response = self._get_response()
                 self.logger.debug(f"Command: {command}, Response: {response}")
