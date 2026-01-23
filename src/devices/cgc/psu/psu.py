@@ -201,110 +201,110 @@ class PSU(PSUBase):
         """Get and log product information."""
         status, product_no = self.get_product_no()
         if status == self.NO_ERR:
-            self.logger.debug(f"Product number: {product_no}")
+            self.logger.info(f"Product number: {product_no}")
         return status == self.NO_ERR
 
     def _hk_main_state(self):
         """Get and log main device state."""
         status, state_hex, state_name = self.get_main_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Main state: {state_name}")
+            self.logger.info(f"Main state: {state_name}")
         return status == self.NO_ERR
 
     def _hk_device_state(self):
         """Get and log device state."""
         status, state_hex, state_names = self.get_device_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Device state: {', '.join(state_names)}")
+            self.logger.info(f"Device state: {', '.join(state_names)}")
         return status == self.NO_ERR
 
     def _hk_general_housekeeping(self):
         """Get and log general housekeeping data."""
         status, volt_rect, volt_5v0, volt_3v3, temp_cpu = self.get_housekeeping()
         if status == self.NO_ERR:
-            self.logger.debug("get_housekeeping() results:")
-            self.logger.debug(f"  Rectifier Voltage: {volt_rect:.2f}V")
-            self.logger.debug(f"  5V Supply: {volt_5v0:.2f}V")
-            self.logger.debug(f"  3.3V Supply: {volt_3v3:.2f}V")
-            self.logger.debug(f"  CPU Temperature: {temp_cpu:.1f}°C")
+            self.logger.info("get_housekeeping() results:")
+            self.logger.info(f"  Rectifier Voltage: {volt_rect:.2f}V")
+            self.logger.info(f"  5V Supply: {volt_5v0:.2f}V")
+            self.logger.info(f"  3.3V Supply: {volt_3v3:.2f}V")
+            self.logger.info(f"  CPU Temperature: {temp_cpu:.1f}°C")
         return status == self.NO_ERR
 
     def _hk_sensor_data(self):
         """Get and log sensor data."""
         status, temp0, temp1, temp2 = self.get_sensor_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_sensor_data() results:")
-            self.logger.debug(f"  Sensor 0 Temperature: {temp0:.1f}°C")
-            self.logger.debug(f"  Sensor 1 Temperature: {temp1:.1f}°C")
-            self.logger.debug(f"  Sensor 2 Temperature: {temp2:.1f}°C")
+            self.logger.info("get_sensor_data() results:")
+            self.logger.info(f"  Sensor 0 Temperature: {temp0:.1f}°C")
+            self.logger.info(f"  Sensor 1 Temperature: {temp1:.1f}°C")
+            self.logger.info(f"  Sensor 2 Temperature: {temp2:.1f}°C")
         return status == self.NO_ERR
 
     def _hk_psu0_adc_housekeeping(self):
         """Get and log PSU0 ADC housekeeping data."""
         status, volt_avdd, volt_dvdd, volt_aldo, volt_dldo, volt_ref, temp_adc = self.get_psu0_adc_housekeeping()
         if status == self.NO_ERR:
-            self.logger.debug("get_psu0_adc_housekeeping() results:")
-            self.logger.debug(f"  AVDD Voltage: {volt_avdd:.2f}V")
-            self.logger.debug(f"  DVDD Voltage: {volt_dvdd:.2f}V")
-            self.logger.debug(f"  ALDO Voltage: {volt_aldo:.2f}V")
-            self.logger.debug(f"  DLDO Voltage: {volt_dldo:.2f}V")
-            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
-            self.logger.debug(f"  ADC Temperature: {temp_adc:.1f}°C")
+            self.logger.info("get_psu0_adc_housekeeping() results:")
+            self.logger.info(f"  AVDD Voltage: {volt_avdd:.2f}V")
+            self.logger.info(f"  DVDD Voltage: {volt_dvdd:.2f}V")
+            self.logger.info(f"  ALDO Voltage: {volt_aldo:.2f}V")
+            self.logger.info(f"  DLDO Voltage: {volt_dldo:.2f}V")
+            self.logger.info(f"  Reference Voltage: {volt_ref:.2f}V")
+            self.logger.info(f"  ADC Temperature: {temp_adc:.1f}°C")
         return status == self.NO_ERR
 
     def _hk_psu1_adc_housekeeping(self):
         """Get and log PSU1 ADC housekeeping data."""
         status, volt_avdd, volt_dvdd, volt_aldo, volt_dldo, volt_ref, temp_adc = self.get_psu1_adc_housekeeping()
         if status == self.NO_ERR:
-            self.logger.debug("get_psu1_adc_housekeeping() results:")
-            self.logger.debug(f"  AVDD Voltage: {volt_avdd:.2f}V")
-            self.logger.debug(f"  DVDD Voltage: {volt_dvdd:.2f}V")
-            self.logger.debug(f"  ALDO Voltage: {volt_aldo:.2f}V")
-            self.logger.debug(f"  DLDO Voltage: {volt_dldo:.2f}V")
-            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
-            self.logger.debug(f"  ADC Temperature: {temp_adc:.1f}°C")
+            self.logger.info("get_psu1_adc_housekeeping() results:")
+            self.logger.info(f"  AVDD Voltage: {volt_avdd:.2f}V")
+            self.logger.info(f"  DVDD Voltage: {volt_dvdd:.2f}V")
+            self.logger.info(f"  ALDO Voltage: {volt_aldo:.2f}V")
+            self.logger.info(f"  DLDO Voltage: {volt_dldo:.2f}V")
+            self.logger.info(f"  Reference Voltage: {volt_ref:.2f}V")
+            self.logger.info(f"  ADC Temperature: {temp_adc:.1f}°C")
         return status == self.NO_ERR
 
     def _hk_psu0_housekeeping(self):
         """Get and log PSU0 housekeeping data."""
         status, volt_24vp, volt_12vp, volt_12vn, volt_ref = self.get_psu0_housekeeping()
         if status == self.NO_ERR:
-            self.logger.debug("get_psu0_housekeeping() results:")
-            self.logger.debug(f"  24V+ Supply: {volt_24vp:.2f}V")
-            self.logger.debug(f"  12V+ Supply: {volt_12vp:.2f}V")
-            self.logger.debug(f"  12V- Supply: {volt_12vn:.2f}V")
-            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
+            self.logger.info("get_psu0_housekeeping() results:")
+            self.logger.info(f"  24V+ Supply: {volt_24vp:.2f}V")
+            self.logger.info(f"  12V+ Supply: {volt_12vp:.2f}V")
+            self.logger.info(f"  12V- Supply: {volt_12vn:.2f}V")
+            self.logger.info(f"  Reference Voltage: {volt_ref:.2f}V")
         return status == self.NO_ERR
 
     def _hk_psu1_housekeeping(self):
         """Get and log PSU1 housekeeping data."""
         status, volt_24vp, volt_12vp, volt_12vn, volt_ref = self.get_psu1_housekeeping()
         if status == self.NO_ERR:
-            self.logger.debug("get_psu1_housekeeping() results:")
-            self.logger.debug(f"  24V+ Supply: {volt_24vp:.2f}V")
-            self.logger.debug(f"  12V+ Supply: {volt_12vp:.2f}V")
-            self.logger.debug(f"  12V- Supply: {volt_12vn:.2f}V")
-            self.logger.debug(f"  Reference Voltage: {volt_ref:.2f}V")
+            self.logger.info("get_psu1_housekeeping() results:")
+            self.logger.info(f"  24V+ Supply: {volt_24vp:.2f}V")
+            self.logger.info(f"  12V+ Supply: {volt_12vp:.2f}V")
+            self.logger.info(f"  12V- Supply: {volt_12vn:.2f}V")
+            self.logger.info(f"  Reference Voltage: {volt_ref:.2f}V")
         return status == self.NO_ERR
 
     def _hk_psu0_data(self):
         """Get and log PSU0 measured data."""
         status, voltage, current, volt_dropout = self.get_psu0_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_psu0_data() results:")
-            self.logger.debug(f"  Output Voltage: {voltage:.3f}V")
-            self.logger.debug(f"  Output Current: {current:.3f}A")
-            self.logger.debug(f"  Dropout Voltage: {volt_dropout:.2f}V")
+            self.logger.info("get_psu0_data() results:")
+            self.logger.info(f"  Output Voltage: {voltage:.3f}V")
+            self.logger.info(f"  Output Current: {current:.3f}A")
+            self.logger.info(f"  Dropout Voltage: {volt_dropout:.2f}V")
         return status == self.NO_ERR
 
     def _hk_psu1_data(self):
         """Get and log PSU1 measured data."""
         status, voltage, current, volt_dropout = self.get_psu1_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_psu1_data() results:")
-            self.logger.debug(f"  Output Voltage: {voltage:.3f}V")
-            self.logger.debug(f"  Output Current: {current:.3f}A")
-            self.logger.debug(f"  Dropout Voltage: {volt_dropout:.2f}V")
+            self.logger.info("get_psu1_data() results:")
+            self.logger.info(f"  Output Voltage: {voltage:.3f}V")
+            self.logger.info(f"  Output Current: {current:.3f}A")
+            self.logger.info(f"  Dropout Voltage: {volt_dropout:.2f}V")
         return status == self.NO_ERR
 
     def hk_monitor(self):
@@ -503,7 +503,7 @@ class PSU(PSUBase):
         status, voltage = super().get_psu_output_voltage(psu_num)
         if status == self.NO_ERR:
             psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
-            self.logger.debug(f"{psu_name} output voltage: {voltage:.3f}V")
+            self.logger.info(f"{psu_name} output voltage: {voltage:.3f}V")
         else:
             self.logger.warning(f"Failed to get PSU{psu_num} output voltage: status {status}")
         return status, voltage
@@ -532,7 +532,7 @@ class PSU(PSUBase):
                 def logged_method(*args, **kwargs):
                     """Wrapper method that adds logging to base class methods."""
                     # Log the method call
-                    self.logger.debug(f"Calling {name} with args={args[1:]} kwargs={kwargs}")
+                    self.logger.info(f"Calling {name} with args={args[1:]} kwargs={kwargs}")
                     
                     try:
                         # Call the original method with self as first argument
@@ -543,11 +543,11 @@ class PSU(PSUBase):
                             # Most PSU methods return (status, ...) tuples
                             status = result[0]
                             if status == self.NO_ERR:
-                                self.logger.debug(f"{name} completed successfully")
+                                self.logger.info(f"{name} completed successfully")
                             else:
                                 self.logger.warning(f"{name} returned status {status}")
                         else:
-                            self.logger.debug(f"{name} completed")
+                            self.logger.info(f"{name} completed")
                         
                         return result
                         
