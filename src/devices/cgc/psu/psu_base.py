@@ -3,6 +3,7 @@
 import ctypes
 import json
 import os
+import sys
 
 class PSUBase:
     """PSU base device class."""
