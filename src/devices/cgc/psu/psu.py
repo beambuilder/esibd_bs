@@ -226,7 +226,7 @@ class PSU(PSUBase):
             self.logger.info(f"  Rectifier Voltage: {volt_rect:.2f}V")
             self.logger.info(f"  5V Supply: {volt_5v0:.2f}V")
             self.logger.info(f"  3.3V Supply: {volt_3v3:.2f}V")
-            self.logger.info(f"  CPU Temperature: {temp_cpu:.1f}°C")
+            self.logger.info(f"  CPU Temperature: {temp_cpu:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_sensor_data(self):
@@ -234,9 +234,9 @@ class PSU(PSUBase):
         status, temp0, temp1, temp2 = self.get_sensor_data()
         if status == self.NO_ERR:
             self.logger.info("get_sensor_data() results:")
-            self.logger.info(f"  Sensor 0 Temperature: {temp0:.1f}°C")
-            self.logger.info(f"  Sensor 1 Temperature: {temp1:.1f}°C")
-            self.logger.info(f"  Sensor 2 Temperature: {temp2:.1f}°C")
+            self.logger.info(f"  Sensor 0 Temperature: {temp0:.1f}degC")
+            self.logger.info(f"  Sensor 1 Temperature: {temp1:.1f}degC")
+            self.logger.info(f"  Sensor 2 Temperature: {temp2:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_psu0_adc_housekeeping(self):
@@ -249,7 +249,7 @@ class PSU(PSUBase):
             self.logger.info(f"  ALDO Voltage: {volt_aldo:.2f}V")
             self.logger.info(f"  DLDO Voltage: {volt_dldo:.2f}V")
             self.logger.info(f"  Reference Voltage: {volt_ref:.2f}V")
-            self.logger.info(f"  ADC Temperature: {temp_adc:.1f}°C")
+            self.logger.info(f"  ADC Temperature: {temp_adc:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_psu1_adc_housekeeping(self):
@@ -262,7 +262,7 @@ class PSU(PSUBase):
             self.logger.info(f"  ALDO Voltage: {volt_aldo:.2f}V")
             self.logger.info(f"  DLDO Voltage: {volt_dldo:.2f}V")
             self.logger.info(f"  Reference Voltage: {volt_ref:.2f}V")
-            self.logger.info(f"  ADC Temperature: {temp_adc:.1f}°C")
+            self.logger.info(f"  ADC Temperature: {temp_adc:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_psu0_housekeeping(self):

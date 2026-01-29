@@ -219,11 +219,11 @@ class AMPR(AMPRBase):
             self.logger.debug(f"  -12Va Supply: {volt_12vn:.2f}V")
             self.logger.debug(f"  +HV Supply: {volt_hvp:.2f}V")
             self.logger.debug(f"  -HV Supply: {volt_hvn:.2f}V")
-            self.logger.debug(f"  CPU Temperature: {temp_cpu:.1f}°C")
-            self.logger.debug(f"  ADC Temperature: {temp_adc:.1f}°C")
-            self.logger.debug(f"  AV Temperature: {temp_av:.1f}°C")
-            self.logger.debug(f"  +HV Temperature: {temp_hvp:.1f}°C")
-            self.logger.debug(f"  -HV Temperature: {temp_hvn:.1f}°C")
+            self.logger.debug(f"  CPU Temperature: {temp_cpu:.1f}degC")
+            self.logger.debug(f"  ADC Temperature: {temp_adc:.1f}degC")
+            self.logger.debug(f"  AV Temperature: {temp_av:.1f}degC")
+            self.logger.debug(f"  +HV Temperature: {temp_hvp:.1f}degC")
+            self.logger.debug(f"  -HV Temperature: {temp_hvn:.1f}degC")
             self.logger.debug(f"  Line Frequency: {line_freq:.1f}Hz")
         return status == self.NO_ERR
 
