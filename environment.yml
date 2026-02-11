@@ -1,0 +1,33 @@
+name: esibd
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.10
+  # Core - device communication
+  - pyserial>=3.5
+  # Data & numerics
+  - numpy
+  - pandas
+  # Plotting & visualization
+  - matplotlib
+  - plotly
+  - bokeh
+  - holoviews
+  - hvplot
+  # Jupyter / notebook support
+  - jupyterlab
+  - ipywidgets
+  # Logging
+  - loguru
+  # System monitoring
+  - psutil
+  # Testing & development
+  - pytest
+  - pytest-cov
+  - pytest-html
+  - black
+  - flake8
+  # Documentation
+  - sphinx
+  - sphinx_rtd_theme
