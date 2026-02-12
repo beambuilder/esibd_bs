@@ -60,7 +60,7 @@ class PumpArduino(Arduino):
                 "raw_data": data_line,
             }
         except (ValueError, IndexError):
-            self.logger.debug(f"Failed to parse pump data: {data_line!r}")
+            #self.logger.debug(f"Failed to parse pump data: {data_line!r}")
             return None
 
     # ------------------------------------------------------------------
