@@ -1,30 +1,38 @@
-"""
-Arduino device controller.
+﻿"""
+Arduino base device controller.
 
-This module provides the Arduino class for communicating with Arduino
-microcontrollers via serial communication protocols.
+This module provides the Arduino base class for communicating with Arduino
+microcontrollers via serial communication protocols. Subclass this for
+specific Arduino configurations (e.g., PumpArduino, TrafoArduino).
 """
-# ToDo: Logging into each function
+
 from typing import Any, Dict, Optional
 import serial
 import logging
 from datetime import datetime
 from pathlib import Path
 import threading
-import re
+from abc import abstractmethod
 
 
 class Arduino:
     """
-    Arduino microcontroller communication class.
+    Arduino microcontroller communication base class.
 
     This class handles serial communication with Arduino devices,
     providing methods for sending commands and reading responses.
+    Subclasses implement device-specific data parsing and housekeeping.
+
+    The Arduino firmware prints a CSV header line every 20 data lines.
+    Non-numeric lines (headers) are rejected by ``parse_data()`` in each
+    subclass — no separate filtering step is needed.
 
     Example:
-        arduino = Arduino("lab_arduino_01", port="COM3", baudrate=9600)
+        from devices.arduino.pump_arduino import PumpArduino
+
+        arduino = PumpArduino("pump_01", port="COM3", baudrate=9600)
         arduino.connect()
-        value = arduino.read_analog_pin(0)
+        data = arduino.read_arduino_data()
         arduino.disconnect()
     """
 
@@ -34,11 +42,10 @@ class Arduino:
         port: str,
         baudrate: int = 9600,
         timeout: float = 1.0,
-        data_parser: str = "pump_locker",
         logger: Optional[logging.Logger] = None,
         hk_thread: Optional[threading.Thread] = None,
         thread_lock: Optional[threading.Lock] = None,
-        hk_interval: float = 1.0,  # Housekeeping interval in seconds
+        hk_interval: float = 1.0,
         **kwargs,
     ):
         """
@@ -49,18 +56,16 @@ class Arduino:
             port: Serial port (e.g., 'COM3' on Windows, '/dev/ttyUSB0' on Linux)
             baudrate: Communication speed (default: 9600)
             timeout: Serial communication timeout in seconds
-            data_parser: Parser type ("pump_locker", "trafo_locker", "custom", etc.)
             logger: Optional custom logger. If None, creates file logger in debugging/logs/
             hk_thread: Optional housekeeping thread. If None, creates one automatically
             thread_lock: Optional thread lock. If None, creates one automatically
-            hk_interval: Housekeeping monitoring interval in seconds (default: 30.0)
+            hk_interval: Housekeeping monitoring interval in seconds (default: 1.0)
             **kwargs: Additional connection parameters
         """
         self.device_id = device_id
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
-        self.data_parser = data_parser
         self.is_connected = False
         self.serial_connection: Optional[serial.Serial] = None
 
@@ -74,10 +79,7 @@ class Arduino:
         self.external_lock = thread_lock is not None
 
         # Setup thread lock (for serial communication)
-        if thread_lock is not None:
-            self.thread_lock = thread_lock
-        else:
-            self.thread_lock = threading.Lock()
+        self.thread_lock = thread_lock if thread_lock is not None else threading.Lock()
 
         # Setup housekeeping lock (separate from communication lock)
         self.hk_lock = threading.Lock()
@@ -85,7 +87,6 @@ class Arduino:
         # Setup housekeeping thread
         if hk_thread is not None:
             self.hk_thread = hk_thread
-            # For external threads, we don't manage the thread lifecycle
         else:
             self.hk_thread = threading.Thread(
                 target=self._hk_worker, name=f"HK_{device_id}", daemon=True
@@ -94,23 +95,19 @@ class Arduino:
         # Setup logger
         if logger is not None:
             self.logger = logger
-            self._external_logger_provided = True  # Flag to track external logger
+            self._external_logger_provided = True
         else:
             self._external_logger_provided = False
-            # Create logger with file handler and timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             logger_name = f"Arduino_{device_id}_{timestamp}"
             self.logger = logging.getLogger(logger_name)
 
-            # Only add handler if logger doesn't already have one
             if not self.logger.handlers:
-                # Create logs directory if it doesn't exist
                 logs_dir = (
                     Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
                 )
                 logs_dir.mkdir(parents=True, exist_ok=True)
 
-                # Create file handler with timestamp
                 log_filename = f"Arduino_{device_id}_{timestamp}.log"
                 log_filepath = logs_dir / log_filename
 
@@ -123,44 +120,13 @@ class Arduino:
                 self.logger.addHandler(file_handler)
                 self.logger.setLevel(logging.INFO)
 
-                # Log the initialization
                 self.logger.info(
                     f"Arduino logger initialized for device '{device_id}' on port '{port}'"
                 )
-                self.logger.info(f"Data parser: {data_parser}")
 
-    def enable_file_logging(self) -> bool:
-        """
-        Enable file logging if not already enabled.
-        
-        If an external logger was passed to the constructor, this method will not
-        create additional file handlers and will use the external logger instead.
-        For internal loggers, this method checks if file logging is already enabled.
-
-        Returns:
-            bool: True if file logging is enabled, False if it failed
-        """
-        try:
-            # If external logger was provided, don't create additional file handlers
-            # The external logger should handle its own file logging
-            if self._external_logger_provided:
-                self.logger.info("Using external logger - no additional file logging needed")
-                return True
-            
-            # For internal loggers, check if we already have a file handler
-            for handler in self.logger.handlers:
-                if isinstance(handler, logging.FileHandler):
-                    self.logger.info("File logging already enabled")
-                    return True
-            
-            # This should not happen for internal loggers since we create the file handler
-            # during initialization, but just in case...
-            self.logger.warning("Internal logger missing file handler - this should not happen")
-            return False
-
-        except Exception as e:
-            self.logger.warning(f"Failed to check file logging: {e}")
-            return False
+    # =========================================================================
+    #     Connection Management
+    # =========================================================================
 
     def connect(self) -> bool:
         """
@@ -188,7 +154,6 @@ class Arduino:
             bool: True if disconnection successful, False otherwise
         """
         try:
-            # Stop housekeeping before disconnecting
             self.stop_housekeeping()
 
             if self.serial_connection:
@@ -213,119 +178,102 @@ class Arduino:
             "baudrate": self.baudrate,
             "connected": self.is_connected,
             "timeout": self.timeout,
-            "data_parser": self.data_parser,
             "hk_running": self.hk_running,
             "hk_interval": self.hk_interval,
             "external_thread": self.external_thread,
         }
 
-    def parse_data(self, data_line: str) -> Optional[Dict[str, Any]]:
-        """
-        Parse Arduino data line based on the configured parser type.
+    # =========================================================================
+    #     Logging Helpers
+    # =========================================================================
 
-        Args:
-            data_line: Raw data line from Arduino
+    def enable_file_logging(self) -> bool:
+        """
+        Enable file logging if not already enabled.
 
         Returns:
-            dict: Parsed data or None if parsing fails
+            bool: True if file logging is enabled, False if it failed
         """
-        if not data_line:
-            return None
+        try:
+            if self._external_logger_provided:
+                self.logger.info("Using external logger - no additional file logging needed")
+                return True
 
-        if self.data_parser == "pump_locker":
-            return self._parse_pump_locker_data(data_line)
-        elif self.data_parser == "trafo_locker":
-            return self._parse_trafo_locker_data(data_line)
-        elif self.data_parser == "custom":
-            return self._parse_custom_data(data_line)
-        else:
-            # Default: return raw data
-            return {"raw_data": data_line}
+            for handler in self.logger.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    self.logger.info("File logging already enabled")
+                    return True
 
-    def _parse_pump_locker_data(self, data_line: str) -> Optional[Dict[str, Any]]:
-        """
-        Parse temperature, fan and waterflow data.
-        Expected format: "Temperature: 23.44 °C | Fan_PWR: 60 % | Waterflow: 15.2 L/min"
-        """
-        pattern = r"Temperature:\s*([\d.]+)\s*°C\s*\|\s*Fan_PWR:\s*(\d+)\s*%\s*\|\s*H2O_FRate:\s*([\d.]+)\s*L/min"
-        match = re.search(pattern, data_line)
+            self.logger.warning("Internal logger missing file handler - this should not happen")
+            return False
 
-        if match:
-            try:
-                temperature = float(match.group(1))
-                fan_power = int(match.group(2))
-                waterflow = float(match.group(3))
-                return {
-                    "temperature": temperature,
-                    "fan_power": fan_power,
-                    "waterflow": waterflow,
-                    "raw_data": data_line,
-                }
-            except ValueError:
-                return None
-        return None
+        except Exception as e:
+            self.logger.warning(f"Failed to check file logging: {e}")
+            return False
 
-    def _parse_trafo_locker_data(self, data_line: str) -> Optional[Dict[str, Any]]:
-        """
-        Parse temperature and fan data.
-        Expected format: "Temperature: 23.44 °C | Fan_PWR: 60 %"
-        """
-        pattern = r"Temperature:\s*([\d.]+)\s*°C\s*\|\s*Fan_PWR:\s*(\d+)\s*%"
-        match = re.search(pattern, data_line)
+    def custom_logger(self, dev_name: str, port: str, measure: str, value, unit: str):
+        """Log a single measurement in a standardised format."""
+        return self.logger.info(f"{dev_name}   {port}   {measure}   {value}//{unit}")
 
-        if match:
-            try:
-                temperature = float(match.group(1))
-                fan_power = int(match.group(2))
-                return {
-                    "temperature": temperature,
-                    "fan_power": fan_power,
-                    "raw_data": data_line,
-                }
-            except ValueError:
-                return None
-        return None
-
-    def _parse_custom_data(self, data_line: str) -> Optional[Dict[str, Any]]:
-        """
-        Parse custom data format.
-        Override this method for custom parsing logic.
-        """
-        return {"raw_data": data_line}
+    # =========================================================================
+    #     Serial I/O
+    # =========================================================================
 
     def readout(self) -> Optional[str]:
         """
-        Read a line from Arduino serial monitor
+        Read a line from the Arduino serial port.
+
+        Returns the raw stripped line, or None if nothing is available.
+        Non-numeric lines (e.g. periodic CSV headers) are handled by
+        ``parse_data()`` in each subclass — they simply return None.
 
         Returns:
-            str: The line read from Arduino, or None if no data/error
+            str: The line read from Arduino, or None if no data / error
         """
         if not self.is_connected or not self.serial_connection:
             self.logger.warning("Arduino not connected. Call connect() first.")
             return None
 
         try:
-            with self.thread_lock:  # Thread-safe serial communication
+            with self.thread_lock:
                 if self.serial_connection.in_waiting > 0:
-                    # Read line and decode from bytes to string
                     line = (
                         self.serial_connection.readline()
                         .decode("utf-8", errors="ignore")
                         .strip()
                     )
-                    return line
+                    return line if line else None
                 else:
                     return None
         except serial.SerialException as e:
             self.logger.error(f"Error reading from Arduino: {e}")
             return None
 
-    def read_arduino_data(self) -> Optional[Dict[str, Any]]:
+    # =========================================================================
+    #     Data Parsing (override in subclasses)
+    # =========================================================================
+
+    @abstractmethod
+    def parse_data(self, data_line: str) -> Optional[Dict[str, Any]]:
         """
-        Read and parse data from Arduino.
+        Parse an Arduino CSV data line into a dict.
+
+        Subclasses **must** implement this for their specific data format.
+
+        Args:
+            data_line: Raw CSV data line from the Arduino (header already filtered)
 
         Returns:
-            dict: Parsed data or None if reading fails
+            dict with parsed values, or None if parsing fails
+        """
+        ...
+
+    def read_arduino_data(self) -> Optional[Dict[str, Any]]:
+        """
+        Read and parse one line of data from the Arduino.
+
+        Returns:
+            dict: Parsed data or None if reading/parsing fails
         """
         data_line = self.readout()
         if data_line:
@@ -334,67 +282,30 @@ class Arduino:
             self.logger.debug("No data received from Arduino.")
             return None
 
-    def custom_logger(self, dev_name, port, measure, value, unit):
-        return self.logger.info(f"{dev_name}   {port}   {measure}   {value}//{unit}")
+    # =========================================================================
+    #     Housekeeping (override hk_monitor in subclasses)
+    # =========================================================================
 
-    def hk_monitor(self):
+    @abstractmethod
+    def hk_monitor(self) -> None:
         """
-        Perform housekeeping monitoring of Arduino data.
-        This method reads and logs Arduino sensor data based on the configured parser.
+        Perform one housekeeping read-and-log cycle.
+
+        Subclasses implement this to read sensor data and log it using
+        ``custom_logger``.
         """
-        try:
-            rtn = self.read_arduino_data()
+        ...
 
-            if rtn and self.data_parser == "pump_locker":
-                # Log parsed data for pump locker
-                self.custom_logger(
-                    self.device_id, self.port, "Temp", rtn.get("temperature"), "degC"
-                )
-                self.custom_logger(
-                    self.device_id, self.port, "Fan_PWR", rtn.get("fan_power"), "%"
-                )
-                self.custom_logger(
-                    self.device_id,
-                    self.port,
-                    "H2O_FRate",
-                    rtn.get("waterflow"),
-                    "L/min",
-                )
-            elif rtn and self.data_parser == "trafo_locker":
-                # Log parsed data for trafo locker
-                self.custom_logger(
-                    self.device_id, self.port, "Temp", rtn.get("temperature"), "degC"
-                )
-                self.custom_logger(
-                    self.device_id, self.port, "Fan_PWR", rtn.get("fan_power"), "%"
-                )
-            elif rtn and self.data_parser == "custom":
-                # Log raw data for custom parser
-                self.custom_logger(
-                    self.device_id, self.port, "Raw_Data", rtn.get("raw_data"), ""
-                )
-            else:
-                self.logger.warning("No valid data received or parsing failed.")
-                self.custom_logger(
-                    self.device_id, self.port, "Error", "Invalid data", ""
-                )
-        except Exception as e:
-            self.logger.error(f"Housekeeping monitoring failed: {e}")
-
-    # =============================================================================
-    #     Housekeeping and Threading Methods
-    # =============================================================================
-
-    def start_housekeeping(self, interval=-1, log_to_file=True) -> bool:
+    def start_housekeeping(self, interval: float = -1, log_to_file: bool = True) -> bool:
         """
-        Start housekeeping monitoring. Works automatically in both internal and external thread modes.
+        Start housekeeping monitoring.
 
-        - Internal mode (no thread passed to __init__): Creates and manages its own thread
-        - External mode (thread passed to __init__): Enables monitoring for external thread control
+        - Internal mode (no thread passed to __init__): creates and manages its own thread
+        - External mode (thread passed to __init__): enables monitoring for external thread control
 
         Args:
-            interval (int): Monitoring interval in seconds (default: 30)
-            log_to_file (bool): Whether to enable file logging (default: True)
+            interval: Monitoring interval in seconds. <=0 keeps current value.
+            log_to_file: Whether to enable file logging (default: True)
 
         Returns:
             bool: True if started successfully, False otherwise
@@ -417,12 +328,10 @@ class Arduino:
 
                 self.hk_stop_event.clear()
 
-                # Enable file logging if requested
                 if log_to_file:
                     self.enable_file_logging()
 
                 if self.external_thread:
-                    # External mode: Just enable monitoring, external code controls the thread
                     self.logger.info(
                         f"Housekeeping enabled (external mode) - interval: {interval}s"
                     )
@@ -430,7 +339,6 @@ class Arduino:
                         "Use do_housekeeping_cycle() in your external thread"
                     )
                 else:
-                    # Internal mode: Start our own thread
                     if not self.hk_thread.is_alive():
                         self.hk_thread = threading.Thread(
                             target=self._hk_worker,
@@ -452,7 +360,7 @@ class Arduino:
 
     def stop_housekeeping(self) -> bool:
         """
-        Stop housekeeping monitoring. Works in both internal and external modes.
+        Stop housekeeping monitoring.
 
         Returns:
             bool: True if stopped successfully, False otherwise
@@ -466,17 +374,14 @@ class Arduino:
                 self.hk_stop_event.set()
 
                 if self.external_thread:
-                    # External mode: Just signal to stop
                     self.logger.info("Housekeeping stopped (external mode)")
                 else:
-                    # Internal mode: Wait for our thread to finish
                     if self.hk_thread and self.hk_thread.is_alive():
                         self.hk_thread.join(timeout=5.0)
                         if self.hk_thread.is_alive():
                             self.logger.warning(
                                 "Housekeeping thread did not stop within timeout"
                             )
-
                     self.logger.info("Housekeeping stopped (internal mode)")
 
                 return True
@@ -486,10 +391,7 @@ class Arduino:
                 return False
 
     def _hk_worker(self) -> None:
-        """
-        Internal housekeeping worker thread function.
-        Runs continuously until stop_event is set.
-        """
+        """Internal housekeeping worker thread function."""
         self.logger.info(f"Housekeeping worker started for {self.device_id}")
 
         while not self.hk_stop_event.is_set() and self.hk_running:
@@ -499,12 +401,10 @@ class Arduino:
                 else:
                     self.logger.warning("Device disconnected, pausing housekeeping")
 
-                # Wait for interval or stop event
                 self.hk_stop_event.wait(timeout=self.hk_interval)
 
             except Exception as e:
                 self.logger.error(f"Housekeeping error: {e}")
-                # Continue running even after errors
                 self.hk_stop_event.wait(timeout=self.hk_interval)
 
         self.logger.info(f"Housekeeping worker stopped for {self.device_id}")
@@ -512,9 +412,6 @@ class Arduino:
     def do_housekeeping_cycle(self) -> bool:
         """
         Perform one housekeeping cycle. Use this in external threads.
-
-        This is the main method for external thread control - call it periodically
-        in your external thread loop.
 
         Returns:
             bool: True if cycle completed successfully, False otherwise
@@ -529,7 +426,6 @@ class Arduino:
             else:
                 self.logger.warning("Device not connected during housekeeping cycle")
                 return False
-
         except Exception as e:
             self.logger.error(f"Housekeeping cycle error: {e}")
             return False

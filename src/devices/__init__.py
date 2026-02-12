@@ -6,6 +6,8 @@ interfaces for various laboratory instruments and devices.
 """
 
 from .arduino.arduino import Arduino
+from .arduino.pump_arduino import PumpArduino
+from .arduino.trafo_arduino import TrafoArduino
 from .chiller.chiller import Chiller
 
-__all__ = ['Arduino', 'Chiller']
+__all__ = ['Arduino', 'PumpArduino', 'TrafoArduino', 'Chiller']
