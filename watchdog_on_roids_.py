@@ -11,7 +11,7 @@ import sys
 import os
 import re
 import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QLabel, QLineEdit, QGridLayout, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QLabel, QGridLayout
 from datetime import datetime
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -19,10 +19,9 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.dates as mdates
 
 class RealTimePlot(QWidget):
-    def __init__(self, log_file, value_strings, parent=None):
+    def __init__(self, log_file, parent=None):
         super(RealTimePlot, self).__init__(parent)
         self.log_file = log_file
-        self.value_strings = value_strings
         self.log_entries = []
         self.log_file_size = 0
 
@@ -37,15 +36,6 @@ class RealTimePlot(QWidget):
 
         self.ani = FuncAnimation(self.figure, self.update_plot, interval=1000) #delay between frames in ms
 
-    def parse_log_entry(self, line):
-        match = re.match(r'(\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}.\d{3}) \| INFO     \| (\w+: \w+)\s+= (-?\d+\.\d+) (\w+)', line)
-        if match:
-            timestamp_str, value_name, value, unit = match.groups()
-            timestamp = datetime.strptime(timestamp_str, '%d-%m-%Y %H:%M:%S.%f')
-            #print(f"{unit}")
-            return timestamp, value_name, float(value), unit
-        return None, None, None, None
-
     def update_plot(self, i):
         current_size = os.path.getsize(self.log_file)
 
@@ -56,26 +46,59 @@ class RealTimePlot(QWidget):
                 self.log_entries.extend(new_data)
                 self.log_file_size = current_size
 
-        timestamps = []
-        values = {value: [] for value in self.value_strings}
+        psu0_timestamps = []
+        psu0_currents = []
+        psu1_timestamps = []
+        psu1_currents = []
+
+        current_psu = None
+        current_timestamp = None
 
         for entry in self.log_entries:
-            timestamp, value_name, value, unit = self.parse_log_entry(entry)
-            if timestamp and value_name in self.value_strings:
-                timestamps.append(timestamp)
-                values[value_name].append(value)
+            # Check for PSU block header: e.g. "2026-02-20 14:51:58,089 - INFO - get_psu0_data() results:"
+            psu_match = re.match(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d{3} - INFO - get_psu(\d)_data\(\) results:', entry)
+            if psu_match:
+                current_timestamp = datetime.strptime(psu_match.group(1), '%Y-%m-%d %H:%M:%S')
+                current_psu = int(psu_match.group(2))
+                continue
+
+            # Check for Output Current line within a PSU block
+            if current_psu is not None:
+                current_match = re.match(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - INFO -\s+Output Current:\s+([\d.]+)A', entry)
+                if current_match:
+                    current_value = float(current_match.group(1))
+                    if current_psu == 0:
+                        psu0_timestamps.append(current_timestamp)
+                        psu0_currents.append(current_value)
+                    elif current_psu == 1:
+                        psu1_timestamps.append(current_timestamp)
+                        psu1_currents.append(current_value)
+                    current_psu = None
+                    current_timestamp = None
 
         self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
-        for value_name, value_data in values.items():
-            ax.plot(timestamps, value_data, label=value_name, marker='o', linestyle='-')
-        ax.set_xlabel('Time // HH:MM:SS')
-        #print(f"{unit}")
-        ax.set_ylabel(f"{value_name} // {unit}")
-        ax.set_title('Real-Time Data')
-        ax.grid(True)
-        ax.legend()
+
+        ax1 = self.figure.add_subplot(211)
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+        if psu0_timestamps:
+            ax1.plot(psu0_timestamps, psu0_currents, label='PSU0 Current', marker='o', linestyle='-')
+        ax1.set_xlabel('Time // HH:MM:SS')
+        ax1.set_ylabel('Current // A')
+        ax1.set_title('PSU0 Output Current')
+        ax1.grid(True)
+        ax1.legend()
+
+        ax2 = self.figure.add_subplot(212)
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+        if psu1_timestamps:
+            ax2.plot(psu1_timestamps, psu1_currents, label='PSU1 Current', marker='o', linestyle='-')
+        ax2.set_xlabel('Time // HH:MM:SS')
+        ax2.set_ylabel('Current // A')
+        ax2.set_title('PSU1 Output Current')
+        ax2.grid(True)
+        ax2.legend()
+
+        self.figure.tight_layout()
         
 
 class LogMonitorApp(QMainWindow):
@@ -98,12 +121,6 @@ class LogMonitorApp(QMainWindow):
         self.log_file_label = QLabel('Selected Logging File:')
         self.layout.addWidget(self.log_file_label)
 
-        self.value_strings_label = QLabel('Enter Value Strings (comma-separated):')
-        self.layout.addWidget(self.value_strings_label)
-
-        self.value_strings_input = QLineEdit(self)
-        self.layout.addWidget(self.value_strings_input)
-
         self.plot_button = QPushButton('Add Live Plot', self)
         self.plot_button.clicked.connect(self.add_plot)
         self.layout.addWidget(self.plot_button)
@@ -125,8 +142,7 @@ class LogMonitorApp(QMainWindow):
 
     def add_plot(self):
         if self.selected_log_file:
-            value_strings = self.value_strings_input.text().split(',')
-            plot_widget = RealTimePlot(self.selected_log_file, value_strings)
+            plot_widget = RealTimePlot(self.selected_log_file)
             self.plot_layout.addWidget(plot_widget)
 
 def main():
