@@ -476,7 +476,16 @@ class PSU(PSUBase):
     # Override key methods with logging
     
     def set_psu_output_voltage(self, psu_num, voltage):
-        """Set PSU output voltage with logging."""
+        """
+        Set PSU output voltage in volts (V) with logging.
+
+        Args:
+            psu_num (int): PSU channel number.
+            voltage (float): Voltage setpoint in volts (V).
+
+        Returns:
+            int: PSU status code.
+        """
         psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
         self.logger.info(f"Setting {psu_name} output voltage to {voltage:.3f}V")
         try:
@@ -491,15 +500,20 @@ class PSU(PSUBase):
             raise
 
     def set_psu0_output_voltage(self, voltage):
-        """Set PSU0 output voltage with logging."""
+        """Set PSU0 output voltage in volts (V) with logging."""
         return self.set_psu_output_voltage(self.PSU_POS, voltage)
     
     def set_psu1_output_voltage(self, voltage):
-        """Set PSU1 output voltage with logging."""
+        """Set PSU1 output voltage in volts (V) with logging."""
         return self.set_psu_output_voltage(self.PSU_NEG, voltage)
 
     def get_psu_output_voltage(self, psu_num):
-        """Get PSU output voltage with logging."""
+        """
+        Get PSU output voltage in volts (V) with logging.
+
+        Returns:
+            tuple: (status, voltage_v)
+        """
         status, voltage = super().get_psu_output_voltage(psu_num)
         if status == self.NO_ERR:
             psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
@@ -509,11 +523,11 @@ class PSU(PSUBase):
         return status, voltage
 
     def get_psu0_output_voltage(self):
-        """Get PSU0 output voltage with logging."""
+        """Get PSU0 output voltage in volts (V) with logging."""
         return self.get_psu_output_voltage(self.PSU_POS)
     
     def get_psu1_output_voltage(self):
-        """Get PSU1 output voltage with logging."""
+        """Get PSU1 output voltage in volts (V) with logging."""
         return self.get_psu_output_voltage(self.PSU_NEG)
 
     def set_psu_output_current(self, psu_num, current_ma):

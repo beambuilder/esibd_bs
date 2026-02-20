@@ -506,12 +506,13 @@ class PSUBase:
     
     def check_U_format(self, voltage):
         """
-        Check if voltage is in the correct format (float with 3 decimal places).
+        Check if voltage is in the correct format (float in volts with up to
+        3 decimal places).
 
         Parameters
         ----------
         voltage : float
-            Voltage value to check.
+            Voltage value in volts (V) to check.
 
         Returns
         -------
@@ -586,7 +587,7 @@ class PSUBase:
         psu_num : int
             PSU number (0 for positive, 1 for negative).
         voltage : float
-            Voltage to set (max 3 decimal places).
+            Voltage in volts (V) to set (max 3 decimal places).
 
         Returns
         -------
@@ -605,11 +606,11 @@ class PSUBase:
         return status
 
     def set_psu0_output_voltage(self, voltage):
-        """Set PSU0 (positive) output voltage (max 3 decimal places)."""
+        """Set PSU0 (positive) output voltage in volts (V, max 3 decimal places)."""
         return self.set_psu_output_voltage(self.PSU_POS, voltage)
     
     def set_psu1_output_voltage(self, voltage):
-        """Set PSU1 (negative) output voltage (max 3 decimal places)."""
+        """Set PSU1 (negative) output voltage in volts (V, max 3 decimal places)."""
         return self.set_psu_output_voltage(self.PSU_NEG, voltage)
 
     def get_psu_output_voltage(self, psu_num):
@@ -624,7 +625,7 @@ class PSUBase:
         Returns
         -------
         tuple
-            (status, voltage).
+            (status, voltage) where voltage is in volts (V).
 
         """
         voltage = ctypes.c_double()
@@ -633,11 +634,11 @@ class PSUBase:
         return status, voltage.value
 
     def get_psu0_output_voltage(self):
-        """Get PSU0 (positive) output voltage."""
+        """Get PSU0 (positive) output voltage in volts (V)."""
         return self.get_psu_output_voltage(self.PSU_POS)
     
     def get_psu1_output_voltage(self):
-        """Get PSU1 (negative) output voltage."""
+        """Get PSU1 (negative) output voltage in volts (V)."""
         return self.get_psu_output_voltage(self.PSU_NEG)
 
     def get_psu_set_output_voltage(self, psu_num):
@@ -652,7 +653,7 @@ class PSUBase:
         Returns
         -------
         tuple
-            (status, voltage_set, voltage_limit).
+            (status, voltage_set, voltage_limit), values in volts (V).
 
         """
         voltage_set = ctypes.c_double()
@@ -664,11 +665,11 @@ class PSUBase:
         return status, voltage_set.value, voltage_limit.value
 
     def get_psu0_set_output_voltage(self):
-        """Get PSU0 (positive) set & limit output voltage."""
+        """Get PSU0 (positive) set & limit output voltage in volts (V)."""
         return self.get_psu_set_output_voltage(self.PSU_POS)
     
     def get_psu1_set_output_voltage(self):
-        """Get PSU1 (negative) set & limit output voltage."""
+        """Get PSU1 (negative) set & limit output voltage in volts (V)."""
         return self.get_psu_set_output_voltage(self.PSU_NEG)
 
     def set_psu_output_current(self, psu_num, current):
