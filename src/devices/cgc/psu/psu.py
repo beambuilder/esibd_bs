@@ -293,7 +293,7 @@ class PSU(PSUBase):
         if status == self.NO_ERR:
             self.logger.info("get_psu0_data() results:")
             self.logger.info(f"  Output Voltage: {voltage:.3f}V")
-            self.logger.info(f"  Output Current: {current:.3f}A")
+            self.logger.info(f"  Output Current: {current * 1000.0:.3f}mA")
             self.logger.info(f"  Dropout Voltage: {volt_dropout:.2f}V")
         return status == self.NO_ERR
 
@@ -303,7 +303,7 @@ class PSU(PSUBase):
         if status == self.NO_ERR:
             self.logger.info("get_psu1_data() results:")
             self.logger.info(f"  Output Voltage: {voltage:.3f}V")
-            self.logger.info(f"  Output Current: {current:.3f}A")
+            self.logger.info(f"  Output Current: {current * 1000.0:.3f}mA")
             self.logger.info(f"  Dropout Voltage: {volt_dropout:.2f}V")
         return status == self.NO_ERR
 
@@ -515,6 +515,101 @@ class PSU(PSUBase):
     def get_psu1_output_voltage(self):
         """Get PSU1 output voltage with logging."""
         return self.get_psu_output_voltage(self.PSU_NEG)
+
+    def set_psu_output_current(self, psu_num, current_ma):
+        """
+        Set PSU output current in milliampere (mA).
+
+        Internally, the PSU base API works in amperes (A). This method converts
+        input current from mA to A before calling the base implementation.
+
+        Args:
+            psu_num (int): PSU channel number.
+            current_ma (float): Current setpoint in mA.
+
+        Returns:
+            int: PSU status code.
+        """
+        psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
+        current_a = float(current_ma) / 1000.0
+        self.logger.info(
+            f"Setting {psu_name} output current to {float(current_ma):.3f}mA ({current_a:.6f}A)"
+        )
+        try:
+            status = super().set_psu_output_current(psu_num, current_a)
+            if status == self.NO_ERR:
+                self.logger.info(f"{psu_name} output current set successfully")
+            else:
+                self.logger.error(f"Failed to set {psu_name} output current: status {status}")
+            return status
+        except ValueError as e:
+            self.logger.error(f"Invalid current format for {psu_name}: {e}")
+            raise
+
+    def set_psu0_output_current(self, current_ma):
+        """Set PSU0 output current in milliampere (mA)."""
+        return self.set_psu_output_current(self.PSU_POS, current_ma)
+
+    def set_psu1_output_current(self, current_ma):
+        """Set PSU1 output current in milliampere (mA)."""
+        return self.set_psu_output_current(self.PSU_NEG, current_ma)
+
+    def get_psu_output_current(self, psu_num):
+        """
+        Get PSU output current in milliampere (mA).
+
+        Internally, the PSU base API returns amperes (A). This method converts
+        the returned current from A to mA.
+
+        Returns:
+            tuple: (status, current_ma)
+        """
+        status, current_a = super().get_psu_output_current(psu_num)
+        current_ma = current_a * 1000.0
+        psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
+        if status == self.NO_ERR:
+            self.logger.info(f"{psu_name} output current: {current_ma:.3f}mA")
+        else:
+            self.logger.warning(f"Failed to get {psu_name} output current: status {status}")
+        return status, current_ma
+
+    def get_psu0_output_current(self):
+        """Get PSU0 output current in milliampere (mA)."""
+        return self.get_psu_output_current(self.PSU_POS)
+
+    def get_psu1_output_current(self):
+        """Get PSU1 output current in milliampere (mA)."""
+        return self.get_psu_output_current(self.PSU_NEG)
+
+    def get_psu_set_output_current(self, psu_num):
+        """
+        Get PSU set and limit output current in milliampere (mA).
+
+        Internally, the PSU base API returns amperes (A). This method converts
+        both values from A to mA.
+
+        Returns:
+            tuple: (status, current_set_ma, current_limit_ma)
+        """
+        status, current_set_a, current_limit_a = super().get_psu_set_output_current(psu_num)
+        current_set_ma = current_set_a * 1000.0
+        current_limit_ma = current_limit_a * 1000.0
+        psu_name = "PSU0" if psu_num == self.PSU_POS else "PSU1"
+        if status == self.NO_ERR:
+            self.logger.info(
+                f"{psu_name} set/limit current: {current_set_ma:.3f}mA / {current_limit_ma:.3f}mA"
+            )
+        else:
+            self.logger.warning(f"Failed to get {psu_name} set/limit current: status {status}")
+        return status, current_set_ma, current_limit_ma
+
+    def get_psu0_set_output_current(self):
+        """Get PSU0 set and limit output current in milliampere (mA)."""
+        return self.get_psu_set_output_current(self.PSU_POS)
+
+    def get_psu1_set_output_current(self):
+        """Get PSU1 set and limit output current in milliampere (mA)."""
+        return self.get_psu_set_output_current(self.PSU_NEG)
 
     def __getattr__(self, name):
         """

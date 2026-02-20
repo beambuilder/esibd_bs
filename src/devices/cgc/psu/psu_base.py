@@ -542,12 +542,13 @@ class PSUBase:
 
     def check_I_format(self, current):
         """
-        Check if current is in the correct format (float with 3 decimal places).
+        Check if current is in the correct format (float in amperes with up to
+        6 decimal places).
 
         Parameters
         ----------
         current : float
-            Current value to check.
+            Current value in amperes (A) to check.
 
         Returns
         -------
@@ -557,7 +558,7 @@ class PSUBase:
         Raises
         ------
         ValueError
-            If current is not a valid float or has more than 3 decimal places.
+            If current is not a valid float or has more than 6 decimal places.
 
         """
         try:
@@ -569,8 +570,8 @@ class PSUBase:
             current_str = str(current)
             if '.' in current_str:
                 decimal_part = current_str.split('.')[1]
-                if len(decimal_part) > 3:
-                    raise ValueError(f"Current must have at most 3 decimal places, got {len(decimal_part)}")
+                if len(decimal_part) > 6:
+                    raise ValueError(f"Current must have at most 6 decimal places, got {len(decimal_part)}")
             
             return True
         except (ValueError, TypeError) as e:
@@ -679,7 +680,7 @@ class PSUBase:
         psu_num : int
             PSU number (0 for positive, 1 for negative).
         current : float
-            Current to set (max 3 decimal places).
+            Current in amperes (A) to set (max 6 decimal places).
 
         Returns
         -------
@@ -698,11 +699,11 @@ class PSUBase:
         return status
 
     def set_psu0_output_current(self, current):
-        """Set PSU0 (positive) output current (max 3 decimal places)."""
+        """Set PSU0 (positive) output current in amperes (A, max 6 decimal places)."""
         return self.set_psu_output_current(self.PSU_POS, current)
     
     def set_psu1_output_current(self, current):
-        """Set PSU1 (negative) output current (max 3 decimal places)."""
+        """Set PSU1 (negative) output current in amperes (A, max 6 decimal places)."""
         return self.set_psu_output_current(self.PSU_NEG, current)
 
     def get_psu_output_current(self, psu_num):
@@ -717,7 +718,7 @@ class PSUBase:
         Returns
         -------
         tuple
-            (status, current).
+            (status, current) where current is in amperes (A).
 
         """
         current = ctypes.c_double()
@@ -726,11 +727,11 @@ class PSUBase:
         return status, current.value
 
     def get_psu0_output_current(self):
-        """Get PSU0 (positive) output current."""
+        """Get PSU0 (positive) output current in amperes (A)."""
         return self.get_psu_output_current(self.PSU_POS)
     
     def get_psu1_output_current(self):
-        """Get PSU1 (negative) output current."""
+        """Get PSU1 (negative) output current in amperes (A)."""
         return self.get_psu_output_current(self.PSU_NEG)
 
     def get_psu_set_output_current(self, psu_num):
@@ -745,7 +746,7 @@ class PSUBase:
         Returns
         -------
         tuple
-            (status, current_set, current_limit).
+            (status, current_set, current_limit), values in amperes (A).
 
         """
         current_set = ctypes.c_double()
@@ -757,11 +758,11 @@ class PSUBase:
         return status, current_set.value, current_limit.value
 
     def get_psu0_set_output_current(self):
-        """Get PSU0 (positive) set & limit output current."""
+        """Get PSU0 (positive) set & limit output current in amperes (A)."""
         return self.get_psu_set_output_current(self.PSU_POS)
     
     def get_psu1_set_output_current(self):
-        """Get PSU1 (negative) set & limit output current."""
+        """Get PSU1 (negative) set & limit output current in amperes (A)."""
         return self.get_psu_set_output_current(self.PSU_NEG)
 
     # PSU Management - Configuration
