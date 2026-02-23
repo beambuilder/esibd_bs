@@ -137,7 +137,7 @@ class SW(SWBase):
 
             if status == self.NO_ERR:
                 # Set communication speed
-                baud_status, actual_baud = self.set_baud_rate(self.baudrate)
+                baud_status, actual_baud = self.set_comspeed(self.baudrate)
                 if baud_status == self.NO_ERR:
                     self.connected = True
                     self.logger.info(

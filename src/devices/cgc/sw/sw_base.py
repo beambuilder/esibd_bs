@@ -219,7 +219,7 @@ class SWBase:
         status = self.sw_dll.COM_HVAMX4ED_Close(self.port)
         return status
 
-    def set_baud_rate(self, baud_rate):
+    def set_comspeed(self, baud_rate):
         """
         Set communication speed.
 
