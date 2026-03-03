@@ -845,6 +845,125 @@ class SW(SWBase):
             raise
 
     # =========================================================================
+    #     Convenience Functions
+    # =========================================================================
+
+    def set_frequency_khz(self, frequency_khz):
+        """
+        Set the oscillator frequency to the given value in kHz.
+
+        The oscillator period register is calculated from the desired frequency
+        using: Period_register = (CLOCK / (frequency_khz * 1000)) - OSC_OFFSET.
+
+        Parameters
+        ----------
+        frequency_khz : float
+            Desired oscillator frequency in kHz. Must be positive.
+
+        Returns
+        -------
+        int
+            Status code.
+
+        """
+        if frequency_khz <= 0:
+            self.logger.error(
+                f"Invalid frequency: {frequency_khz} kHz (must be > 0)"
+            )
+            return self.ERR_ARGUMENT
+        period = (self.CLOCK / (frequency_khz * 1000)) - self.OSC_OFFSET
+        period = round(period)
+        if period < 1 or period > 0xFFFFFFFF:
+            self.logger.error(
+                f"Frequency {frequency_khz} kHz results in out-of-range "
+                f"period register value: {period}"
+            )
+            return self.ERR_ARGUMENT
+        self.logger.info(
+            f"Setting frequency to {frequency_khz} kHz "
+            f"(period register={period})"
+        )
+        return self.set_oscillator_period(period)
+
+    def set_delay_minimum(self, pulser_no):
+        """
+        Set the pulse delay of the specified pulser to its minimum value.
+
+        The minimum delay register value is 1, corresponding to an actual
+        delay of (1 + PULSER_DELAY_OFFSET) * 10 ns = 40 ns.
+
+        Parameters
+        ----------
+        pulser_no : int
+            Pulser number (0-3).
+
+        Returns
+        -------
+        int
+            Status code.
+
+        """
+        if pulser_no < 0 or pulser_no >= self.PULSER_NUM:
+            self.logger.error(
+                f"Invalid pulser number: {pulser_no} "
+                f"(must be 0-{self.PULSER_NUM - 1})"
+            )
+            return self.ERR_ARGUMENT
+        self.logger.info(
+            f"Setting pulser {pulser_no} delay to minimum (register=1, "
+            f"actual={(1 + self.PULSER_DELAY_OFFSET) * 10} ns)"
+        )
+        return self.set_pulser_delay(pulser_no, 1)
+
+    def set_duty_cycle(self, pulser_no, duty_cycle):
+        """
+        Set the duty cycle of the specified pulser relative to the current
+        oscillator period.
+
+        The pulse width register is calculated from the duty cycle and current
+        oscillator period using:
+        Width_register = duty_cycle * (Period_register + OSC_OFFSET) - PULSER_WIDTH_OFFSET.
+
+        Parameters
+        ----------
+        pulser_no : int
+            Pulser number (0-3).
+        duty_cycle : float
+            Duty cycle value (exclusive range 0.0 to 1.0).
+
+        Returns
+        -------
+        int
+            Status code.
+
+        """
+        if pulser_no < 0 or pulser_no >= self.PULSER_NUM:
+            self.logger.error(
+                f"Invalid pulser number: {pulser_no} "
+                f"(must be 0-{self.PULSER_NUM - 1})"
+            )
+            return self.ERR_ARGUMENT
+        if duty_cycle <= 0.0 or duty_cycle >= 1.0:
+            self.logger.error(
+                f"Invalid duty cycle: {duty_cycle} "
+                f"(must be in exclusive range 0.0 to 1.0)"
+            )
+            return self.ERR_ARGUMENT
+        status, period = self.get_oscillator_period()
+        if status != self.NO_ERR:
+            self.logger.error(
+                f"Failed to read oscillator period: status {status}"
+            )
+            return status
+        width = duty_cycle * (period + self.OSC_OFFSET) - self.PULSER_WIDTH_OFFSET
+        width = max(1, round(width))
+        self.logger.info(
+            f"Setting pulser {pulser_no} duty cycle to {duty_cycle:.4f} "
+            f"(width register={width}, period register={period})"
+        )
+        return self.set_pulser_width(pulser_no, width)
+
+    # =========================================================================
     #     Automatic Logging Fallback
     # =========================================================================
 
