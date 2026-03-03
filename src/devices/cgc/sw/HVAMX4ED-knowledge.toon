@@ -1,0 +1,442 @@
+device:
+  name: CGC HV-AMX-CTRL-4ED
+  type: High-Voltage Power Switch 4x700V
+  manufacturer: CGC Instruments
+  address: "Hübschmannstr. 18, D-09112 Chemnitz"
+  phone: +49 (371) 355 098-55
+  fax: +49 (371) 355 098-60
+  website: www.cgc-instruments.de
+  dll_version: 1.00
+  copyright: "CGC Instruments, (c) 2009-2021"
+
+overview:
+  purpose: Pulse controller that drives high-voltage power switches for applications like quadrupole mass spectrometry
+  signal_chain: "Oscillator -> Pulse Generators -> Switch Control -> HV Output"
+  amplitude_note: Amplitude is set by external PSUs and has nothing to do with the switch controller itself
+  use_case: Driving opposing rod pairs in a quadrupole for mass selection and ion analysis
+  front_panel_image: FrontPanel_Switch.jpg
+
+front_panel:
+  left_section:
+    logo: CGC Instruments
+    power_switch: "Rocker switch (I/O)"
+    rs232: "DB-9 connector (also USB available)"
+    digital_ios:
+      label: "Digital I/Os (TTL)"
+      connectors[7]{name,type}: 
+        DIO0,LEMO coaxial
+        DIO1,LEMO coaxial
+        DIO2,LEMO coaxial
+        DIO3,LEMO coaxial
+        DIO4,LEMO coaxial
+        DIO5,LEMO coaxial
+        DIO6,LEMO coaxial
+  middle_section:
+    label: "Switch Channels 0 and 1"
+    output_connector: "Multi-pin circular connector"
+    monitors[2]{name,type,impedance}:
+      Monitor 0,BNC,"1:100/1MOhm"
+      Monitor 1,BNC,"1:100/1MOhm"
+    input_connector: "Multi-pin circular connector (700Vpp max, +/-500V max)"
+    offsets[2]{name,type,max_voltage}:
+      Offset 0,BNC,+/-500V
+      Offset 1,BNC,+/-500V
+  right_section:
+    label: "Switch Channels 2 and 3"
+    output_connector: "Multi-pin circular connector"
+    monitors[2]{name,type,impedance}:
+      Monitor 2,BNC,"1:100/1MOhm"
+      Monitor 3,BNC,"1:100/1MOhm"
+    input_connector: "Multi-pin circular connector (700Vpp max, +/-500V max)"
+    offsets[2]{name,type,max_voltage}:
+      Offset 2,BNC,+/-500V
+      Offset 3,BNC,+/-500V
+
+specifications:
+  master_clock_hz: 100000000
+  time_resolution_ns: 10
+  register_bit_width: 32
+  max_delay_period_s: 42.9
+  num_pulsers: 4
+  num_pulsers_with_burst: 2
+  max_burst_count: 16777216
+  num_switches: 4
+  num_digital_ios: 7
+  num_fans: 3
+  num_temp_sensors: 3
+  max_stored_configs: 126
+  config_name_max_chars: 52
+  nvm_data_space_kb: 16
+  dio_connector_type: LEMO
+  dio_signal_level: "TTL (log.0: 0-0.4V, log.1: 2.4-5.0V)"
+  dio_input_impedance: "50 Ohm or 50 kOhm pull-up to +5V"
+  dio_output_impedance: "50 Ohm"
+
+timing_formulas:
+  oscillator_period:
+    formula: "actual_period_ns = (Period_register + 2) * 10"
+    offset: 2
+    example: "Period=100000 -> (100000+2)*10ns = 1.00002ms ~ 1kHz"
+  pulser_delay:
+    formula: "actual_delay_ns = (Delay_register + 3) * 10"
+    offset: 3
+    example: "Delay=1 -> (1+3)*10ns = 40ns minimum"
+  pulser_width:
+    formula: "actual_width_ns = (Width_register + 2) * 10"
+    offset: 2
+    example: "Width=50000 -> (50000+2)*10ns = 0.50002ms"
+  duty_cycle:
+    formula: "duty_cycle = (Width+2) / (Period+2)"
+    example: "50000/100000 ~ 50%"
+  frequency:
+    formula: "frequency_hz = 100e6 / (Period_register + 2)"
+    example: "Period=98 -> 100MHz/100 = 1MHz"
+
+communication:
+  interface_types[2]: USB 2.0 (Full Speed up to 12 Mbit/s),RS-232
+  protocol:
+    data_bits: 8
+    stop_bits: 2
+    parity: even
+    default_baud: 9600
+    max_baud: 230400
+    termination_char: "CR (0x0D)"
+    encoding: ASCII
+    parameter_format: "hexadecimal uppercase, MSB first"
+  handshake:
+    dtr_replicated_as: "DSR and DCD"
+    rts_replicated_as: CTS
+    cts_meaning: "device ready to respond"
+    reset_method: "deassert DTR/RTS for >100ms resets to 9600 baud"
+  timeout_recommendation_usb_ms: 100
+  max_ports: 16
+  virtual_port_driver: FTDI
+  linux_kernel_support: "3.0.0-19+"
+  linux_device_example: /dev/ttyUSB0
+  wine_symlink_example: "ln -s /dev/ttyUSB0 ~/.wine/dosdevices/com6"
+
+error_codes[19]{code,constant,description}:
+  0,COM_HVAMX4ED_NO_ERR,No error occurred
+  -1,COM_HVAMX4ED_ERR_PORT_RANGE,PortNumber out of range
+  -2,COM_HVAMX4ED_ERR_OPEN,Error opening the port
+  -3,COM_HVAMX4ED_ERR_CLOSE,Error closing the port
+  -4,COM_HVAMX4ED_ERR_PURGE,Error purging the port
+  -5,COM_HVAMX4ED_ERR_CONTROL,Error setting the port control lines
+  -6,COM_HVAMX4ED_ERR_STATUS,Error reading the port status lines
+  -7,COM_HVAMX4ED_ERR_COMMAND_SEND,Error sending command
+  -8,COM_HVAMX4ED_ERR_DATA_SEND,Error sending data
+  -9,COM_HVAMX4ED_ERR_TERM_SEND,Error sending termination character
+  -10,COM_HVAMX4ED_ERR_COMMAND_RECEIVE,Error receiving command
+  -11,COM_HVAMX4ED_ERR_DATA_RECEIVE,Error receiving data
+  -12,COM_HVAMX4ED_ERR_TERM_RECEIVE,Error receiving termination character
+  -13,COM_HVAMX4ED_ERR_COMMAND_WRONG,Wrong command received
+  -14,COM_HVAMX4ED_ERR_ARGUMENT_WRONG,Wrong argument received
+  -15,COM_HVAMX4ED_ERR_ARGUMENT,Wrong argument passed to the function
+  -16,COM_HVAMX4ED_ERR_RATE,Error setting the baud rate
+  -100,COM_HVAMX4ED_ERR_NOT_CONNECTED,Device not connected
+  -101,COM_HVAMX4ED_ERR_NOT_READY,Device not ready
+  -102,COM_HVAMX4ED_ERR_READY,Device state could not be set to not ready
+
+io_errors[17]{code,description}:
+  0,No error
+  1,Port has not been opened yet
+  2,Cannot open the port
+  3,Cannot obtain communication error
+  4,Cannot get the state of the port
+  5,Cannot set the state of the port
+  6,Break timing error
+  7,Cannot place the transmission line in a break state
+  8,Cannot place the transmission line in a nonbreak state
+  9,Cannot set the timeouts for the port
+  10,Cannot clear the port
+  11,Error reading data from the port
+  12,Error writing data to the port
+  13,Cannot get the control lines of the port
+  14,Error setting the control lines of the port
+  15,Error reading the status lines of the port
+  16,Device is busy
+
+device_states:
+  main_state[5]{hex_value,constant,description}:
+    0x0000,COM_HVAMX4ED_STATE_ON,Device active
+    0x8000,COM_HVAMX4ED_STATE_ERROR,Error bit
+    0x8001,COM_HVAMX4ED_STATE_ERR_VSUP,Voltage failure
+    0x8002,COM_HVAMX4ED_STATE_ERR_TEMP_LOW,Low-temperature failure
+    0x8003,COM_HVAMX4ED_STATE_ERR_TEMP_HIGH,High-temperature failure
+    0x8004,COM_HVAMX4ED_STATE_ERR_FPGA_DIS,Internal failure (FPGA disabled or unresponsive)
+  device_state_bits[12]{bit,constant,description}:
+    0x00,COM_HVAMX4ED_DEVST_VCPU_FAIL,CPU supply voltage failed
+    0x01,COM_HVAMX4ED_DEVST_VSUP_FAIL,Fan supply voltage failed
+    0x08,COM_HVAMX4ED_DEVST_FAN1_FAIL,Fan #1 failed
+    0x09,COM_HVAMX4ED_DEVST_FAN2_FAIL,Fan #2 failed
+    0x0A,COM_HVAMX4ED_DEVST_FAN3_FAIL,Fan #3 failed
+    0x0F,COM_HVAMX4ED_DEVST_FPGA_DIS,FPGA disabled or unresponsive
+    0x10,COM_HVAMX4ED_DEVST_SEN1_HIGH,Temperature sensor #1 hot
+    0x11,COM_HVAMX4ED_DEVST_SEN2_HIGH,Temperature sensor #2 hot
+    0x12,COM_HVAMX4ED_DEVST_SEN3_HIGH,Temperature sensor #3 hot
+    0x18,COM_HVAMX4ED_DEVST_SEN1_LOW,Temperature sensor #1 cold
+    0x19,COM_HVAMX4ED_DEVST_SEN2_LOW,Temperature sensor #2 cold
+    0x1A,COM_HVAMX4ED_DEVST_SEN3_LOW,Temperature sensor #3 cold
+
+controller_config_bits[11]{bit,constant,rw,description}:
+  0,COM_HVAMX4ED_ENB,RW,"Enables switches; if PREVENT_DIS=0, clearing forces CLRn=0 resetting osc/pulsers and stopping PSUs"
+  1,COM_HVAMX4ED_ENB_OSC,RW,Enables the oscillator
+  2,COM_HVAMX4ED_ENB_PULSER,RW,Enables all pulse generators
+  3,COM_HVAMX4ED_SW_TRIG,RW,Software trigger input
+  4,COM_HVAMX4ED_SW_PULSE,RW,"1 creates a 1-CLK wide pulse at software trigger"
+  5,COM_HVAMX4ED_PREVENT_DIS,RW,"Prevents CLRn=0 when ENB=0; only switches disabled, not PSUs"
+  6,COM_HVAMX4ED_DIS_DITHER,RW,Disables dithering of internal switching regulators
+  7,COM_HVAMX4ED_NC,NA,Bit not used
+  8,COM_HVAMX4ED_ENABLE,RO,"Master enable; clearing forces CLRn=0"
+  9,COM_HVAMX4ED_SW_TRIG_OUT,RO,Software-trigger engine output
+  10,COM_HVAMX4ED_CLRN,RO,"Device enable output (CLRn), active low"
+
+trigger_sources[20]{index,constant,signal,description}:
+  0,COM_HVAMX4ED_CFG_LOG0,Logic0,"Logic 0, stop"
+  1,COM_HVAMX4ED_CFG_SOFT_TRIG,SwTrig,Software trigger
+  2,COM_HVAMX4ED_CFG_OSC0,Osc0,Output of oscillator #0
+  3,COM_HVAMX4ED_CFG_DIN0,Din0,Digital input DIO1
+  4,COM_HVAMX4ED_CFG_DIN1,Din1,Digital input DIO2
+  5,COM_HVAMX4ED_CFG_DIN2,Din2,Digital input DIO3
+  6,COM_HVAMX4ED_CFG_DIN3,Din3,Digital input DIO4
+  7,COM_HVAMX4ED_CFG_DIN4,Din4,Digital input DIO5
+  8,COM_HVAMX4ED_CFG_DIN5,Din5,Digital input DIO6
+  9,COM_HVAMX4ED_CFG_DIN6,Din6,Digital input DIO7
+  10,COM_HVAMX4ED_CFG_PULS_OUT0,PulsOut0,Output of pulse generator #0
+  11,COM_HVAMX4ED_CFG_PULS_OUT1,PulsOut1,Output of pulse generator #1
+  12,COM_HVAMX4ED_CFG_PULS_OUT2,PulsOut2,Output of pulse generator #2
+  13,COM_HVAMX4ED_CFG_PULS_OUT3,PulsOut3,Output of pulse generator #3
+  14,COM_HVAMX4ED_CFG_PULS_RUN0,PulsRun0,Running state of pulse generator #0
+  15,COM_HVAMX4ED_CFG_PULS_RUN1,PulsRun1,Running state of pulse generator #1
+  16,COM_HVAMX4ED_CFG_PULS_RUN2,PulsRun2,Running state of pulse generator #2
+  17,COM_HVAMX4ED_CFG_PULS_RUN3,PulsRun3,Running state of pulse generator #3
+  18,COM_HVAMX4ED_CFG_CLK2M,CLK2M,Internal quartz clock 2 MHz (output only)
+  19,COM_HVAMX4ED_CFG_CLK4M,CLK4M,Internal quartz clock 4 MHz (output only)
+
+config_bit_masks:
+  CFG_MASK: 31
+  CFG_INVERT: 32
+  CONFIG_SIZE: 6
+  CONFIG_MAX: 64
+  SELECT_MASK: 31
+
+pulser_config_assignment:
+  description: "PulserCfgNo mapping for COM_HVAMX4ED_Get/SetPulserConfig"
+  assignments[6]{cfg_no,function}:
+    0,Trigger config of Pulser #0 (SelTrg0 and InvTrg0)
+    1,Stop config of Pulser #0 (SelStp0 and InvStp0)
+    2,Trigger config of Pulser #1 (SelTrg1 and InvTrg1)
+    3,Stop config of Pulser #1 (SelStp1 and InvStp1)
+    4,Trigger config of Pulser #2 (SelTrg2 and InvTrg2)
+    5,Trigger config of Pulser #3 (SelTrg3 and InvTrg3)
+
+switch_control:
+  dual_level:
+    description: "Each switch has trigger (SwTrgN) and enable (SwEnbN) inputs"
+    truth_table[3]{trigger,enable,neg_branch,pos_branch}:
+      X,0,off,off
+      0,1,on,off
+      1,1,off,on
+  trilevel:
+    description: "Two switch channels combined (0+1 or 2+3). First controls negative, second controls positive branch."
+    note: "For normal operation both enable inputs must match (both high=on, both low=off)"
+    switching: "Toggle both triggers synchronously between 0 and 1 to switch between Vneg and Vpos"
+    middle_voltage: "SwTrig0/2=1 and SwTrig1/3=0 gives Vmid"
+  delays:
+    trigger_rise_fall_steps: 16
+    trigger_delay_range_ns: "0-15 (approx 1ns resolution)"
+    enable_delay_steps: 16
+    enable_delay_range_ns: "0-15 (approx 1ns resolution)"
+  mapping_engine:
+    description: "Converts 4 control signals into different signal levels determined by Idle and State0-4 values"
+    num_mappings: 5
+    enable_bits: "Separate enable for trigger mapping and enable mapping"
+
+dio_config:
+  num_terminals: 7
+  labels: "DIO1 through DIO7 on front panel (DIO0 also present)"
+  modes[4]{output_enable,termination,mode}:
+    0,0,"Input with 50kOhm pull-up (default)"
+    0,1,"Input with 50 Ohm termination"
+    1,X_0,Output 0
+    1,X_1,Output 1
+  notes:
+    - "Digital inputs are always active regardless of DIO configuration"
+    - "When configured as output, 5V amplitude with 50 Ohm internal impedance"
+    - "With 50 Ohm termination output amplitude is 2.5V (TTL compatible)"
+    - "DinN signal can monitor output function even when terminal is output"
+
+api_functions:
+  communication[7]{function,direct_cmd,description}:
+    COM_HVAMX4ED_Open,"(none)",Opens communication channel on specified COM port
+    COM_HVAMX4ED_Close,"(none)",Closes communication channel
+    COM_HVAMX4ED_SetBaudRate,"$BBBBB",Sets baud rate and returns actual set value
+    COM_HVAMX4ED_Purge,"(none)","Clears port buffers, resets to 9600 baud"
+    COM_HVAMX4ED_DevicePurge,z,Clears device output buffer
+    COM_HVAMX4ED_GetBufferState,Z,Returns true if device input buffer is empty
+    COM_HVAMX4ED_GetSWVersion,"(none)",Returns DLL version (WORD: high=major low=sub)
+  device_monitoring[7]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetMainState,M,MSSSS,Get main device status word
+    COM_HVAMX4ED_GetDeviceState,S,SDDDDDDDD,Get detailed device state (bit flags)
+    COM_HVAMX4ED_GetHousekeeping,H,HFFFFDDDDCCCCTTTT,"Get 12V/5V/3.3V voltages (mV) and CPU temp (10mK, subtract 27315 divide 100 for C)"
+    COM_HVAMX4ED_GetSensorData,T,TAAAA..ZZZZ,"Get temperature sensors (10mK units, same conversion as CPU temp)"
+    COM_HVAMX4ED_GetFanData,B,BEFSSSSMMMMPPPP..,"Get fan enabled/failed/setRPM/measuredRPM/PWM for each fan"
+    COM_HVAMX4ED_GetLEDData,L,LRGB,Get front panel LED state (Red/Green/Blue booleans)
+    COM_HVAMX4ED_GetControllerState,c,cSSSS,Get device configuration state word
+  oscillator[2]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetOscillatorPeriod,s,sPPPPPPPP,Get oscillator period (32-bit register value)
+    COM_HVAMX4ED_SetOscillatorPeriod,sPPPPPPPP,sPPPPPPPP,Set oscillator period
+  pulser_timing[6]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetPulserDelay,dN,dNDDDDDDDD,Get pulse delay of pulser N (0-3)
+    COM_HVAMX4ED_SetPulserDelay,dNDDDDDDDD,dNDDDDDDDD,Set pulse delay of pulser N
+    COM_HVAMX4ED_GetPulserWidth,wN,wNWWWWWWWW,Get pulse width of pulser N (0-3)
+    COM_HVAMX4ED_SetPulserWidth,wNWWWWWWWW,wNWWWWWWWW,Set pulse width of pulser N
+    COM_HVAMX4ED_GetPulserBurst,bN,bNBBBBBB,Get burst size of pulser N (0-1 only)
+    COM_HVAMX4ED_SetPulserBurst,bNBBBBBB,bNBBBBBB,Set burst size of pulser N
+  pulser_config[2]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetPulserConfig,pN,pNCC,Get trigger/stop config of pulser (N=0-5)
+    COM_HVAMX4ED_SetPulserConfig,pNCC,pNCC,Set trigger/stop config of pulser
+  switch_config[8]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetSwitchTriggerConfig,eN,eNCC,Get switch trigger config (N=0-3)
+    COM_HVAMX4ED_SetSwitchTriggerConfig,eNCC,eNCC,Set switch trigger config
+    COM_HVAMX4ED_GetSwitchEnableConfig,fN,fNCC,Get switch enable config (N=0-3)
+    COM_HVAMX4ED_SetSwitchEnableConfig,fNCC,fNCC,Set switch enable config
+    COM_HVAMX4ED_GetSwitchTriggerDelay,gN,gNFR,"Get trigger delays (F=fall, R=rise)"
+    COM_HVAMX4ED_SetSwitchTriggerDelay,gNFR,gNFR,Set trigger delays
+    COM_HVAMX4ED_GetSwitchEnableDelay,hN,hND,Get enable delay
+    COM_HVAMX4ED_SetSwitchEnableDelay,hND,hND,Set enable delay
+  switch_mapping[6]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetSwitchTriggerMapping,mN,mNM,Get trigger mapping (N=0-4)
+    COM_HVAMX4ED_SetSwitchTriggerMapping,mNM,mNM,Set trigger mapping
+    COM_HVAMX4ED_GetSwitchEnableMapping,nN,nNM,Get enable mapping (N=0-4)
+    COM_HVAMX4ED_SetSwitchEnableMapping,nNM,nNM,Set enable mapping
+    COM_HVAMX4ED_GetSwitchTriggerMappingEnable,k,kE,Get trigger mapping enable bit
+    COM_HVAMX4ED_SetSwitchTriggerMappingEnable,kE,kE,Set trigger mapping enable bit
+  switch_mapping_enable[2]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetSwitchEnableMappingEnable,l,lE,Get enable mapping enable bit
+    COM_HVAMX4ED_SetSwitchEnableMappingEnable,lE,lE,Set enable mapping enable bit
+  dio_config[4]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetInputConfig,i,iTTOO,"Get DIO config (TT=termination, OO=output enable)"
+    COM_HVAMX4ED_SetInputConfig,iTTOO,iTTOO,Set DIO config
+    COM_HVAMX4ED_GetOutputConfig,oN,oNCC,Get output source config for output N
+    COM_HVAMX4ED_SetOutputConfig,oNCC,oNCC,Set output source config for output N
+  controller_config[2]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetControllerState,c,cSSSS,Get full controller state (read+write bits)
+    COM_HVAMX4ED_SetControllerConfig,cCC,cCC,Set controller configuration (write bits only)
+  device_enable[2]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetDeviceEnable,E,EB,Get device auto-enable on startup
+    COM_HVAMX4ED_SetDeviceEnable,EB,EB,Set device auto-enable on startup
+  config_management[7]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_ResetCurrentConfig,*,*,Reset all registers to defaults
+    COM_HVAMX4ED_SaveCurrentConfig,JNN,JNN,Save current config to NVM slot (0-125)
+    COM_HVAMX4ED_LoadCurrentConfig,jNN,jNN,Load config from NVM slot
+    COM_HVAMX4ED_GetConfigName,ANN,"ANNS..S","Get config name (52 chars, hex encoded)"
+    COM_HVAMX4ED_SetConfigName,"ANNS..S","ANNS..S",Set config name
+    COM_HVAMX4ED_GetConfigFlags,XNN,XNNF,"Get config flags (bit0=Active, bit1=Valid)"
+    COM_HVAMX4ED_GetConfigList,W,"WF..F",Get all config flags packed as bit arrays
+  system[8]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_Restart,#,#,Restart device (resets to 9600 baud)
+    COM_HVAMX4ED_GetCPUData,C,CLLLFFFF,"Get CPU load (LLL/1000) and frequency (FFFF*1024 Hz)"
+    COM_HVAMX4ED_GetUptime,U,USSSSSSSSMMOOOOOOOO,"Get uptime (sec, ms) and operating time"
+    COM_HVAMX4ED_GetTotalTime,u,uUUUUUUUUOOOOOOOO,Get lifetime totals
+    COM_HVAMX4ED_GetHWType,t,tHHHH,Get hardware type identifier
+    COM_HVAMX4ED_GetHWVersion,v,vVVVV,Get hardware version
+    COM_HVAMX4ED_GetFWVersion,V,Vvvvv,Get firmware version
+    COM_HVAMX4ED_GetFWDate,D,Ddd..d,Get firmware compilation date string
+  identification[2]{function,direct_cmd,response_format,description}:
+    COM_HVAMX4ED_GetProductNo,N,Nnnnnnnnn,Get product number (32-bit)
+    COM_HVAMX4ED_GetProductID,P,Pii..i,"Get product ID string (up to 60 chars)"
+  error_query[4]{function,direct_cmd,description}:
+    COM_HVAMX4ED_GetInterfaceState,"(none)",Get last return value of interface function
+    COM_HVAMX4ED_GetErrorMessage,"(none)",Get error message string for interface state
+    COM_HVAMX4ED_GetIOState,"(none)",Get last I/O error code
+    COM_HVAMX4ED_GetIOErrorMessage,"(none)",Get error message string for I/O state
+
+quadrupole_setup_procedure:
+  description: "Step-by-step procedure to configure for quadrupole operation with channels 0 and 1"
+  steps:
+    step1_init:
+      name: Initialize Communication
+      actions:
+        - "COM_HVAMX4ED_Open(portNumber=0, comNumber=<your_com_port>)"
+        - "Optional: COM_HVAMX4ED_SetBaudRate(0, 115200)"
+        - "Verify: COM_HVAMX4ED_GetMainState(0) should return STATE_ON (0x0000)"
+        - "COM_HVAMX4ED_ResetCurrentConfig(0) to start clean"
+    step2_oscillator:
+      name: Configure Oscillator (sets RF frequency)
+      formula: "Period = (100e6 / desired_frequency_Hz) - 2"
+      example_1khz: "Period = (100e6 / 1000) - 2 = 99998"
+      action: "COM_HVAMX4ED_SetOscillatorPeriod(0, Period)"
+    step3_pulser0:
+      name: Configure Pulser 0 (drives Switch Channel 0)
+      width_formula: "Width = (duty_cycle * (Period + 2)) - 2"
+      delay_value: 1
+      example_50pct: "Width = (0.5 * 100000) - 2 = 49998"
+      actions:
+        - "COM_HVAMX4ED_SetPulserDelay(0, 0, 1)"
+        - "COM_HVAMX4ED_SetPulserWidth(0, 0, Width)"
+        - "COM_HVAMX4ED_SetPulserConfig(0, 0, 0x02) // Trigger=Osc0"
+    step4_pulser1:
+      name: Configure Pulser 1 (drives Switch Channel 1 - inverted for 180 deg phase)
+      note: "Same width as Pulser 0 for symmetric signal. Trigger from PulsOut0 gives 180deg phase offset."
+      actions:
+        - "COM_HVAMX4ED_SetPulserDelay(0, 1, 1)"
+        - "COM_HVAMX4ED_SetPulserWidth(0, 1, Width)"
+        - "COM_HVAMX4ED_SetPulserConfig(0, 2, 0x0A) // Trigger=PulsOut0 (falling edge triggers Pulser1)"
+    step5_switch_config:
+      name: Configure Switch Controls
+      actions:
+        - "// Switch 0 trigger = PulsOut0"
+        - "COM_HVAMX4ED_SetSwitchTriggerConfig(0, 0, 0x0A) // PulsOut0"
+        - "// Switch 0 enable = inverted Logic0 (always on)"
+        - "COM_HVAMX4ED_SetSwitchEnableConfig(0, 0, 0x20) // Logic0 inverted = always 1"
+        - "// Switch 1 trigger = PulsOut1"
+        - "COM_HVAMX4ED_SetSwitchTriggerConfig(0, 1, 0x0B) // PulsOut1"
+        - "// Switch 1 enable = inverted Logic0 (always on)"
+        - "COM_HVAMX4ED_SetSwitchEnableConfig(0, 1, 0x20) // Logic0 inverted = always 1"
+    step6_dio_trigger_out:
+      name: Configure DIO0 as oscilloscope trigger output
+      actions:
+        - "// Set DIO1 as output"
+        - "COM_HVAMX4ED_SetInputConfig(0, 0x01, 0x00) // OutputEnable bit 0 = DIO1"
+        - "// Assign DIO1 output to Osc0 signal"
+        - "COM_HVAMX4ED_SetOutputConfig(0, 0, 0x02) // Osc0"
+    step7_enable:
+      name: Enable the system
+      actions:
+        - "// Enable switches + oscillator + pulsers"
+        - "config = COM_HVAMX4ED_ENB | COM_HVAMX4ED_ENB_OSC | COM_HVAMX4ED_ENB_PULSER"
+        - "COM_HVAMX4ED_SetControllerConfig(0, config) // 0x07"
+
+verified_measurement:
+  description: "Confirmed working measurement from actual hardware test"
+  oscillator_period_register: 100000
+  measured_frequency_hz: 1000
+  measured_period_ms: 1.0
+  pulser0_width_register: 50000
+  calculated_duty_cycle: 0.5
+  pulsers_1_2_3_width: 0
+  note: "Only Pulser 0 was active in this configuration. Register values are in clock ticks of 100 MHz clock (10ns each)."
+
+source_files:
+  header: COM-HVAMX4ED.h
+  manual: AMXCTRL4ED_100_2.pdf
+  front_panel_photo: FrontPanel_Switch.jpg
+  dll: COM-HVAMX4ED.dll
+  lib: COM-HVAMX4ED.lib
+  utility: COM-HVAMX4ED-Control.exe
+  flash_loader: FlashLoader.exe
+
+flash_loader:
+  description: "Firmware upgrade utility"
+  verify_command: "FlashLoader <port> Firmware.txt -$ -v"
+  program_command: "FlashLoader <port> Firmware.txt -$"
+  retry_command: "FlashLoader <port> Firmware.txt -$ -i"
+  reset_command: "FlashLoader <port> -$ -i -f"
+  warning: "Do NOT power down during firmware upgrade. Disconnect switch power cables before flashing."
+  min_revision: "1-20"
+
+utility_commands:
+  start: "COM-HVAMX4ED-Control <port>"
+  backup: "COM-HVAMX4ED-Control <port> -y FileName"
+  restore: "COM-HVAMX4ED-Control <port> -Y FileName"
