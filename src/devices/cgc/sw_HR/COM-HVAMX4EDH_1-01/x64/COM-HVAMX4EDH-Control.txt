@@ -1,0 +1,114 @@
+COM-HVAMX4EDH-Control ver. 1-20, compilation date: May 21 2025
+ (C) by CGC Instruments, www.cgc-instruments.com
+Usage: COM-HVAMX4EDH-Control COM-Number [Switches]
+  Switch: { -option, /option }
+  Options:
+    Pulse generator settings:
+      Clock system:
+        C/c: get setting of all clocks
+        CCu s/ccu: set to s/get source of clock #u
+        CPu s/cpu: set to s/get source of PLL #u
+        CRu d/cru: set to d/get reference divider of PLL #u (1-4095)
+        CFu d/cfu: set to d/get feedback divider of PLL #u (4-16383)
+        CSu d/csu: set to d/get post divider #1 of PLL #u (1-12)
+        CTu d/ctu: set to d/get post divider #2 of PLL #u (1-12)
+        CUu d/cuu: set to d/get post divider #3 of PLL #u (0-3)
+        COu b/cou: set to Y/N/get power-down mode of PLL #u
+        CIu d/ciu: set to d/get charge-pump current of PLL #u (0-3)
+        CWu d/cwu: set to d/get loop-filter resistor of PLL #u (0-3)
+        CKu d/cku: set to d/get loop-filter capacitor of PLL #u (0-1)
+        CDu d/cdu: set to d/get period of the divider #u
+        CNu d/cnu: set to d/get period of the counter #u
+        CXu/cxu:   tune frequency of PLL #u
+      Oscillators:
+        O/o: get setting of all oscillators
+        Ou d/ou: set/get period of the oscillator #u
+      Timers:
+        R/r: get setting of all timers
+        RDu delay/rdu:  set/get pulse delay of the timer #u
+        RWu width/rwu:  set/get pulse width of the timer #u
+        RBu size/rbu:   set/get burst size of the timer #u
+        RTu signal/rtu: set/get trigger source of the timer #u
+        RSu signal/rsu: set/get stop source of the timer #u
+      Mapping engines:
+        M: get setting of all mapping-engines
+        MIu in0 in1 in2 in3/miu: set/get input sources of the mapping engine #u
+        MOu s0 s1 s2 s3 s4 s5 s6/mou: set & enable/get output values
+                                      of the mapping engine #u
+        MDu/mdu: disable the mapping engine #u
+      Software-trigger engines:
+        L/l: issue negative/positive software trigger on both channels
+        Lu/lu: issue negative/positive software trigger on channel u
+        LuTtPp/luTtPp: issue software trigger
+          u=engine [1=first, 2=second, 3=both], TtPp=4 Boolean values [0,1]
+          (T/t=software trigger start/stop, P/p=software pulse start/stop)
+      Monitoring and control (b=Boolean values [0,1]):
+        S,s: get controller state,         SVn,svn: set controller state
+        STb/st: set/get timer enable,      SObbbb/so: set/get oscillator enable
+        SSb/ss: set/get switch enable      SDb/sd:    set/get dithering enable
+        SPb/sp: set/get pulse-generator enable
+        SL/sl:  get signal levels
+    Digital I/O settings:
+      D/d: get setting of all digital I/Os
+      DCu c/dcu: set/get configuration of digital I/O #u
+          c: I/i (input), T/t (terminated input), O/o (output)
+      DSu in/dsu:  set/get signal source of digital I/O #u
+    Switch settings:
+      W/w: get setting of all switches
+      WnTsource/wnt: set/get trigger source of the switch #n
+      WnEsource/wne: set/get enable source of the switch #n
+      WnD/wnd: get delays of the switch #n
+      WnRdelay/wnr:  set/get rising-slope coarse delay of the switch #n
+      WnFdelay/wnf:  set/get falling-slope coarse delay of the switch #n
+      WnSdelay/wns:  set/get rising-slope fine delay of the switch #n
+      WnLdelay/wnl:  set/get falling-slope fine delay of the switch #n
+    Device monitoring and control:
+      P/p: get all product data
+      PI/pi: get product identification,   PN/pn: get product number
+      PM/pm: get manufacturing date,       PH/ph: get hardware version
+      PD/pd: get firmware date,            PF/pf: get firmware version
+      PE/pe: get device type,              PT/pt: get hardware type
+      PP/pp: get CPU identification,       PC/pc: get CPU data
+      PU/pu: get uptime,                   PK/pk: get housekeeping data
+      PS,ps: get sensor data,              PL,pl: get LED data
+      PB,pb: get fan data
+      PA,pa: get overall state,            PO,po: get device state
+      P#/p#: restart the device
+    Configuration management:
+      Jy/Jn/j: turn on/off/show the enable state of the device
+      Iy/In/i: turn on/off/show the interlock functionality of the device
+      K FileName/k FileName: save input signal names of DIOs/of all modules
+      KT,kt: reset current configuration
+      Kl FileName/Ks FileName: load/save current configuration
+      KLu/KSu: load/save current configuration from/to NVM set #u
+      KL/KS: load/save default delay data from/to NVM
+      KC,Kc/KD,Kd: list active/deleted configurations
+      KNu name/Knu set/get name of configuration #u
+      Kru FileName/Kwu FileName: load/save data of configuration #u
+      Kr FileName/Kw FileName: load/save default delay data
+      KR FileName/KW FileName: load/save data of all available configurations
+      Klx FileName/Krxu FileName/KRx FileName: as commands Kl/Kru/KR but
+          allow alternative signal names and use defaults for missing values
+      KXu/Kxu/Kpu: delete/undelete/wipe out configuration #u
+      KO/ko: wipe out all deleted configurations
+      KA/Ka/KP: delete/undelete/wipe out all configurations
+        (wiping out cannot be undoed, thus requires confirmation)
+    Memory management:
+      Y/y FileName: restore/backup memory data
+    Testing:
+      TP FileName/tp FileName: create test protocol/log data
+    General control:
+      G,g: debug mode, G: additional I/O debug into 'Debug.txt'
+      # ChanNum: use the specified channel for the communication
+                    (allowed value: 0..15, default=0)
+        z:  get device buffer status,      Z: purge communication
+       @n: test communication by transmitting up to n characters
+            (allowed value: 0..256, default=0)
+       $u: set data rate to u baud (default: 230400 baud)
+        !: device restart
+      Q/q: quiet mode,                   T/t: terminate the program
+      ?: get this help
+  Notes:
+    1. Use capitals for continuous mode, if available
+    2. Integer numbers can also be entered in hexadecimal or binary formats
+       by appending 'h' or 'b' specifying the respective radix
