@@ -72,3 +72,7 @@ Thumbs.db
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Local-only CGC notes
+src/devices/cgc/MEMORY.md
+src/devices/cgc/code-review-findings.md
