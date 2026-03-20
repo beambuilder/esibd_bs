@@ -187,21 +187,21 @@ class AMPR(AMPRBase):
         """Get and log product information."""
         status, product_no = self.get_product_no()
         if status == self.NO_ERR:
-            self.logger.debug(f"Product number: {product_no}")
+            self.logger.info(f"Product number: {product_no}")
         return status == self.NO_ERR
 
     def _hk_main_state(self):
         """Get and log main device state."""
         status, state_hex, state_name = self.get_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Main state: {state_name} ({state_hex})")
+            self.logger.info(f"Main state: {state_name} ({state_hex})")
         return status == self.NO_ERR
 
     def _hk_device_state(self):
         """Get and log device state."""
         status, state_hex, state_names = self.get_device_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Device state: {', '.join(state_names)} ({state_hex})")
+            self.logger.info(f"Device state: {', '.join(state_names)} ({state_hex})")
         return status == self.NO_ERR
 
     def _hk_general_housekeeping(self):
@@ -210,68 +210,68 @@ class AMPR(AMPRBase):
         volt_hvp, volt_hvn, temp_cpu, temp_adc, temp_av, temp_hvp, temp_hvn, line_freq = self.get_housekeeping()
         
         if status == self.NO_ERR:
-            self.logger.debug("get_housekeeping() results:")
-            self.logger.debug(f"  12V Supply: {volt_12v:.2f}V")
-            self.logger.debug(f"  5V Supply: {volt_5v0:.2f}V")
-            self.logger.debug(f"  3.3V Supply: {volt_3v3:.2f}V")
-            self.logger.debug(f"  AGND Voltage: {volt_agnd:.2f}V")
-            self.logger.debug(f"  +12Va Supply: {volt_12vp:.2f}V")
-            self.logger.debug(f"  -12Va Supply: {volt_12vn:.2f}V")
-            self.logger.debug(f"  +HV Supply: {volt_hvp:.2f}V")
-            self.logger.debug(f"  -HV Supply: {volt_hvn:.2f}V")
-            self.logger.debug(f"  CPU Temperature: {temp_cpu:.1f}degC")
-            self.logger.debug(f"  ADC Temperature: {temp_adc:.1f}degC")
-            self.logger.debug(f"  AV Temperature: {temp_av:.1f}degC")
-            self.logger.debug(f"  +HV Temperature: {temp_hvp:.1f}degC")
-            self.logger.debug(f"  -HV Temperature: {temp_hvn:.1f}degC")
-            self.logger.debug(f"  Line Frequency: {line_freq:.1f}Hz")
+            self.logger.info("get_housekeeping() results:")
+            self.logger.info(f"  12V Supply: {volt_12v:.2f}V")
+            self.logger.info(f"  5V Supply: {volt_5v0:.2f}V")
+            self.logger.info(f"  3.3V Supply: {volt_3v3:.2f}V")
+            self.logger.info(f"  AGND Voltage: {volt_agnd:.2f}V")
+            self.logger.info(f"  +12Va Supply: {volt_12vp:.2f}V")
+            self.logger.info(f"  -12Va Supply: {volt_12vn:.2f}V")
+            self.logger.info(f"  +HV Supply: {volt_hvp:.2f}V")
+            self.logger.info(f"  -HV Supply: {volt_hvn:.2f}V")
+            self.logger.info(f"  CPU Temperature: {temp_cpu:.1f}degC")
+            self.logger.info(f"  ADC Temperature: {temp_adc:.1f}degC")
+            self.logger.info(f"  AV Temperature: {temp_av:.1f}degC")
+            self.logger.info(f"  +HV Temperature: {temp_hvp:.1f}degC")
+            self.logger.info(f"  -HV Temperature: {temp_hvn:.1f}degC")
+            self.logger.info(f"  Line Frequency: {line_freq:.1f}Hz")
         return status == self.NO_ERR
 
     def _hk_voltage_state(self):
         """Get and log voltage state."""
         status, state_hex, state_names = self.get_voltage_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Voltage state: {', '.join(state_names)} ({state_hex})")
+            self.logger.info(f"Voltage state: {', '.join(state_names)} ({state_hex})")
         return status == self.NO_ERR
 
     def _hk_temperature_state(self):
         """Get and log temperature state."""
         status, state_hex, state_names = self.get_temperature_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Temperature state: {', '.join(state_names)} ({state_hex})")
+            self.logger.info(f"Temperature state: {', '.join(state_names)} ({state_hex})")
         return status == self.NO_ERR
 
     def _hk_interlock_state(self):
         """Get and log interlock state."""
         status, state_hex, state_names = self.get_interlock_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Interlock state: {', '.join(state_names)} ({state_hex})")
+            self.logger.info(f"Interlock state: {', '.join(state_names)} ({state_hex})")
         return status == self.NO_ERR
 
     def _hk_fan_data(self):
         """Get and log fan data."""
         status, failed, max_rpm, set_rpm, measured_rpm, pwm = self.get_fan_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_fan_data() results:")
-            self.logger.debug(f"  Failed: {failed}")
-            self.logger.debug(f"  Max RPM: {max_rpm}")
-            self.logger.debug(f"  Set RPM: {set_rpm}")
-            self.logger.debug(f"  Measured RPM: {measured_rpm}")
-            self.logger.debug(f"  PWM: {pwm} ({pwm/100:.1f}%)")
+            self.logger.info("get_fan_data() results:")
+            self.logger.info(f"  Failed: {failed}")
+            self.logger.info(f"  Max RPM: {max_rpm}")
+            self.logger.info(f"  Set RPM: {set_rpm}")
+            self.logger.info(f"  Measured RPM: {measured_rpm}")
+            self.logger.info(f"  PWM: {pwm} ({pwm/100:.1f}%)")
         return status == self.NO_ERR
 
     def _hk_led_data(self):
         """Get and log LED data."""
         status, red, green, blue = self.get_led_data()
         if status == self.NO_ERR:
-            self.logger.debug(f"LED state: R={red}, G={green}, B={blue}")
+            self.logger.info(f"LED state: R={red}, G={green}, B={blue}")
         return status == self.NO_ERR
 
     def _hk_cpu_data(self):
         """Get and log CPU data."""
         status, load, frequency = self.get_cpu_data()
         if status == self.NO_ERR:
-            self.logger.debug(f"CPU: Load={load*100:.1f}%, Frequency={frequency/1e6:.1f}MHz")
+            self.logger.info(f"CPU: Load={load*100:.1f}%, Frequency={frequency/1e6:.1f}MHz")
         return status == self.NO_ERR
 
     def _hk_module_presence(self):
@@ -279,7 +279,7 @@ class AMPR(AMPRBase):
         status, valid, max_module, presence_list = self.get_module_presence()
         if status == self.NO_ERR:
             present_modules = [i for i, present in enumerate(presence_list) if present]
-            self.logger.debug(f"Modules present: {present_modules} (Max: {max_module}, Valid: {valid})")
+            self.logger.info(f"Modules present: {present_modules} (Max: {max_module}, Valid: {valid})")
         return status == self.NO_ERR
 
     def hk_monitor(self):
@@ -456,7 +456,7 @@ class AMPR(AMPRBase):
         """Get main state with logging."""
         status, state_hex, state_name = super().get_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Main state: {state_name} ({state_hex})")
+            self.logger.info(f"Main state: {state_name} ({state_hex})")
         else:
             self.logger.error(f"Failed to get main state: status {status}")
         return status, state_hex, state_name
@@ -511,13 +511,13 @@ class AMPR(AMPRBase):
 
     def get_module_voltages(self, address):
         """Get all voltages for a module with logging."""
-        self.logger.debug(f"Getting voltages for module {address}")
+        self.logger.info(f"Getting voltages for module {address}")
         try:
             voltages = super().get_all_module_voltages(address)
             for channel, data in voltages.items():
                 setpoint = data.get('setpoint', 'N/A')
                 measured = data.get('measured', 'N/A')
-                self.logger.debug(f"Module {address} Ch{channel}: Set={setpoint}V, Meas={measured}V")
+                self.logger.info(f"Module {address} Ch{channel}: Set={setpoint}V, Meas={measured}V")
             return voltages
         except Exception as e:
             self.logger.error(f"Error getting module voltages: {e}")
@@ -542,7 +542,7 @@ class AMPR(AMPRBase):
 
     def get_module_info(self, address):
         """Get detailed module information with logging."""
-        self.logger.debug(f"Getting information for module {address}")
+        self.logger.info(f"Getting information for module {address}")
         try:
             info = {}
             
@@ -585,7 +585,7 @@ class AMPR(AMPRBase):
             # Get voltage data for all channels
             info['voltages'] = self.get_module_voltages(address)
             
-            self.logger.debug(f"Retrieved information for module {address}")
+            self.logger.info(f"Retrieved information for module {address}")
             return info
             
         except Exception as e:
@@ -619,10 +619,10 @@ class AMPR(AMPRBase):
             
             if callable(base_method):
                 def logged_method(*args, **kwargs):
-                    self.logger.debug(f"Calling {name} with args={args}, kwargs={kwargs}")
+                    self.logger.info(f"Calling {name} with args={args}, kwargs={kwargs}")
                     try:
                         result = base_method(self, *args, **kwargs)
-                        self.logger.debug(f"{name} returned: {result}")
+                        self.logger.info(f"{name} returned: {result}")
                         return result
                     except Exception as e:
                         self.logger.error(f"Error in {name}: {e}")

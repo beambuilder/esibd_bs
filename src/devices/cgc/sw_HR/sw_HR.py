@@ -217,7 +217,7 @@ class SWHR(SWHRBase):
         """Get and log product information."""
         status, product_no = self.get_product_no()
         if status == self.NO_ERR:
-            self.logger.debug(f"Product number: {product_no}")
+            self.logger.info(f"Product number: {product_no}")
         return status == self.NO_ERR
 
     def _hk_device_state(self):
@@ -229,11 +229,11 @@ class SWHR(SWHRBase):
             temp_hex, temp_names,
         ) = self.get_device_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Main state: {main_name} ({main_hex})")
-            self.logger.debug(
+            self.logger.info(f"Main state: {main_name} ({main_hex})")
+            self.logger.info(
                 f"Device state: {', '.join(dev_names)} ({dev_hex})"
             )
-            self.logger.debug(
+            self.logger.info(
                 f"Temperature state: {', '.join(temp_names)} ({temp_hex})"
             )
         return status == self.NO_ERR
@@ -246,34 +246,34 @@ class SWHR(SWHRBase):
             volt_3v3p, volt_2v5p, volt_vc, temp_cpu,
         ) = self.get_housekeeping()
         if status == self.NO_ERR:
-            self.logger.debug("get_housekeeping() results:")
-            self.logger.debug(f"  12V Supply: {volt_12v:.2f}V")
-            self.logger.debug(f"  Fan Supply: {volt_fans:.2f}V")
-            self.logger.debug(f"  5V Supply: {volt_5v0:.2f}V")
-            self.logger.debug(f"  3.3V Supply: {volt_3v3:.2f}V")
-            self.logger.debug(f"  3.3V PLL Supply: {volt_3v3p:.2f}V")
-            self.logger.debug(f"  2.5V PLL Supply: {volt_2v5p:.2f}V")
-            self.logger.debug(f"  Vc Supply: {volt_vc:.2f}V")
-            self.logger.debug(f"  CPU Temperature: {temp_cpu:.1f}degC")
+            self.logger.info("get_housekeeping() results:")
+            self.logger.info(f"  12V Supply: {volt_12v:.2f}V")
+            self.logger.info(f"  Fan Supply: {volt_fans:.2f}V")
+            self.logger.info(f"  5V Supply: {volt_5v0:.2f}V")
+            self.logger.info(f"  3.3V Supply: {volt_3v3:.2f}V")
+            self.logger.info(f"  3.3V PLL Supply: {volt_3v3p:.2f}V")
+            self.logger.info(f"  2.5V PLL Supply: {volt_2v5p:.2f}V")
+            self.logger.info(f"  Vc Supply: {volt_vc:.2f}V")
+            self.logger.info(f"  CPU Temperature: {temp_cpu:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_sensor_data(self):
         """Get and log sensor data."""
         status, temp0, temp1, temp2 = self.get_sensor_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_sensor_data() results:")
-            self.logger.debug(f"  Sensor 0 Temperature: {temp0:.1f}degC")
-            self.logger.debug(f"  Sensor 1 Temperature: {temp1:.1f}degC")
-            self.logger.debug(f"  Sensor 2 Temperature: {temp2:.1f}degC")
+            self.logger.info("get_sensor_data() results:")
+            self.logger.info(f"  Sensor 0 Temperature: {temp0:.1f}degC")
+            self.logger.info(f"  Sensor 1 Temperature: {temp1:.1f}degC")
+            self.logger.info(f"  Sensor 2 Temperature: {temp2:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_fan_data(self):
         """Get and log fan data."""
         status, enabled, failed, set_rpm, measured_rpm, pwm = self.get_fan_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_fan_data() results:")
+            self.logger.info("get_fan_data() results:")
             for i in range(self.FAN_COUNT):
-                self.logger.debug(
+                self.logger.info(
                     f"  Fan {i}: Enabled={enabled[i]}, Failed={failed[i]}, "
                     f"SetRPM={set_rpm[i]}, MeasRPM={measured_rpm[i]}, "
                     f"PWM={pwm[i]} ({pwm[i] / self.FAN_PWM_MAX * 100:.1f}%)"
@@ -284,14 +284,14 @@ class SWHR(SWHRBase):
         """Get and log LED data."""
         status, red, green, blue = self.get_led_data()
         if status == self.NO_ERR:
-            self.logger.debug(f"LED state: R={red}, G={green}, B={blue}")
+            self.logger.info(f"LED state: R={red}, G={green}, B={blue}")
         return status == self.NO_ERR
 
     def _hk_controller_state(self):
         """Get and log controller state."""
         status, state_hex, config, state_names = self.get_state()
         if status == self.NO_ERR:
-            self.logger.debug(
+            self.logger.info(
                 f"Controller state: {', '.join(state_names)} ({state_hex}), "
                 f"Config=0x{config:04X}"
             )
@@ -301,7 +301,7 @@ class SWHR(SWHRBase):
         """Get and log CPU data."""
         status, load, frequency = self.get_cpu_data()
         if status == self.NO_ERR:
-            self.logger.debug(
+            self.logger.info(
                 f"CPU: Load={load * 100:.1f}%, Frequency={frequency / 1e6:.1f}MHz"
             )
         return status == self.NO_ERR
@@ -314,7 +314,7 @@ class SWHR(SWHRBase):
                 status_p, period = self.get_oscillator_period(i)
                 if status_p == self.NO_ERR:
                     freq = self.DEF_CLOCK / (period + self.OSC_OFFSET) if period > 0 else 0
-                    self.logger.debug(
+                    self.logger.info(
                         f"Oscillator {i}: Period={period}, Frequency={freq:.1f}Hz"
                     )
         return status_c == self.NO_ERR
@@ -331,7 +331,7 @@ class SWHR(SWHRBase):
                     s == self.NO_ERR
                     for s in [status_d, status_w, status_b]
                 ):
-                    self.logger.debug(
+                    self.logger.info(
                         f"Timer {i}: Delay={delay}, Width={width}, Burst={burst}"
                     )
         return status_c == self.NO_ERR
@@ -348,7 +348,7 @@ class SWHR(SWHRBase):
                 s == self.NO_ERR
                 for s in [status_ts, status_es, status_d, status_rf, status_ff]
             ):
-                self.logger.debug(
+                self.logger.info(
                     f"Switch {i}: TrigSrc=0x{trig_src:02X}, EnbSrc=0x{enb_src:02X}, "
                     f"Delay(rise={rise_d}, fall={fall_d}), "
                     f"FineDelay(rise={rise_fine}, fall={fall_fine})"

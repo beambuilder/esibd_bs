@@ -214,21 +214,21 @@ class SW(SWBase):
         """Get and log product information."""
         status, product_no = self.get_product_no()
         if status == self.NO_ERR:
-            self.logger.debug(f"Product number: {product_no}")
+            self.logger.info(f"Product number: {product_no}")
         return status == self.NO_ERR
 
     def _hk_main_state(self):
         """Get and log main device state."""
         status, state_hex, state_name = self.get_main_state()
         if status == self.NO_ERR:
-            self.logger.debug(f"Main state: {state_name} ({state_hex})")
+            self.logger.info(f"Main state: {state_name} ({state_hex})")
         return status == self.NO_ERR
 
     def _hk_device_state(self):
         """Get and log device state."""
         status, state_hex, state_names = self.get_device_state()
         if status == self.NO_ERR:
-            self.logger.debug(
+            self.logger.info(
                 f"Device state: {', '.join(state_names)} ({state_hex})"
             )
         return status == self.NO_ERR
@@ -237,30 +237,30 @@ class SW(SWBase):
         """Get and log general housekeeping data."""
         status, volt_12v, volt_5v0, volt_3v3, temp_cpu = self.get_housekeeping()
         if status == self.NO_ERR:
-            self.logger.debug("get_housekeeping() results:")
-            self.logger.debug(f"  12V Supply: {volt_12v:.2f}V")
-            self.logger.debug(f"  5V Supply: {volt_5v0:.2f}V")
-            self.logger.debug(f"  3.3V Supply: {volt_3v3:.2f}V")
-            self.logger.debug(f"  CPU Temperature: {temp_cpu:.1f}degC")
+            self.logger.info("get_housekeeping() results:")
+            self.logger.info(f"  12V Supply: {volt_12v:.2f}V")
+            self.logger.info(f"  5V Supply: {volt_5v0:.2f}V")
+            self.logger.info(f"  3.3V Supply: {volt_3v3:.2f}V")
+            self.logger.info(f"  CPU Temperature: {temp_cpu:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_sensor_data(self):
         """Get and log sensor data."""
         status, temp0, temp1, temp2 = self.get_sensor_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_sensor_data() results:")
-            self.logger.debug(f"  Sensor 0 Temperature: {temp0:.1f}degC")
-            self.logger.debug(f"  Sensor 1 Temperature: {temp1:.1f}degC")
-            self.logger.debug(f"  Sensor 2 Temperature: {temp2:.1f}degC")
+            self.logger.info("get_sensor_data() results:")
+            self.logger.info(f"  Sensor 0 Temperature: {temp0:.1f}degC")
+            self.logger.info(f"  Sensor 1 Temperature: {temp1:.1f}degC")
+            self.logger.info(f"  Sensor 2 Temperature: {temp2:.1f}degC")
         return status == self.NO_ERR
 
     def _hk_fan_data(self):
         """Get and log fan data."""
         status, enabled, failed, set_rpm, measured_rpm, pwm = self.get_fan_data()
         if status == self.NO_ERR:
-            self.logger.debug("get_fan_data() results:")
+            self.logger.info("get_fan_data() results:")
             for i in range(self.FAN_COUNT):
-                self.logger.debug(
+                self.logger.info(
                     f"  Fan {i}: Enabled={enabled[i]}, Failed={failed[i]}, "
                     f"SetRPM={set_rpm[i]}, MeasRPM={measured_rpm[i]}, "
                     f"PWM={pwm[i]} ({pwm[i] / self.FAN_PWM_MAX * 100:.1f}%)"
@@ -271,14 +271,14 @@ class SW(SWBase):
         """Get and log LED data."""
         status, red, green, blue = self.get_led_data()
         if status == self.NO_ERR:
-            self.logger.debug(f"LED state: R={red}, G={green}, B={blue}")
+            self.logger.info(f"LED state: R={red}, G={green}, B={blue}")
         return status == self.NO_ERR
 
     def _hk_controller_state(self):
         """Get and log controller state."""
         status, state_hex, state_names = self.get_controller_state()
         if status == self.NO_ERR:
-            self.logger.debug(
+            self.logger.info(
                 f"Controller state: {', '.join(state_names)} ({state_hex})"
             )
         return status == self.NO_ERR
@@ -287,7 +287,7 @@ class SW(SWBase):
         """Get and log CPU data."""
         status, load, frequency = self.get_cpu_data()
         if status == self.NO_ERR:
-            self.logger.debug(
+            self.logger.info(
                 f"CPU: Load={load * 100:.1f}%, Frequency={frequency / 1e6:.1f}MHz"
             )
         return status == self.NO_ERR
@@ -297,7 +297,7 @@ class SW(SWBase):
         status, period = self.get_oscillator_period()
         if status == self.NO_ERR:
             freq = self.CLOCK / (period + self.OSC_OFFSET) if period > 0 else 0
-            self.logger.debug(
+            self.logger.info(
                 f"Oscillator: Period={period}, Frequency={freq:.1f}Hz"
             )
         return status == self.NO_ERR
@@ -308,13 +308,13 @@ class SW(SWBase):
             status_d, delay = self.get_pulser_delay(i)
             status_w, width = self.get_pulser_width(i)
             if status_d == self.NO_ERR and status_w == self.NO_ERR:
-                self.logger.debug(
+                self.logger.info(
                     f"Pulser {i}: Delay={delay}, Width={width}"
                 )
         for i in range(self.PULSER_BURST_NUM):
             status_b, burst = self.get_pulser_burst(i)
             if status_b == self.NO_ERR:
-                self.logger.debug(f"Pulser {i} Burst: {burst}")
+                self.logger.info(f"Pulser {i} Burst: {burst}")
         return True
 
     def _hk_switch_data(self):
@@ -328,7 +328,7 @@ class SW(SWBase):
                 s == self.NO_ERR
                 for s in [status_tc, status_ec, status_td, status_ed]
             ):
-                self.logger.debug(
+                self.logger.info(
                     f"Switch {i}: TrigCfg=0x{trig_cfg:02X}, EnbCfg=0x{enb_cfg:02X}, "
                     f"TrigDelay(rise={rise_d}, fall={fall_d}), EnbDelay={enb_delay}"
                 )
