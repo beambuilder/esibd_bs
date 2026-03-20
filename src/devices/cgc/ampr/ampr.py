@@ -99,7 +99,7 @@ class AMPR(AMPRBase):
                 log_dir.mkdir(exist_ok=True)
                 log_file = log_dir / f"ampr_{device_id}_{timestamp}.log"
                 handler = logging.FileHandler(log_file)
-                formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                formatter = logging.Formatter(f'%(asctime)s - {device_id} - %(levelname)s - %(message)s')
                 handler.setFormatter(formatter)
                 self.logger.addHandler(handler)
                 self.logger.setLevel(logging.INFO)

@@ -109,7 +109,7 @@ class SW(SWBase):
 
                 file_handler = logging.FileHandler(log_filepath)
                 formatter = logging.Formatter(
-                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                    f"%(asctime)s - {device_id} - %(levelname)s - %(message)s"
                 )
                 file_handler.setFormatter(formatter)
 
