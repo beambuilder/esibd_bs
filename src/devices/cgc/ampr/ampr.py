@@ -84,7 +84,9 @@ class AMPR(AMPRBase):
 
         # Setup logger
         if logger is not None:
-            self.logger = logger
+            adapter = logging.LoggerAdapter(logger, {"device_id": device_id})
+            adapter.process = lambda msg, kwargs: (f"{device_id} - {msg}", kwargs)
+            self.logger = adapter
             self._external_logger_provided = True
         else:
             self._external_logger_provided = False
