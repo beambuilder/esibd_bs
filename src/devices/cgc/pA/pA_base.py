@@ -141,7 +141,7 @@ class PABase:
         self.class_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Importing dll for hardware control - path relative to pA_base.py
-        self.dll_path = os.path.join(self.class_dir, r"DMMR-8_1-01\x86\COM-DMMR-8.dll")
+        self.dll_path = os.path.join(self.class_dir, r"DMMR-8_1-02\x64\COM-DMMR-8.dll")
         self.dll = ctypes.WinDLL(self.dll_path)
 
         # Importing error messages - path relative to cgc folder
