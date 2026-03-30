@@ -74,6 +74,13 @@ class SyringePump:
         self.is_connected = False
         self.serial_connection: Optional[serial.Serial] = None
 
+        # 1 mL syringe defaults
+        self.volume = 1.0
+        self.diameter = 4.64
+        self.units = "mL/hr"
+        self.pump_rate = 120.0
+        self.withdraw_rate = 120.0
+
         # Housekeeping and threading setup
         self.hk_interval = hk_interval
         self.hk_running = False
@@ -565,13 +572,25 @@ class SyringePump:
                 pass
         return result
 
+    def apply_parameters(self, rate: float = None) -> None:
+        """
+        Send stored syringe parameters to the pump.
+
+        Args:
+            rate: Flow rate to apply. If None, uses self.pump_rate.
+        """
+        self.set_volume(self.volume)
+        self.set_diameter(self.diameter)
+        self.set_units(self.units)
+        self.set_rate(rate if rate is not None else self.pump_rate)
+
     def withdraw(self) -> list:
         """
         Perform a full withdrawal cycle.
 
-        Stops the pump (resetting displaced volume), sets volume to its
-        negative value (withdraw mode), starts the pump, waits for the
-        estimated completion time plus a 2-second margin, then stops the pump.
+        Stops the pump (resetting displaced volume), configures withdrawal
+        parameters (negative volume, withdraw_rate), starts the pump, waits
+        for the estimated completion time plus a 2-second margin, then stops.
 
         Returns:
             list: Response from the final stop command
@@ -579,41 +598,19 @@ class SyringePump:
         # Step 1: Stop pump (resets displaced volume to zero)
         self.stop_pump()
 
-        # Step 2: Get current parameters and set volume to negative
-        params = self.get_parameters()
-        volume = None
-        rate = None
-        for line in params:
-            if line.startswith("volume"):
-                volume = float(line.split("=")[1].strip())
-            elif line.startswith("rate"):
-                rate = float(line.split("=")[1].strip())
-
-        if volume is None or rate is None:
-            self.logger.error("Could not parse volume or rate from parameters")
-            return []
-
-        self.set_volume(-abs(volume))
+        # Step 2: Configure withdrawal parameters
+        self.set_rate(rate=self.withdraw_rate)
+        self.set_volume(-self.volume)
 
         # Step 3: Start the pump
         self.start_pump()
 
-        # Step 4: Estimate time and wait
-        # volume is in mL, rate is in mL/hr or mL/min depending on units
-        # get_parameters returns 'unit = X' where 0=mL/min, 1=mL/hr, 2=μL/min, 3=μL/hr
-        unit = None
-        for line in params:
-            if line.startswith("unit"):
-                unit = int(line.split("=")[1].strip())
-
-        if unit in (0, 2):  # per minute
-            estimated_seconds = (abs(volume) / rate) * 60
-        else:  # per hour (default)
-            estimated_seconds = (abs(volume) / rate) * 3600
+        # Step 4: Estimate time and wait (units are mL/hr)
+        estimated_seconds = (self.volume / self.withdraw_rate) * 3600
 
         wait_time = estimated_seconds + 2
         self.logger.info(
-            f"Withdrawal started: volume={volume}, rate={rate}, "
+            f"Withdrawal started: volume={self.volume}, rate={self.withdraw_rate}, "
             f"estimated time={estimated_seconds:.1f}s, waiting {wait_time:.1f}s"
         )
         time.sleep(wait_time)
