@@ -498,10 +498,10 @@ class AMPR(AMPRBase):
             raise
 
     def set_module_voltage(self, address, channel, voltage):
-        """Set module voltage with logging."""
+        """Set module output voltage with logging."""
         self.logger.info(f"Setting module {address} channel {channel} voltage to {voltage:.3f}V")
         try:
-            status = super().set_module_voltage(address, channel, voltage)
+            status = super().set_module_output_voltage(address, channel, voltage)
             if status == self.NO_ERR:
                 self.logger.info(f"Module {address} channel {channel} voltage set successfully")
             else:
@@ -532,11 +532,11 @@ class AMPR(AMPRBase):
             results = super().set_all_module_voltages(address, voltages)
             success_count = sum(1 for status in results.values() if status == self.NO_ERR)
             self.logger.info(f"Set {success_count}/{len(results)} voltages successfully on module {address}")
-            
+
             for channel, status in results.items():
                 if status != self.NO_ERR:
                     self.logger.error(f"Failed to set module {address} channel {channel}: status {status}")
-            
+
             return results
         except Exception as e:
             self.logger.error(f"Error setting module voltages: {e}")

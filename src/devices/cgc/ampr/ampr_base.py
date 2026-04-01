@@ -99,6 +99,7 @@ class AMPRBase:
     
     # Module constants
     MODULE_NUM = 12          # Maximum module number
+    MODULE_CHANNEL_NUM = 4   # Number of module output channels
     ADDR_BASE = 0x80        # Base-module address
     ADDR_BROADCAST = 0xFF   # Broadcasting address
     
@@ -1012,8 +1013,8 @@ class AMPRBase:
                 temp_psu.value, temp_board.value, volt_ref.value)
 
     # Voltage control methods for modules
-    
-    def set_module_voltage(self, address, channel, voltage):
+
+    def set_module_output_voltage(self, address, channel, voltage):
         """
         Set module output voltage.
 
@@ -1022,7 +1023,7 @@ class AMPRBase:
         address : int
             Module address (0-11).
         channel : int
-            Channel number (1-4).
+            Channel number (0-3).
         voltage : float
             Voltage to set.
 
@@ -1032,20 +1033,20 @@ class AMPRBase:
             Status code.
 
         """
-        status = self.ampr_dll.COM_AMPR_12_SetModuleVoltage(
+        status = self.ampr_dll.COM_AMPR_12_SetModuleOutputVoltage(
             ctypes.c_uint(address), ctypes.c_uint(channel), ctypes.c_double(voltage))
         return status
 
-    def get_module_voltage_setpoint(self, address, channel):
+    def get_module_output_voltage(self, address, channel):
         """
-        Get module voltage setpoint.
+        Get module output voltage (setpoint).
 
         Parameters
         ----------
         address : int
             Module address (0-11).
         channel : int
-            Channel number (1-4).
+            Channel number (0-3).
 
         Returns
         -------
@@ -1054,31 +1055,29 @@ class AMPRBase:
 
         """
         voltage = ctypes.c_double()
-        status = self.ampr_dll.COM_AMPR_12_GetModuleVoltageSetpoint(
+        status = self.ampr_dll.COM_AMPR_12_GetModuleOutputVoltage(
             ctypes.c_uint(address), ctypes.c_uint(channel), ctypes.byref(voltage))
         return status, voltage.value
 
-    def get_module_voltage_measured(self, address, channel):
+    def get_measured_module_output_voltages(self, address):
         """
-        Get module measured voltage.
+        Get all 4 measured output voltages for a module.
 
         Parameters
         ----------
         address : int
             Module address (0-11).
-        channel : int
-            Channel number (1-4).
 
         Returns
         -------
         tuple
-            (status, voltage).
+            (status, [volt_ch0, volt_ch1, volt_ch2, volt_ch3]).
 
         """
-        voltage = ctypes.c_double()
-        status = self.ampr_dll.COM_AMPR_12_GetModuleVoltageMeasured(
-            ctypes.c_uint(address), ctypes.c_uint(channel), ctypes.byref(voltage))
-        return status, voltage.value
+        voltages = (ctypes.c_double * self.MODULE_CHANNEL_NUM)()
+        status = self.ampr_dll.COM_AMPR_12_GetMeasuredModuleOutputVoltages(
+            ctypes.c_uint(address), voltages)
+        return status, [voltages[i] for i in range(self.MODULE_CHANNEL_NUM)]
 
     # Convenience methods for easier module access
     
@@ -1142,33 +1141,27 @@ class AMPRBase:
         Returns
         -------
         dict
-            Dictionary with channel numbers as keys and (setpoint, measured) tuples as values.
+            Dictionary with channel numbers (0-3) as keys and
+            {'setpoint': float, 'measured': float} dicts as values.
 
         """
         voltages = {}
-        
-        for channel in range(1, 5):  # Channels 1-4
-            # Get setpoint
-            set_status, setpoint = self.get_module_voltage_setpoint(address, channel)
-            # Get measured value
-            meas_status, measured = self.get_module_voltage_measured(address, channel)
-            
-            if set_status == self.NO_ERR and meas_status == self.NO_ERR:
+
+        # Get measured voltages (all 4 at once)
+        meas_status, measured_list = self.get_measured_module_output_voltages(address)
+
+        for channel in range(self.MODULE_CHANNEL_NUM):
+            # Get setpoint per channel
+            set_status, setpoint = self.get_module_output_voltage(address, channel)
+
+            measured = measured_list[channel] if meas_status == self.NO_ERR else None
+
+            if set_status == self.NO_ERR or meas_status == self.NO_ERR:
                 voltages[channel] = {
-                    'setpoint': setpoint,
+                    'setpoint': setpoint if set_status == self.NO_ERR else None,
                     'measured': measured
                 }
-            elif set_status == self.NO_ERR:
-                voltages[channel] = {
-                    'setpoint': setpoint,
-                    'measured': None
-                }
-            elif meas_status == self.NO_ERR:
-                voltages[channel] = {
-                    'setpoint': None,
-                    'measured': measured
-                }
-        
+
         return voltages
 
     def set_all_module_voltages(self, address, voltages):
@@ -1180,7 +1173,7 @@ class AMPRBase:
         address : int
             Module address.
         voltages : list or dict
-            If list: voltages for channels 1-4
+            If list: voltages for channels 0-3
             If dict: {channel: voltage} mapping
 
         Returns
@@ -1190,19 +1183,16 @@ class AMPRBase:
 
         """
         results = {}
-        
+
         if isinstance(voltages, list):
-            # List format: [ch1, ch2, ch3, ch4]
-            for i, voltage in enumerate(voltages[:4]):  # Max 4 channels
-                channel = i + 1
+            for channel, voltage in enumerate(voltages[:self.MODULE_CHANNEL_NUM]):
                 if voltage is not None:
-                    status = self.set_module_voltage(address, channel, voltage)
+                    status = self.set_module_output_voltage(address, channel, voltage)
                     results[channel] = status
         elif isinstance(voltages, dict):
-            # Dictionary format: {channel: voltage}
             for channel, voltage in voltages.items():
-                if 1 <= channel <= 4 and voltage is not None:
-                    status = self.set_module_voltage(address, channel, voltage)
+                if 0 <= channel < self.MODULE_CHANNEL_NUM and voltage is not None:
+                    status = self.set_module_output_voltage(address, channel, voltage)
                     results[channel] = status
-        
+
         return results
