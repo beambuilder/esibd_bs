@@ -73,6 +73,9 @@ Thumbs.db
 .dmypy.json
 dmypy.json
 
+# Claude debug notes
+.claude/
+
 # Local-only CGC notes
 src/devices/cgc/MEMORY.md
 src/devices/cgc/code-review-findings.md
