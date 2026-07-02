@@ -55,26 +55,33 @@ class TrafoArduino(Arduino):
                 "raw_data": data_line,
             }
         except (ValueError, IndexError):
-            #self.logger.debug(f"Failed to parse trafo data: {data_line!r}")
             return None
+
+    # ------------------------------------------------------------------
+    #  Simulation
+    # ------------------------------------------------------------------
+
+    def _sim_data(self) -> Dict[str, Any]:
+        """Plausible trafo-locker values for test mode."""
+        return {
+            "temperature": self._sim_uniform(18.0, 24.0),
+            "fan_power": int(self._sim_uniform(20, 40, 0)),
+            "raw_data": "simulated",
+        }
 
     # ------------------------------------------------------------------
     #  Housekeeping
     # ------------------------------------------------------------------
 
     def hk_monitor(self) -> None:
-        """Read and log trafo-locker sensor data."""
+        """Read and report trafo-locker sensor data."""
         try:
             rtn = self.read_arduino_data()
 
             if rtn is not None:
-                self.custom_logger(
-                    self.device_id, self.port, "Temp", rtn["temperature"], "degC"
-                )
-                self.custom_logger(
-                    self.device_id, self.port, "Fan_PWR", rtn["fan_power"], "%"
-                )
+                self.log_sample("Temp", rtn["temperature"], "degC", fmt=".2f")
+                self.log_sample("Fan_PWR", rtn["fan_power"], "%")
             else:
                 self.logger.debug("No valid trafo data received.")
         except Exception as e:
-            self.logger.error(f"Trafo housekeeping monitoring failed: {e}")
+            self.log_event("error", f"housekeeping read failed: {e}")

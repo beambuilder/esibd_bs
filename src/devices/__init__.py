@@ -9,5 +9,10 @@ from .arduino.arduino import Arduino
 from .arduino.pump_arduino import PumpArduino
 from .arduino.trafo_arduino import TrafoArduino
 from .chiller.chiller import Chiller
+from .serial_device import SerialDeviceBase
+from .telemetry import TelemetrySink, SQLiteSink
 
-__all__ = ['Arduino', 'PumpArduino', 'TrafoArduino', 'Chiller']
+__all__ = [
+    'Arduino', 'PumpArduino', 'TrafoArduino', 'Chiller',
+    'SerialDeviceBase', 'TelemetrySink', 'SQLiteSink',
+]

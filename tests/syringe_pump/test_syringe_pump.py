@@ -103,7 +103,7 @@ class TestSyringePump:
         assert result is True
         assert pump.is_connected is True
         assert pump.serial_connection == mock_serial_instance
-        mock_serial.assert_called_once_with(port="COM5", baudrate=9600, timeout=1.0)
+        mock_serial.assert_called_once_with("COM5", 9600, timeout=1.0)
 
     @patch("serial.Serial")
     def test_connect_failure(self, mock_serial):
@@ -136,12 +136,12 @@ class TestSyringePump:
         mock_serial.close.assert_called_once()
 
     def test_disconnect_no_connection(self):
-        """Test disconnection when no connection exists."""
+        """Test disconnection when no connection exists (idempotent)."""
         pump = SyringePump("disconnect_none_test", "COM5")
 
         result = pump.disconnect()
 
-        assert result is False
+        assert result is True
         assert pump.is_connected is False
 
     def test_add_mode_no_mode(self):

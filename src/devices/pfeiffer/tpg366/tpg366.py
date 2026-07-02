@@ -91,6 +91,11 @@ class TPG366(PfeifferBaseDevice):
         if not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
 
+        if self.test_mode:
+            raise RuntimeError(
+                "_query_channel_parameter() called in test_mode — simulate "
+                "in the read method instead"
+            )
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
 
@@ -121,6 +126,9 @@ class TPG366(PfeifferBaseDevice):
         if not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
 
+        if self.test_mode:
+            self.log_event("info", f"set channel {channel} param {param_num} = {value} (simulated)")
+            return
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
 
@@ -161,64 +169,28 @@ class TPG366(PfeifferBaseDevice):
     # =============================================================================
 
     def read_pressure_value_channel_1(self) -> float:
-        """
-        Read pressure value from sensor channel 1.
-        
-        Returns:
-            float: Pressure value from channel 1
-        """
-        response = self._query_channel_parameter(1, 740)
-        return self.data_converter.u_expo_new_2_float(response)
+        """Read pressure value from sensor channel 1."""
+        return self.read_pressure_value(1)
 
     def read_pressure_value_channel_2(self) -> float:
-        """
-        Read pressure value from sensor channel 2.
-        
-        Returns:
-            float: Pressure value from channel 2
-        """
-        response = self._query_channel_parameter(2, 740)
-        return self.data_converter.u_expo_new_2_float(response)
+        """Read pressure value from sensor channel 2."""
+        return self.read_pressure_value(2)
 
     def read_pressure_value_channel_3(self) -> float:
-        """
-        Read pressure value from sensor channel 3.
-        
-        Returns:
-            float: Pressure value from channel 3
-        """
-        response = self._query_channel_parameter(3, 740)
-        return self.data_converter.u_expo_new_2_float(response)
+        """Read pressure value from sensor channel 3."""
+        return self.read_pressure_value(3)
 
     def read_pressure_value_channel_4(self) -> float:
-        """
-        Read pressure value from sensor channel 4.
-        
-        Returns:
-            float: Pressure value from channel 4
-        """
-        response = self._query_channel_parameter(4, 740)
-        return self.data_converter.u_expo_new_2_float(response)
+        """Read pressure value from sensor channel 4."""
+        return self.read_pressure_value(4)
 
     def read_pressure_value_channel_5(self) -> float:
-        """
-        Read pressure value from sensor channel 5.
-        
-        Returns:
-            float: Pressure value from channel 5
-        """
-        response = self._query_channel_parameter(5, 740)
-        return self.data_converter.u_expo_new_2_float(response)
+        """Read pressure value from sensor channel 5."""
+        return self.read_pressure_value(5)
 
     def read_pressure_value_channel_6(self) -> float:
-        """
-        Read pressure value from sensor channel 6.
-        
-        Returns:
-            float: Pressure value from channel 6
-        """
-        response = self._query_channel_parameter(6, 740)
-        return self.data_converter.u_expo_new_2_float(response)
+        """Read pressure value from sensor channel 6."""
+        return self.read_pressure_value(6)
 
     # =============================================================================
     #     Convenience Method for Generic Channel Access
@@ -239,6 +211,11 @@ class TPG366(PfeifferBaseDevice):
         """
         if not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
+
+        if self.test_mode:
+            # Plausible high-vacuum reading, different decade per channel.
+            exponent = self._sim_uniform(-8.5, -5.5, 2)
+            return round(10 ** exponent, 12)
 
         response = self._query_channel_parameter(channel, 740)
         return self.data_converter.u_expo_new_2_float(response)
@@ -376,26 +353,14 @@ class TPG366(PfeifferBaseDevice):
                 self.logger.error(f"Failed to set correction factor for channel {channel}: {e}")
 
     def hk_monitor(self):
+        """One housekeeping cycle: report the pressure of all 6 channels."""
         try:
-            a = self.read_all_pressures()
-
-            self.custom_logger(
-                self.device_id, self.port, "Sensor_CH1_Press", a[1], "hPa"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Sensor_CH2_Press", a[2], "hPa"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Sensor_CH3_Press", a[3], "hPa"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Sensor_CH4_Press", a[4], "hPa"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Sensor_CH5_Press", a[5], "hPa"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Sensor_CH6_Press", a[6], "hPa"
-            )
+            pressures = self.read_all_pressures()
+            for channel in range(1, 7):
+                value = pressures[channel]
+                if value is None:
+                    self.log_event("warning", f"Sensor_CH{channel}_Press read failed")
+                else:
+                    self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")
         except Exception as e:
-            self.logger.error(f"Housekeeping monitoring failed: {e}")
+            self.log_event("error", f"housekeeping read failed: {e}")

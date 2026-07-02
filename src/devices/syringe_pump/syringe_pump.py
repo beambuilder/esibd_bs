@@ -2,35 +2,38 @@
 Syringe pump device controller.
 
 This module provides the SyringePump class for communicating with syringe
-pump devices via various communication protocols for precise fluid control.
+pump devices over serial for precise fluid control, built on
+``SerialDeviceBase`` (uniform constructor, canonical logging, telemetry
+sink, explicit test mode).
 """
 
-from typing import Any, Dict, Optional
-import logging
-from datetime import datetime
-from pathlib import Path
-import threading
+from typing import Any, Dict
+import glob
+import sys
+import time
 
 import serial
-import time
-import sys
-import glob
+
+from ..serial_device import SerialDeviceBase
 
 
-class SyringePump:
+class SyringePump(SerialDeviceBase):
     """
     Syringe pump device communication class.
 
     This class handles communication with syringe pump devices, providing
-    methods for precise fluid control, flow rate management, and volume dispensing.
+    methods for precise fluid control, flow rate management, and volume
+    dispensing.
 
     Example:
         pump = SyringePump("main_pump", port="COM5")
         pump.connect()
-        pump.set_flow_rate(10.0)
-        pump.start_pumping()
+        pump.set_rate(10.0)
+        pump.start_pump()
         pump.disconnect()
     """
+
+    FAMILY = "SyringePump"
 
     def __init__(
         self,
@@ -40,39 +43,34 @@ class SyringePump:
         timeout: float = 1.0,
         x: int = 0,
         mode: int = 0,
-        logger: Optional[logging.Logger] = None,
-        hk_thread: Optional[threading.Thread] = None,
-        thread_lock: Optional[threading.Lock] = None,
-        hk_interval: float = 30.0,  # Housekeeping interval in seconds
+        hk_interval: float = 30.0,
         **kwargs,
     ):
         """
-        Initialize Syringe Pump device.
+        Initialize Syringe Pump device (see ``SerialDeviceBase`` for the
+        shared parameters ``logger``, ``sink``, ``test_mode``, ``hk_thread``,
+        ``thread_lock``).
 
         Args:
-            device_id: Unique identifier for the syringe pump
-            port: Serial port (e.g., "COM5" on Windows, "/dev/ttyUSB0" on Linux)
-            baudrate: Communication baud rate (default: 9600)
-            timeout: Serial communication timeout in seconds (default: 1.0)
-            x: Pump channel/axis identifier (default: 0, no prefix)
-            mode: Pump operation mode (default: 0, no mode suffix)
-            logger: Optional custom logger. If None, creates file logger in
-                debugging/logs/
-            hk_thread: Optional housekeeping thread. If None, creates one
-                automatically
-            thread_lock: Optional thread lock. If None, creates one automatically
-            hk_interval: Housekeeping monitoring interval in seconds
-                (default: 30.0)
-            **kwargs: Additional keyword arguments for future extensibility
+            device_id: Unique identifier for the syringe pump.
+            port: Serial port (e.g., "COM5" on Windows, "/dev/ttyUSB0" on Linux).
+            baudrate: Communication baud rate (default: 9600).
+            timeout: Serial communication timeout in seconds (default: 1.0).
+            x: Pump channel/axis identifier (default: 0, no prefix).
+            mode: Pump operation mode (default: 0, no mode suffix).
+            hk_interval: Housekeeping monitoring interval in seconds.
+            **kwargs: Shared SerialDeviceBase parameters.
         """
-        self.device_id = device_id
-        self.port = port
-        self.baudrate = baudrate
-        self.timeout = timeout
+        super().__init__(
+            device_id=device_id,
+            port=port,
+            baudrate=baudrate,
+            timeout=timeout,
+            hk_interval=hk_interval,
+            **kwargs,
+        )
         self.x = x
         self.mode = mode
-        self.is_connected = False
-        self.serial_connection: Optional[serial.Serial] = None
 
         # 1 mL syringe defaults
         self.volume = 1.0
@@ -81,162 +79,12 @@ class SyringePump:
         self.pump_rate = 120.0
         self.withdraw_rate = 120.0
 
-        # Housekeeping and threading setup
-        self.hk_interval = hk_interval
-        self.hk_running = False
-        self.hk_stop_event = threading.Event()
+        # Simulated pump state so test mode behaves consistently across calls.
+        self._sim_running = False
 
-        # Determine if using external or internal thread management
-        self.external_thread = hk_thread is not None
-        self.external_lock = thread_lock is not None
-
-        # Setup thread lock (for serial communication)
-        if thread_lock is not None:
-            self.thread_lock = thread_lock
-        else:
-            self.thread_lock = threading.Lock()
-
-        # Setup housekeeping lock (separate from communication lock)
-        self.hk_lock = threading.Lock()
-
-        # Setup housekeeping thread
-        if hk_thread is not None:
-            self.hk_thread = hk_thread
-            # For external threads, we don't manage the thread lifecycle
-        else:
-            self.hk_thread = threading.Thread(
-                target=self._hk_worker, name=f"HK_{device_id}", daemon=True
-            )
-
-        # Setup logger
-        if logger is not None:
-            self.logger = logger
-            self._external_logger_provided = True
-        else:
-            self._external_logger_provided = False
-            # Create logger with file handler and timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            logger_name = f"SyringePump_{device_id}_{timestamp}"
-            self.logger = logging.getLogger(logger_name)
-
-            # Only add handler if logger doesn't already have one
-            if not self.logger.handlers:
-                # Create logs directory if it doesn't exist
-                logs_dir = (
-                    Path(__file__).parent.parent.parent.parent / "debugging" / "logs"
-                )
-                logs_dir.mkdir(parents=True, exist_ok=True)
-
-                # Create file handler with timestamp
-                log_filename = f"SyringePump_{device_id}_{timestamp}.log"
-                log_filepath = logs_dir / log_filename
-
-                file_handler = logging.FileHandler(log_filepath)
-                formatter = logging.Formatter(
-                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-                )
-                file_handler.setFormatter(formatter)
-
-                self.logger.addHandler(file_handler)
-                self.logger.setLevel(logging.INFO)
-
-                # Log the initialization
-                self.logger.info(
-                    f"SyringePump logger initialized for device "
-                    f"'{device_id}' on port '{port}'"
-                )
-                if self.external_thread:
-                    thread_name = (
-                        self.hk_thread.name
-                        if hasattr(self.hk_thread, "name")
-                        else "unnamed"
-                    )
-                    self.logger.info(f"Using external thread: {thread_name}")
-                else:
-                    self.logger.info(f"Using internal thread: {self.hk_thread.name}")
-
-                if self.external_lock:
-                    self.logger.info("Using external thread lock")
-                else:
-                    self.logger.info("Using internal thread lock")
-
-        # File logging setup for housekeeping
-        self.file_logging_enabled = False
-        self.hk_log_file: Optional[Path] = None
-        self.hk_csv_writer = None
-        self.hk_file_handle = None
-
-    def enable_file_logging(self, log_filepath: Path = None) -> bool:
-        """
-        Enable file logging for housekeeping data.
-
-        Args:
-            log_filepath: Optional custom log file path. If None, creates default path.
-
-        Returns:
-            bool: True if file logging was successfully enabled, False otherwise
-        """
-        pass
-
-    def custom_logger(self, data: Dict[str, Any]):
-        """
-        Log housekeeping data to CSV file.
-
-        Args:
-            data: Dictionary containing housekeeping data to log
-        """
-        pass
-
-    def connect(self) -> bool:
-        """
-        Establish connection to the syringe pump.
-
-        Returns:
-            bool: True if connection successful, False otherwise
-        """
-        try:
-            with self.thread_lock:
-                self.serial_connection = serial.Serial(
-                    port=self.port, baudrate=self.baudrate, timeout=self.timeout
-                )
-
-                if self.serial_connection.is_open:
-                    self.is_connected = True
-                    self.logger.info(
-                        f"Successfully connected to SyringePump on {self.port}"
-                    )
-                    self._flush_buffers()
-                    return True
-                else:
-                    self.logger.error(f"Failed to open connection to {self.port}")
-                    return False
-
-        except Exception as e:
-            self.logger.error(f"Connection failed: {e}")
-            self.is_connected = False
-            return False
-
-    def disconnect(self) -> bool:
-        """
-        Close connection to the syringe pump.
-
-        Returns:
-            bool: True if disconnection successful, False otherwise
-        """
-        try:
-            with self.thread_lock:
-                if self.serial_connection and self.serial_connection.is_open:
-                    self.serial_connection.close()
-                    self.is_connected = False
-                    self.logger.info("Successfully disconnected from SyringePump")
-                    return True
-                else:
-                    self.logger.warning("No active connection to close")
-                    return False
-
-        except Exception as e:
-            self.logger.error(f"Disconnection failed: {e}")
-            return False
+    def _open_transport(self) -> None:
+        super()._open_transport()
+        self._flush_buffers()
 
     def _flush_buffers(self):
         """Flush input and output buffers."""
@@ -244,18 +92,26 @@ class SyringePump:
             self.serial_connection.flushInput()
             self.serial_connection.flushOutput()
 
+    # =========================================================================
+    #     Serial I/O
+    # =========================================================================
+
     def _send_command(self, command: str) -> list:
         """
         Send command to syringe pump and get response.
 
         Args:
-            command: Command string to send
+            command: Command string to send.
 
         Returns:
-            list: Response from pump as list of strings
+            list: Response from pump as list of strings.
         """
+        if self.test_mode:
+            self.logger.debug(f"Command (simulated): {command}")
+            return []
+
         if not self.is_connected or not self.serial_connection:
-            self.logger.error("No active connection")
+            self.log_event("error", "no active connection")
             return []
 
         try:
@@ -270,7 +126,7 @@ class SyringePump:
                 return response
 
         except Exception as e:
-            self.logger.error(f"Command failed: {command}, Error: {e}")
+            self.log_event("error", f"command '{command}' failed: {e}")
             return []
 
     def _get_response(self) -> list:
@@ -278,7 +134,7 @@ class SyringePump:
         Read response from syringe pump.
 
         Returns:
-            list: Response lines as list of strings
+            list: Response lines as list of strings.
         """
         try:
             response_list = []
@@ -291,51 +147,40 @@ class SyringePump:
             return response_list
 
         except Exception as e:
-            self.logger.error(f"Failed to get response: {e}")
+            self.log_event("error", f"failed to get response: {e}")
             return []
 
     def _add_mode(self, command: str) -> str:
-        """
-        Add mode suffix to command if mode is set.
-
-        Args:
-            command: Base command string
-
-        Returns:
-            str: Command with mode suffix if applicable
-        """
+        """Add mode suffix to command if mode is set."""
         if self.mode == 0:
             return command
         else:
             return command + " " + str(self.mode - 1)
 
     def _add_x(self, command: str) -> str:
-        """
-        Add pump channel/axis prefix to command if x is set.
-
-        Args:
-            command: Base command string
-
-        Returns:
-            str: Command with x prefix if applicable
-        """
+        """Add pump channel/axis prefix to command if x is set."""
         if self.x == 0:
             return command
         else:
             return str(self.x) + " " + command
+
+    # =========================================================================
+    #     Pump Control
+    # =========================================================================
 
     def start_pump(self) -> list:
         """
         Start the syringe pump.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         command = "start"
         command = self._add_x(command)
         command = self._add_mode(command)
         response = self._send_command(command)
-        self.logger.info("Pump started")
+        self._sim_running = True
+        self.log_event("info", "pump started")
         return response
 
     def stop_pump(self) -> list:
@@ -343,12 +188,13 @@ class SyringePump:
         Stop the syringe pump.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         command = "stop"
         command = self._add_x(command)
         response = self._send_command(command)
-        self.logger.info("Pump stopped")
+        self._sim_running = False
+        self.log_event("info", "pump stopped")
         return response
 
     def pause_pump(self) -> list:
@@ -356,12 +202,13 @@ class SyringePump:
         Pause the syringe pump.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         command = "pause"
         command = self._add_x(command)
         response = self._send_command(command)
-        self.logger.info("Pump paused")
+        self._sim_running = False
+        self.log_event("info", "pump paused")
         return response
 
     def restart_pump(self) -> list:
@@ -369,32 +216,36 @@ class SyringePump:
         Restart the syringe pump.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         command = "restart"
         response = self._send_command(command)
-        self.logger.info("Pump restarted")
+        self.log_event("info", "pump restarted")
         return response
+
+    # =========================================================================
+    #     Parameter Setting
+    # =========================================================================
 
     def set_units(self, units: str) -> list:
         """
         Set flow rate units.
 
         Args:
-            units: Units string ('mL/min', 'mL/hr', 'μL/min', 'μL/hr')
+            units: Units string ('mL/min', 'mL/hr', 'μL/min', 'μL/hr').
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         units_dict = {"mL/min": "0", "mL/hr": "1", "μL/min": "2", "μL/hr": "3"}
 
         if units not in units_dict:
-            self.logger.error(f"Invalid units: {units}")
+            self.log_event("error", f"invalid units: {units}")
             return []
 
         command = f"set units {units_dict[units]}"
         response = self._send_command(command)
-        self.logger.info(f"Units set to {units}")
+        self.log_event("info", f"units set to {units}")
         return response
 
     def set_diameter(self, diameter: float) -> list:
@@ -402,14 +253,14 @@ class SyringePump:
         Set syringe diameter.
 
         Args:
-            diameter: Syringe diameter in mm
+            diameter: Syringe diameter in mm.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         command = f"set diameter {diameter}"
         response = self._send_command(command)
-        self.logger.info(f"Diameter set to {diameter} mm")
+        self.log_event("info", f"diameter set to {diameter} mm")
         return response
 
     def set_rate(self, rate) -> list:
@@ -417,20 +268,19 @@ class SyringePump:
         Set flow rate.
 
         Args:
-            rate: Flow rate (float) or list of rates for multi-step
+            rate: Flow rate (float) or list of rates for multi-step.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         if isinstance(rate, list):
             # Multi-step command
             command = "set rate " + ",".join([str(x) for x in rate])
-            self.logger.info(f"Flow rates set to {rate}")
         else:
             command = f"set rate {rate}"
-            self.logger.info(f"Flow rate set to {rate}")
 
         response = self._send_command(command)
+        self.log_event("info", f"flow rate set to {rate}")
         return response
 
     def set_volume(self, volume) -> list:
@@ -438,20 +288,19 @@ class SyringePump:
         Set syringe volume.
 
         Args:
-            volume: Volume (float) or list of volumes for multi-step
+            volume: Volume (float) or list of volumes for multi-step.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         if isinstance(volume, list):
             # Multi-step command
             command = "set volume " + ",".join([str(x) for x in volume])
-            self.logger.info(f"Volumes set to {volume}")
         else:
             command = f"set volume {volume}"
-            self.logger.info(f"Volume set to {volume}")
 
         response = self._send_command(command)
+        self.log_event("info", f"volume set to {volume}")
         return response
 
     def set_delay(self, delay) -> list:
@@ -459,20 +308,19 @@ class SyringePump:
         Set delay between steps.
 
         Args:
-            delay: Delay (float) or list of delays for multi-step
+            delay: Delay (float) or list of delays for multi-step.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         if isinstance(delay, list):
             # Multi-step command
             command = "set delay " + ",".join([str(x) for x in delay])
-            self.logger.info(f"Delays set to {delay}")
         else:
             command = f"set delay {delay}"
-            self.logger.info(f"Delay set to {delay}")
 
         response = self._send_command(command)
+        self.log_event("info", f"delay set to {delay}")
         return response
 
     def set_time(self, timer: float) -> list:
@@ -480,70 +328,52 @@ class SyringePump:
         Set pump timer.
 
         Args:
-            timer: Timer value
+            timer: Timer value.
 
         Returns:
-            list: Response from pump
+            list: Response from pump.
         """
         command = f"set time {timer}"
         response = self._send_command(command)
-        self.logger.info(f"Timer set to {timer}")
+        self.log_event("info", f"timer set to {timer}")
         return response
+
+    # =========================================================================
+    #     Parameter Reading
+    # =========================================================================
 
     def get_parameter_limits(self) -> list:
-        """
-        Get parameter limits from pump.
-
-        Returns:
-            list: Response with parameter limits
-        """
-        command = "read limit parameter"
-        response = self._send_command(command)
-        return response
+        """Get parameter limits from pump."""
+        if self.test_mode:
+            return ["simulated: no limits"]
+        return self._send_command("read limit parameter")
 
     def get_parameters(self) -> list:
-        """
-        Get current parameters from pump.
-
-        Returns:
-            list: Response with current parameters
-        """
-        command = "view parameter"
-        response = self._send_command(command)
-        return response
+        """Get current parameters from pump."""
+        if self.test_mode:
+            return [
+                f"simulated: rate={self.pump_rate} {self.units}, "
+                f"volume={self.volume} mL, diameter={self.diameter} mm"
+            ]
+        return self._send_command("view parameter")
 
     def get_displaced_volume(self) -> list:
-        """
-        Get displaced volume from pump.
-
-        Returns:
-            list: Response with displaced volume
-        """
-        command = "dispensed volume"
-        response = self._send_command(command)
-        return response
+        """Get displaced volume from pump."""
+        if self.test_mode:
+            return [f"{self._sim_uniform(0.0, self.volume, 3)} mL"]
+        return self._send_command("dispensed volume")
 
     def get_elapsed_time(self) -> list:
-        """
-        Get elapsed time from pump.
-
-        Returns:
-            list: Response with elapsed time
-        """
-        command = "elapsed time"
-        response = self._send_command(command)
-        return response
+        """Get elapsed time from pump."""
+        if self.test_mode:
+            return ["0:00"]
+        return self._send_command("elapsed time")
 
     def get_pump_status(self) -> list:
-        """
-        Get pump status.
-
-        Returns:
-            list: Response with pump status
-        """
-        command = "pump status"
-        response = self._send_command(command)
-        return response
+        """Get pump status."""
+        if self.test_mode:
+            return ["pumping" if self._sim_running else "stopped"]
+        return self._send_command("pump status")
 
     @staticmethod
     def get_available_ports() -> list:
@@ -551,7 +381,7 @@ class SyringePump:
         Get list of available serial ports.
 
         Returns:
-            list: Available port names
+            list: Available port names.
         """
         if sys.platform.startswith("win"):
             ports = [f"COM{i+1}" for i in range(256)]
@@ -571,6 +401,10 @@ class SyringePump:
             except (OSError, serial.SerialException):
                 pass
         return result
+
+    # =========================================================================
+    #     High-Level Operations
+    # =========================================================================
 
     def apply_parameters(self, rate: float = None) -> None:
         """
@@ -593,7 +427,7 @@ class SyringePump:
         for the estimated completion time plus a 2-second margin, then stops.
 
         Returns:
-            list: Response from the final stop command
+            list: Response from the final stop command.
         """
         # Step 1: Stop pump (resets displaced volume to zero)
         self.stop_pump()
@@ -609,70 +443,48 @@ class SyringePump:
         estimated_seconds = (self.volume / self.withdraw_rate) * 3600
 
         wait_time = estimated_seconds + 2
-        self.logger.info(
-            f"Withdrawal started: volume={self.volume}, rate={self.withdraw_rate}, "
-            f"estimated time={estimated_seconds:.1f}s, waiting {wait_time:.1f}s"
+        self.log_event(
+            "info",
+            f"withdrawal started: volume={self.volume}, rate={self.withdraw_rate}, "
+            f"estimated time={estimated_seconds:.1f}s, waiting {wait_time:.1f}s",
         )
         time.sleep(wait_time)
 
         # Step 5: Stop the pump after withdrawal completes
         response = self.stop_pump()
-        self.logger.info("Withdrawal complete")
+        self.log_event("info", "withdrawal complete")
         return response
 
-    def start_housekeeping(
-        self, interval: float = None, log_to_file: bool = True
-    ) -> bool:
-        """
-        Start housekeeping monitoring thread.
+    # =========================================================================
+    #     Housekeeping
+    # =========================================================================
 
-        Args:
-            interval: Monitoring interval in seconds. If None, uses self.hk_interval
-            log_to_file: Whether to enable file logging for housekeeping data
+    def hk_monitor(self) -> None:
+        """One housekeeping cycle: report pump status channels."""
+        try:
+            status = self.get_pump_status()
+            self.log_sample("Pump_Status", status[0] if status else "no response")
+            displaced = self.get_displaced_volume()
+            if displaced:
+                # Response shape is e.g. "0.923 mL" — report numerically when
+                # possible so the value reaches the telemetry sink.
+                try:
+                    self.log_sample(
+                        "Displaced_Vol", float(displaced[0].split()[0]), "mL", fmt=".3f"
+                    )
+                except (ValueError, IndexError):
+                    self.log_sample("Displaced_Vol", displaced[0])
+        except Exception as e:
+            self.log_event("error", f"housekeeping read failed: {e}")
 
-        Returns:
-            bool: True if housekeeping started successfully, False otherwise
-        """
-        pass
-
-    def stop_housekeeping(self) -> bool:
-        """
-        Stop housekeeping monitoring thread.
-
-        Returns:
-            bool: True if housekeeping stopped successfully, False otherwise
-        """
-        pass
-
-    def do_housekeeping_cycle(self):
-        """
-        Perform one housekeeping monitoring cycle.
-
-        Calls hk_monitor() to collect data and handles any errors.
-        """
-        pass
-
-    def should_continue_housekeeping(self) -> bool:
-        """
-        Check if housekeeping should continue running.
-
-        Returns:
-            bool: True if housekeeping should continue, False otherwise
-        """
-        pass
-
-    def hk_monitor(self):
-        """
-        Monitor pump parameters and log data.
-
-        This method should be implemented to define what parameters
-        to monitor during housekeeping cycles.
-        """
-        pass
-
-    def _hk_worker(self):
-        """
-        Housekeeping worker thread function.
-        Placeholder for future implementation of periodic monitoring.
-        """
-        pass
+    def extra_status(self) -> Dict[str, Any]:
+        """Syringe-pump-specific status entries."""
+        return {
+            "x": self.x,
+            "mode": self.mode,
+            "volume": self.volume,
+            "diameter": self.diameter,
+            "units": self.units,
+            "pump_rate": self.pump_rate,
+            "withdraw_rate": self.withdraw_rate,
+        }

@@ -118,10 +118,15 @@ class HiPace300Bus(PfeifferBaseDevice):
             device_address = channel
         else:
             raise ValueError("Channel must be a string identifier or integer address")
-            
+
+        if self.test_mode:
+            raise RuntimeError(
+                "_query_channel_parameter() called in test_mode — simulated "
+                "values come from hk_monitor()/_sim_channels()"
+            )
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
-        
+
         try:
             with self.thread_lock:  # Thread-safe communication
                 from ..pfeifferVacuumProtocol import query_data
@@ -152,10 +157,13 @@ class HiPace300Bus(PfeifferBaseDevice):
             device_address = channel
         else:
             raise ValueError("Channel must be a string identifier or integer address")
-            
+
+        if self.test_mode:
+            self.log_event("info", f"set {channel} param {param_num} = {value} (simulated)")
+            return
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
-        
+
         try:
             with self.thread_lock:  # Thread-safe communication
                 from ..pfeifferVacuumProtocol import write_command
@@ -719,94 +727,83 @@ class HiPace300Bus(PfeifferBaseDevice):
     #     Housekeeping Override
     # =============================================================================
 
+    #: Housekeeping channel table: (channel, unit, fmt, reader-method name).
+    HK_CHANNELS = (
+        ("Pump_Station_Enabled", "", "", "get_pumpStatn_enabled"),
+        ("Standby_Mode", "", "", "get_standby"),
+        ("Motor_Pump_Enabled", "", "", "get_motor_pump_enabled"),
+        ("Vent_Enabled", "", "", "get_vent_enabled"),
+        ("Speed_Actual_Hz", "Hz", "", "get_actual_speed_hz"),
+        ("Speed_Actual_RPM", "rpm", "", "get_actual_speed_rpm"),
+        ("Speed_Set_Hz", "Hz", "", "get_set_speed_hz"),
+        ("Target_Speed_Reached", "", "", "is_target_speed_reached"),
+        ("Pump_Accelerating", "", "", "is_pump_accelerating"),
+        ("Drive_Current", "A", ".2f", "get_drive_current"),
+        ("Drive_Voltage", "V", ".1f", "get_drive_voltage"),
+        ("Drive_Power", "W", "", "get_drive_power"),
+        ("Temp_Electronics", "degC", "", "get_electronics_temperature"),
+        ("Temp_Pump_Bottom", "degC", "", "get_pump_bottom_temperature"),
+        ("Temp_Bearing", "degC", "", "get_bearing_temperature"),
+        ("Temp_Motor", "degC", "", "get_motor_temperature"),
+        ("Overtemp_Electronics", "", "", "is_overtemperature_electronics"),
+        ("Overtemp_Pump", "", "", "is_overtemperature_pump"),
+        ("Seal_Gas_Flow", "sccm", "", "get_seal_gas_flow"),
+        ("Operating_Hours_Pump", "h", "", "get_operating_hours_pump"),
+        ("Operating_Hours_Electronics", "h", "", "get_operating_hours_electronics"),
+    )
+
+    #: Nominal rotation speed used by the simulator (HiPace300: 1000 Hz).
+    SIM_NOMINAL_SPEED_HZ = 1000
+
+    def _sim_channels(self) -> dict:
+        """Plausible turbo-pump values for test mode (same channels as HK_CHANNELS)."""
+        speed_hz = round(self._sim_uniform(
+            self.SIM_NOMINAL_SPEED_HZ * 0.998, self.SIM_NOMINAL_SPEED_HZ, 0))
+        values = {
+            "Pump_Station_Enabled": True,
+            "Standby_Mode": False,
+            "Motor_Pump_Enabled": True,
+            "Vent_Enabled": False,
+            "Speed_Actual_Hz": speed_hz,
+            "Speed_Actual_RPM": speed_hz * 60,
+            "Speed_Set_Hz": self.SIM_NOMINAL_SPEED_HZ,
+            "Target_Speed_Reached": True,
+            "Pump_Accelerating": False,
+            "Drive_Current": self._sim_uniform(0.5, 0.9),
+            "Drive_Voltage": self._sim_uniform(47.0, 49.0, 1),
+            "Drive_Power": round(self._sim_uniform(20, 40, 0)),
+            "Temp_Electronics": round(self._sim_uniform(35, 45, 0)),
+            "Temp_Pump_Bottom": round(self._sim_uniform(30, 40, 0)),
+            "Temp_Bearing": round(self._sim_uniform(30, 36, 0)),
+            "Temp_Motor": round(self._sim_uniform(35, 42, 0)),
+            "Overtemp_Electronics": False,
+            "Overtemp_Pump": False,
+            "Seal_Gas_Flow": 0,
+            "Operating_Hours_Pump": 20000,
+            "Operating_Hours_Electronics": 20000,
+        }
+        if self.gauge1_address:
+            values["Gauge_Pressure"] = round(10 ** self._sim_uniform(-9.0, -7.5, 2), 12)
+        return values
+
     def hk_monitor(self):
         """
-        Perform housekeeping monitoring of HiPace300Bus parameters.
-        Logs critical pump status information from both OmniControl and TC400.
+        One housekeeping cycle: report critical pump channels from both
+        OmniControl and TC400 (simulated wholesale in test mode).
         """
         try:
-            # TC400 Pump Parameters
-            self.custom_logger(
-                self.device_id, self.port, "Pump_Station_Enabled", self.get_pumpStatn_enabled(), ""
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Standby_Mode", self.get_standby(), ""
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Motor_Pump_Enabled", self.get_motor_pump_enabled(), ""
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Vent_Enabled", self.get_vent_enabled(), ""
-            )
-            
-            # Speed and Performance
-            self.custom_logger(
-                self.device_id, self.port, "Speed_Actual_Hz", self.get_actual_speed_hz(), "Hz"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Speed_Actual_RPM", self.get_actual_speed_rpm(), "RPM"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Speed_Set_Hz", self.get_set_speed_hz(), "Hz"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Target_Speed_Reached", self.is_target_speed_reached(), ""
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Pump_Accelerating", self.is_pump_accelerating(), ""
-            )
-            
-            # Electrical Parameters
-            self.custom_logger(
-                self.device_id, self.port, "Drive_Current", self.get_drive_current(), "A"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Drive_Voltage", self.get_drive_voltage(), "V"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Drive_Power", self.get_drive_power(), "W"
-            )
-            
-            # Temperature Monitoring
-            self.custom_logger(
-                self.device_id, self.port, "Temp_Electronics", self.get_electronics_temperature(), "°C"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Temp_Pump_Bottom", self.get_pump_bottom_temperature(), "°C"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Temp_Bearing", self.get_bearing_temperature(), "°C"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Temp_Motor", self.get_motor_temperature(), "°C"
-            )
-            
-            # Status Monitoring
-            self.custom_logger(
-                self.device_id, self.port, "Overtemp_Electronics", self.is_overtemperature_electronics(), ""
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Overtemp_Pump", self.is_overtemperature_pump(), ""
-            )
-            
-            # Gas Flow (TC400 specific)
-            self.custom_logger(
-                self.device_id, self.port, "Seal_Gas_Flow", self.get_seal_gas_flow(), "sccm"
-            )
-            
-            # Operating Hours
-            self.custom_logger(
-                self.device_id, self.port, "Operating_Hours_Pump", self.get_operating_hours_pump(), "h"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Operating_Hours_Electronics", self.get_operating_hours_electronics(), "h"
-            )
-            
-            # Gauge Pressure (if available)
+            if self.test_mode:
+                sim = self._sim_channels()
+                for channel, unit, fmt, _reader in self.HK_CHANNELS:
+                    self.log_sample(channel, sim[channel], unit, fmt=fmt)
+                if self.gauge1_address:
+                    self.log_sample("Gauge_Pressure", sim["Gauge_Pressure"], "hPa", fmt=".2e")
+                return
+
+            for channel, unit, fmt, reader in self.HK_CHANNELS:
+                self.log_sample(channel, getattr(self, reader)(), unit, fmt=fmt)
             if self.gauge1_address:
-                self.custom_logger(
-                    self.device_id, self.port, "Gauge_Pressure", self.get_gauge_pressure(), "hPa"
-                )
-                
+                self.log_sample("Gauge_Pressure", self.get_gauge_pressure(), "hPa", fmt=".2e")
+
         except Exception as e:
-            self.logger.error(f"HiPace300Bus housekeeping monitoring failed: {e}")
+            self.log_event("error", f"housekeeping read failed: {e}")

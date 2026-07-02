@@ -32,8 +32,9 @@ class TestChiller:
         assert chiller.serial_connection is None
         assert chiller.current_temperature is None
         assert chiller.target_temperature is None
-        assert chiller.is_cooling == False
-        
+        assert chiller.test_mode == False
+        assert chiller.sink is None
+
         # Threading attributes
         assert chiller.hk_interval == 30.0  # default
         assert chiller.hk_running == False
@@ -88,26 +89,23 @@ class TestChiller:
         assert status["timeout"] == 2.5
         assert status["current_temperature"] is None
         assert status["target_temperature"] is None
-        assert status["is_cooling"] == False
-        assert status["housekeeping_running"] == False
-        assert status["housekeeping_interval"] == 20.0
-        assert "thread_name" in status
-        
+        assert status["test_mode"] == False
+        assert status["hk_running"] == False
+        assert status["hk_interval"] == 20.0
+
         # Test status after mock connection and housekeeping
         chiller.is_connected = True
         chiller.current_temperature = 22.5
         chiller.target_temperature = 20.0
-        chiller.is_cooling = True
         chiller.hk_running = True
-        
+
         status_connected = chiller.get_status()
         assert status_connected["connected"] == True
         assert status_connected["current_temperature"] == 22.5
         assert status_connected["target_temperature"] == 20.0
-        assert status_connected["is_cooling"] == True
-        assert status_connected["housekeeping_running"] == True
+        assert status_connected["hk_running"] == True
 
-    @patch('devices.chiller.chiller.serial.Serial')
+    @patch('devices.serial_device.serial.Serial')
     def test_connect_success(self, mock_serial):
         """Test successful connection to Chiller."""
         chiller = Chiller("connect_test", "COM3")
@@ -123,7 +121,7 @@ class TestChiller:
         assert chiller.serial_connection == mock_serial_instance
         mock_serial.assert_called_once_with("COM3", 9600, timeout=1.0)
 
-    @patch('devices.chiller.chiller.serial.Serial')
+    @patch('devices.serial_device.serial.Serial')
     def test_connect_failure(self, mock_serial):
         """Test connection failure handling."""
         chiller = Chiller("connect_fail_test", "COM3")
@@ -385,10 +383,15 @@ class TestChiller:
         """Test custom logger function."""
         chiller = Chiller("logger_test", "COM3")
         
-        # Mock the logger
+        # custom_logger is a compat alias for log_sample: one canonical
+        # aligned line containing channel, value and unit.
         with patch.object(chiller.logger, 'info') as mock_info:
             chiller.custom_logger("test_device", "COM3", "temperature", 25.5, "degC")
-            mock_info.assert_called_once_with("test_device   COM3   temperature   25.5//degC")
+            mock_info.assert_called_once()
+            line = mock_info.call_args[0][0]
+            assert "temperature" in line
+            assert "25.5 degC" in line
+            assert line.startswith("logger_test")
 
 
 class TestChillerCommands:
@@ -417,7 +420,7 @@ class TestChillerCommands:
 class TestChillerIntegration:
     """Integration tests for Chiller class combining multiple operations."""
     
-    @patch('devices.chiller.chiller.serial.Serial')
+    @patch('devices.serial_device.serial.Serial')
     def test_full_operation_cycle(self, mock_serial):
         """Test a complete operation cycle: connect, read, write, disconnect."""
         chiller = Chiller("integration_test", "COM3")
@@ -467,10 +470,13 @@ class TestChillerIntegration:
         assert chiller.logger is not None
         assert "Chiller_logger_integration_test_" in chiller.logger.name
         
-        # Test custom_logger functionality
+        # Test custom_logger functionality (compat alias for log_sample)
         with patch.object(chiller.logger, 'info') as mock_info:
             chiller.custom_logger("test", "COM3", "measure", 123, "unit")
-            mock_info.assert_called_once_with("test   COM3   measure   123//unit")
+            mock_info.assert_called_once()
+            line = mock_info.call_args[0][0]
+            assert "measure" in line
+            assert "123 unit" in line
 
     # =============================================================================
     #     Threading Tests
@@ -527,30 +533,24 @@ class TestChillerIntegration:
         # Add a file handler
         file_handler = logging.FileHandler("test.log")
         chiller.logger.addHandler(file_handler)
-        
-        with patch.object(chiller.logger, 'info') as mock_info:
-            result = chiller.enable_file_logging()
-            
-            assert result == True
-            mock_info.assert_called_with("File logging already enabled")
+
+        # Compat method: reports True when a file handler is active.
+        assert chiller.enable_file_logging() == True
 
     def test_start_housekeeping_internal_mode_success(self):
         """Test start_housekeeping in internal thread mode."""
         chiller = Chiller("hk_internal_test", "COM3")
         chiller.is_connected = True  # Mock connection
         
-        with patch.object(chiller, 'enable_file_logging') as mock_enable_logging, \
-             patch('threading.Thread') as mock_thread:
-            
+        with patch('threading.Thread') as mock_thread:
             mock_thread_instance = Mock()
             mock_thread.return_value = mock_thread_instance
-            
+
             result = chiller.start_housekeeping(interval=5, log_to_file=True)
-            
+
             assert result == True
             assert chiller.hk_running == True
             assert chiller.hk_interval == 5
-            mock_enable_logging.assert_called_once()
             mock_thread_instance.start.assert_called_once()
 
     def test_start_housekeeping_external_mode_success(self):
@@ -565,14 +565,12 @@ class TestChillerIntegration:
         )
         chiller.is_connected = True  # Mock connection
         
-        with patch.object(chiller, 'enable_file_logging') as mock_enable_logging:
-            result = chiller.start_housekeeping(interval=3, log_to_file=True)
-            
-            assert result == True
-            assert chiller.hk_running == True
-            assert chiller.hk_interval == 3
-            mock_enable_logging.assert_called_once()
-            # External thread should not be started automatically
+        result = chiller.start_housekeeping(interval=3, log_to_file=True)
+
+        assert result == True
+        assert chiller.hk_running == True
+        assert chiller.hk_interval == 3
+        # External thread should not be started automatically
 
     def test_start_housekeeping_default_interval(self):
         """Test start_housekeeping with default interval (-1)."""
@@ -754,10 +752,11 @@ class TestChillerIntegration:
         chiller.hk_running = True
         
         status = chiller.get_status()
-        
-        assert status["housekeeping_running"] == True
-        assert status["housekeeping_interval"] == 20.0
-        assert status["thread_name"] == "TestStatusThread"
+
+        assert status["hk_running"] == True
+        assert status["hk_interval"] == 20.0
+        assert status["external_thread"] == True
+        assert chiller.hk_thread.name == "TestStatusThread"
 
     def test_thread_safety_concurrent_access(self):
         """Test thread safety with concurrent access to methods."""

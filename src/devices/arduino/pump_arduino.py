@@ -60,32 +60,37 @@ class PumpArduino(Arduino):
                 "raw_data": data_line,
             }
         except (ValueError, IndexError):
-            #self.logger.debug(f"Failed to parse pump data: {data_line!r}")
             return None
+
+    # ------------------------------------------------------------------
+    #  Simulation
+    # ------------------------------------------------------------------
+
+    def _sim_data(self) -> Dict[str, Any]:
+        """Plausible pump-locker values for test mode."""
+        return {
+            "temperature": self._sim_uniform(18.0, 22.0),
+            "fan_power": int(self._sim_uniform(25, 45, 0)),
+            "flow_rate_1": self._sim_uniform(3.0, 4.0),
+            "flow_rate_2": self._sim_uniform(3.0, 4.0),
+            "raw_data": "simulated",
+        }
 
     # ------------------------------------------------------------------
     #  Housekeeping
     # ------------------------------------------------------------------
 
     def hk_monitor(self) -> None:
-        """Read and log pump-locker sensor data."""
+        """Read and report pump-locker sensor data."""
         try:
             rtn = self.read_arduino_data()
 
             if rtn is not None:
-                self.custom_logger(
-                    self.device_id, self.port, "Temp", rtn["temperature"], "degC"
-                )
-                self.custom_logger(
-                    self.device_id, self.port, "Fan_PWR", rtn["fan_power"], "%"
-                )
-                self.custom_logger(
-                    self.device_id, self.port, "Flow1", rtn["flow_rate_1"], "L/min"
-                )
-                self.custom_logger(
-                    self.device_id, self.port, "Flow2", rtn["flow_rate_2"], "L/min"
-                )
+                self.log_sample("Temp", rtn["temperature"], "degC", fmt=".2f")
+                self.log_sample("Fan_PWR", rtn["fan_power"], "%")
+                self.log_sample("Flow1", rtn["flow_rate_1"], "L/min", fmt=".2f")
+                self.log_sample("Flow2", rtn["flow_rate_2"], "L/min", fmt=".2f")
             else:
                 self.logger.debug("No valid pump data received.")
         except Exception as e:
-            self.logger.error(f"Pump housekeeping monitoring failed: {e}")
+            self.log_event("error", f"housekeeping read failed: {e}")

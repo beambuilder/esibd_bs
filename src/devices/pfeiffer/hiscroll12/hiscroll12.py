@@ -68,6 +68,8 @@ class HiScroll12(PfeifferBaseDevice):
             hk_interval=hk_interval,
             **kwargs
         )
+        # Simulated pump state so test mode behaves consistently across calls.
+        self._sim_state = {"enabled": True, "standby": False, "speed_setpoint": 100.0}
 
     # =============================================================================
     #     Status Requests
@@ -90,16 +92,22 @@ class HiScroll12(PfeifferBaseDevice):
 
     def get_set_rotation_speed_hz(self) -> float:
         """Get set rotation speed in Hz."""
+        if self.test_mode:
+            return 30.0
         response = self.query_parameter(308)
         return self.data_converter.u_integer_2_int(response)
 
     def get_actual_rotation_speed_hz(self) -> float:
         """Get actual rotation speed in Hz."""
+        if self.test_mode:
+            return self._sim_uniform(29.0, 29.5, 1) if self._sim_state["enabled"] else 0.0
         response = self.query_parameter(309)
         return self.data_converter.u_integer_2_int(response)
 
     def get_drive_current(self) -> float:
         """Get drive current."""
+        if self.test_mode:
+            return self._sim_uniform(1.2, 1.8)
         response = self.query_parameter(310)
         return self.data_converter.u_real_2_float(response)
 
@@ -115,6 +123,8 @@ class HiScroll12(PfeifferBaseDevice):
 
     def get_drive_voltage(self) -> float:
         """Get drive voltage."""
+        if self.test_mode:
+            return self._sim_uniform(47.0, 49.0)
         response = self.query_parameter(313)
         return self.data_converter.u_real_2_float(response)
 
@@ -130,21 +140,29 @@ class HiScroll12(PfeifferBaseDevice):
 
     def get_drive_power(self) -> float:
         """Get drive power."""
+        if self.test_mode:
+            return round(self._sim_uniform(300, 380, 0))
         response = self.query_parameter(316)
         return self.data_converter.u_integer_2_int(response)
 
     def get_temp_power_stage(self) -> float:
         """Get power stage temperature in degC."""
+        if self.test_mode:
+            return round(self._sim_uniform(40, 48, 0))
         response = self.query_parameter(324)
         return self.data_converter.u_integer_2_int(response)
 
     def get_temp_electronics(self) -> float:
         """Get electronics temperature in degC."""
+        if self.test_mode:
+            return round(self._sim_uniform(35, 40, 0))
         response = self.query_parameter(326)
         return self.data_converter.u_integer_2_int(response)
 
     def get_temp_motor(self) -> float:
         """Get motor temperature in degC."""
+        if self.test_mode:
+            return round(self._sim_uniform(38, 45, 0))
         response = self.query_parameter(346)
         return self.data_converter.u_integer_2_int(response)
 
@@ -165,6 +183,8 @@ class HiScroll12(PfeifferBaseDevice):
 
     def get_actual_rotation_speed_rpm(self) -> float:
         """Get actual rotation speed in RPM."""
+        if self.test_mode:
+            return round(self._sim_uniform(1740, 1760, 0)) if self._sim_state["enabled"] else 0.0
         response = self.query_parameter(398)
         return self.data_converter.u_integer_2_int(response)
 
@@ -200,6 +220,10 @@ class HiScroll12(PfeifferBaseDevice):
         if not 40 <= value <= 100:
             raise ValueError("Speed setpoint must be between 40 and 100%")
 
+        if self.test_mode:
+            self._sim_state["speed_setpoint"] = value
+            self.log_event("info", f"speed setpoint set to {value:.1f} % (simulated)")
+            return
         data_str = self.data_converter.float_2_u_real(value)
         self.write_parameter(707, data_str)
 
@@ -230,16 +254,22 @@ class HiScroll12(PfeifferBaseDevice):
 
     def get_standby_mode(self) -> bool:
         """Get standby mode status."""
+        if self.test_mode:
+            return self._sim_state["standby"]
         response = self.query_parameter(2)
         return self.data_converter.boolean_old_2_bool(response)
 
     def set_standby_mode(self, enable: bool) -> None:
         """
         Set standby mode.
-        
+
         Args:
             enable: True to enable standby, False to disable
         """
+        if self.test_mode:
+            self._sim_state["standby"] = enable
+            self.log_event("info", f"standby mode {'enabled' if enable else 'disabled'} (simulated)")
+            return
         data_str = self.data_converter.bool_2_boolean_old(enable)
         self.write_parameter(2, data_str)
 
@@ -257,16 +287,22 @@ class HiScroll12(PfeifferBaseDevice):
 
     def get_pump_enable(self) -> bool:
         """Get pump enable status."""
+        if self.test_mode:
+            return self._sim_state["enabled"]
         response = self.query_parameter(10)
         return self.data_converter.boolean_old_2_bool(response)
 
     def set_pump_enable(self, enable: bool) -> None:
         """
         Set pump enable status.
-        
+
         Args:
             enable: True to enable pump, False to disable
         """
+        if self.test_mode:
+            self._sim_state["enabled"] = enable
+            self.log_event("info", f"pump {'enabled' if enable else 'disabled'} (simulated)")
+            return
         data_str = self.data_converter.bool_2_boolean_old(enable)
         self.write_parameter(10, data_str)
 
@@ -336,42 +372,17 @@ class HiScroll12(PfeifferBaseDevice):
     # =============================================================================
 
     def hk_monitor(self):
-        """
-        Perform housekeeping monitoring of HiScroll12 parameters.
-        Logs critical pump status information.
-        """
+        """One housekeeping cycle: report critical HiScroll12 pump channels."""
         try:
-            # Log critical pump parameters
-            self.custom_logger(
-                self.device_id, self.port, "Pump_Enabled", self.get_pump_enable(), ""
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Standby_Mode", self.get_standby_mode(), ""
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Speed_RPM", self.get_actual_rotation_speed_rpm(), "RPM"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Speed_Hz", self.get_actual_rotation_speed_hz(), "Hz"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Temp_Motor", self.get_temp_motor(), "degC"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Temp_Electronics", self.get_temp_electronics(), "degC"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Temp_Power_Stage", self.get_temp_power_stage(), "degC"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Drive_Current", self.get_drive_current(), "A"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Drive_Voltage", self.get_drive_voltage(), "V"
-            )
-            self.custom_logger(
-                self.device_id, self.port, "Drive_Power", self.get_drive_power(), "W"
-            )
-            
+            self.log_sample("Pump_Enabled", self.get_pump_enable())
+            self.log_sample("Standby_Mode", self.get_standby_mode())
+            self.log_sample("Speed_RPM", self.get_actual_rotation_speed_rpm(), "rpm")
+            self.log_sample("Speed_Hz", self.get_actual_rotation_speed_hz(), "Hz")
+            self.log_sample("Temp_Motor", self.get_temp_motor(), "degC")
+            self.log_sample("Temp_Electronics", self.get_temp_electronics(), "degC")
+            self.log_sample("Temp_Power_Stage", self.get_temp_power_stage(), "degC")
+            self.log_sample("Drive_Current", self.get_drive_current(), "A", fmt=".2f")
+            self.log_sample("Drive_Voltage", self.get_drive_voltage(), "V", fmt=".1f")
+            self.log_sample("Drive_Power", self.get_drive_power(), "W")
         except Exception as e:
-            self.logger.error(f"HiScroll12 housekeeping monitoring failed: {e}")
+            self.log_event("error", f"housekeeping read failed: {e}")
