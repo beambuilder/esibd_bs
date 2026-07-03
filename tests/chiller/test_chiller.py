@@ -348,6 +348,40 @@ class TestChiller:
         with pytest.raises(TypeError):
             chiller.set_pump_level('invalid')
 
+    def test_set_temperature_rejects_non_finite(self):
+        """NaN/inf setpoints must never reach the wire."""
+        chiller = Chiller("set_temp_nan_test", "COM3")
+
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            with pytest.raises(ValueError, match="finite"):
+                chiller.set_temperature(bad)
+
+    def test_sim_setpoint_roundtrip(self):
+        """In test mode set_temperature is reflected by read_set_temp."""
+        chiller = Chiller("sim_setpoint_test", "COM3", test_mode=True)
+
+        assert chiller.read_set_temp() == 20.0  # sim default
+        chiller.set_temperature(17.5)
+        assert chiller.read_set_temp() == 17.5
+        # simulated bath temperature tracks the new setpoint
+        assert abs(chiller.read_temp() - 17.5) <= 0.5
+
+    def test_sim_pump_level_roundtrip(self):
+        """In test mode set_pump_level is reflected by read_pump_level."""
+        chiller = Chiller("sim_pump_test", "COM3", test_mode=True)
+
+        assert chiller.read_pump_level() == 3  # sim default
+        chiller.set_pump_level(5)
+        assert chiller.read_pump_level() == 5
+
+    def test_sim_pump_level_still_validates(self):
+        """Range validation applies in test mode too."""
+        chiller = Chiller("sim_pump_invalid_test", "COM3", test_mode=True)
+
+        with pytest.raises(ValueError):
+            chiller.set_pump_level(7)
+        assert chiller.read_pump_level() == 3  # unchanged
+
     def test_set_keylock(self):
         """Test setting keylock state."""
         chiller = Chiller("set_keylock_test", "COM3")

@@ -5,6 +5,7 @@ This module provides the Chiller class for communicating with Lauda
 recirculating chillers over serial, built on ``SerialDeviceBase`` (uniform
 constructor, canonical logging, telemetry sink, explicit test mode).
 """
+import math
 from typing import Any, Dict, Optional
 
 from ..serial_device import SerialDeviceBase
@@ -72,8 +73,10 @@ class Chiller(SerialDeviceBase):
         )
         self.current_temperature: Optional[float] = None
         self.target_temperature: Optional[float] = None
-        # Simulated setpoint so test mode behaves consistently across calls.
+        # Simulated setpoint/pump level so test mode behaves consistently
+        # across calls (set → read roundtrips work without hardware).
         self._sim_set_temp = 20.0
+        self._sim_pump_level = 3
 
     # =========================================================================
     #     Serial I/O
@@ -158,7 +161,7 @@ class Chiller(SerialDeviceBase):
             int: Current pump level (1-6).
         """
         if self.test_mode:
-            return 3
+            return self._sim_pump_level
         return int(float(self.read_dev(ChillerCommands.READ_PUMP_LEVEL)))
 
     def read_cooling(self) -> Optional[str]:
@@ -237,7 +240,12 @@ class Chiller(SerialDeviceBase):
 
         Args:
             target_temp: Target temperature in degrees Celsius (e.g., 23.5).
+
+        Raises:
+            ValueError: If target_temp is NaN or infinite.
         """
+        if not math.isfinite(target_temp):
+            raise ValueError(f"Set temperature must be finite, got {target_temp}")
         # Format temperature to 6-character fixed-point with 2 decimals, leading zeros
         temp_str = f"{target_temp:06.2f}"
         command = f"{ChillerCommands.SET_TEMP} {temp_str}"
@@ -264,6 +272,8 @@ class Chiller(SerialDeviceBase):
         level_str = f"{level:03d}"
         command = f"{ChillerCommands.SET_PUMP_LEVEL} {level_str}"
         self.set_param(command)
+        if self.test_mode:
+            self._sim_pump_level = level
         self.log_event("info", f"pump level changed to {level}")
 
     def set_keylock(self, locked: bool) -> None:
