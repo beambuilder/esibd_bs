@@ -97,6 +97,34 @@ class HiPace80Bus(PfeifferBaseDevice):
         if gauge1_address is not None:
             self.channel_addresses['gauge1'] = gauge1_address
 
+        # Simulated device state (test mode). The same setters the ctrl API
+        # calls flip these, so simulation reacts to buttons like hardware
+        # does. Pump runs and the gauge measures by default, so a freshly
+        # simulated device produces data immediately.
+        self._sim_state = {
+            "pump_on": True,
+            "motor_pump": True,  # TC80 default is enabled
+            "standby": False,
+            "vent": False,
+            "heating": False,
+            "gauge_on": True,
+        }
+
+    #: (channel, param) -> (_sim_state key, encoding) for parameters that are
+    #: simulated statefully; writes update the state, queries encode it back.
+    _SIM_PARAMS = {
+        ("tc80", 1): ("heating", "boolean_old"),
+        ("tc80", 2): ("standby", "boolean_old"),
+        ("tc80", 10): ("pump_on", "boolean_old"),
+        ("tc80", 12): ("vent", "boolean_old"),
+        ("tc80", 23): ("motor_pump", "boolean_old"),
+        ("gauge1", 41): ("gauge_on", "u_short_int"),
+    }
+
+    def _sim_param_entry(self, channel, param_num: int):
+        return (self._SIM_PARAMS.get((channel, param_num))
+                if isinstance(channel, str) else None)
+
     # =============================================================================
     #     Channel-Specific Communication Helper
     # =============================================================================
@@ -127,10 +155,17 @@ class HiPace80Bus(PfeifferBaseDevice):
             raise ValueError("Channel must be a string identifier or integer address")
 
         if self.test_mode:
-            raise RuntimeError(
-                "_query_channel_parameter() called in test_mode — simulated "
-                "values come from hk_monitor()/_sim_channels()"
-            )
+            entry = self._sim_param_entry(channel, param_num)
+            if entry is None:
+                raise RuntimeError(
+                    "_query_channel_parameter() called in test_mode — simulated "
+                    "values come from hk_monitor()/_sim_channels()"
+                )
+            key, encoding = entry
+            state = self._sim_state[key]
+            if encoding == "boolean_old":
+                return self.data_converter.bool_2_boolean_old(state)
+            return self.data_converter.int_2_u_short_int(int(state))
         if not self.is_connected or not self.serial_connection:
             raise Exception("Device not connected. Call connect() first.")
 
@@ -166,6 +201,9 @@ class HiPace80Bus(PfeifferBaseDevice):
             raise ValueError("Channel must be a string identifier or integer address")
 
         if self.test_mode:
+            entry = self._sim_param_entry(channel, param_num)
+            if entry is not None:
+                self._sim_state[entry[0]] = bool(int(value))
             self.log_event("info", f"set {channel} param {param_num} = {value} (simulated)")
             return
         if not self.is_connected or not self.serial_connection:
@@ -208,8 +246,23 @@ class HiPace80Bus(PfeifferBaseDevice):
         response = self._query_channel_parameter('omnicontrol', 355)
         return self.data_converter.string16_2_str(response)
 
+    def set_SensOnOff(self, enabled: bool) -> None:
+        """Set Gauge (Cold Cathode) On/Off. """
+        value = self.data_converter.int_2_u_short_int(enabled)
+        self._set_channel_parameter('gauge1', 41, value)
+
+    def get_SensOnOff(self) -> bool:
+        """Get Gauge (Cold Cathode) on/off state."""
+        response = self._query_channel_parameter('gauge1', 41)
+        return bool(self.data_converter.u_short_int_2_int(response))
+
     def get_gauge_pressure(self) -> float:
-        """Get pressure value from OmniControl with Gauge."""
+        """Get pressure value from OmniControl with Gauge (0.0 = sensor off)."""
+        if self.test_mode:
+            if not (self.gauge1_address and self._sim_state["gauge_on"]):
+                return 0.0  # zero-mantissa telegram = sensor off, like hardware
+            return round(10 ** (self.SIM_GAUGE_BASE_EXPONENT
+                                + self._sim_uniform(-0.08, 0.08)), 12)
         response = self._query_channel_parameter('gauge1', 740)
         return self.data_converter.u_expo_new_2_float(response)
 
@@ -802,28 +855,39 @@ class HiPace80Bus(PfeifferBaseDevice):
 
     #: Nominal rotation speed used by the simulator (HiPace80: 1500 Hz).
     SIM_NOMINAL_SPEED_HZ = 1500
+    #: Decade of the simulated OmniControl gauge pressure (stable base +
+    #: small jitter, so the plotted line looks like a real measurement).
+    SIM_GAUGE_BASE_EXPONENT = -7.0
 
     def _sim_channels(self) -> dict:
-        """Plausible turbo-pump values for test mode (same channels as HK_CHANNELS)."""
-        speed_hz = round(self._sim_uniform(
+        """Plausible turbo-pump values for test mode (same channels as
+        HK_CHANNELS), derived from ``_sim_state`` so start/stop/heating
+        toggles show up in the data like they would on hardware."""
+        running = self._sim_state["pump_on"]
+        speed_hz = (round(self._sim_uniform(
             self.SIM_NOMINAL_SPEED_HZ * 0.998, self.SIM_NOMINAL_SPEED_HZ, 0))
-        values = {
-            "Pump_Station_Enabled": True,
-            "Standby_Mode": False,
-            "Motor_Pump_Enabled": True,
-            "Vent_Enabled": False,
+            if running else 0)
+        return {
+            "Pump_Station_Enabled": running,
+            "Standby_Mode": self._sim_state["standby"],
+            "Motor_Pump_Enabled": self._sim_state["motor_pump"],
+            "Vent_Enabled": self._sim_state["vent"],
             "Speed_Actual_Hz": speed_hz,
             "Speed_Actual_RPM": speed_hz * 60,
             "Speed_Set_Hz": self.SIM_NOMINAL_SPEED_HZ,
-            "Target_Speed_Reached": True,
+            "Target_Speed_Reached": running,
             "Pump_Accelerating": False,
-            "Drive_Current": self._sim_uniform(0.4, 0.7),
+            "Drive_Current": self._sim_uniform(0.4, 0.7) if running else 0.0,
             "Drive_Voltage": self._sim_uniform(23.0, 25.0, 1),
-            "Drive_Power": round(self._sim_uniform(10, 20, 0)),
-            "Temp_Electronics": round(self._sim_uniform(35, 45, 0)),
-            "Temp_Pump_Bottom": round(self._sim_uniform(30, 40, 0)),
-            "Temp_Power_Stage": round(self._sim_uniform(38, 48, 0)),
-            "Temp_Rotor": round(self._sim_uniform(35, 50, 0)),
+            "Drive_Power": round(self._sim_uniform(10, 20, 0)) if running else 0,
+            "Temp_Electronics": round(self._sim_uniform(35, 45, 0) if running
+                                      else self._sim_uniform(24, 28, 0)),
+            "Temp_Pump_Bottom": round(self._sim_uniform(30, 40, 0) if running
+                                      else self._sim_uniform(23, 27, 0)),
+            "Temp_Power_Stage": round(self._sim_uniform(38, 48, 0) if running
+                                      else self._sim_uniform(24, 28, 0)),
+            "Temp_Rotor": round(self._sim_uniform(35, 50, 0) if running
+                                else self._sim_uniform(23, 27, 0)),
             "Overtemp_Electronics": False,
             "Overtemp_Pump": False,
             "Operating_Hours_Pump": 10000,
@@ -834,30 +898,36 @@ class HiPace80Bus(PfeifferBaseDevice):
             "Fan_On_Temperature": 40,
             "Power_Output_Voltage": 24.0,
             "Power_Output_Threshold": 10,
-            "Heating_Enabled": False,
+            "Heating_Enabled": self._sim_state["heating"],
         }
-        if self.gauge1_address:
-            values["Gauge_Pressure"] = round(10 ** self._sim_uniform(-8.0, -6.0, 2), 12)
-        return values
 
     def hk_monitor(self):
         """
         One housekeeping cycle: report critical pump channels from both
-        OmniControl and TC80 (simulated wholesale in test mode).
+        OmniControl and TC80 (simulated wholesale in test mode), plus the
+        OmniControl gauge when one is configured.
         """
         try:
             if self.test_mode:
                 sim = self._sim_channels()
                 for channel, unit, fmt, _reader in self.HK_CHANNELS:
                     self.log_sample(channel, sim[channel], unit, fmt=fmt)
-                if self.gauge1_address:
-                    self.log_sample("Gauge_Pressure", sim["Gauge_Pressure"], "hPa", fmt=".2e")
-                return
-
-            for channel, unit, fmt, reader in self.HK_CHANNELS:
-                self.log_sample(channel, getattr(self, reader)(), unit, fmt=fmt)
-            if self.gauge1_address:
-                self.log_sample("Gauge_Pressure", self.get_gauge_pressure(), "hPa", fmt=".2e")
-
+            else:
+                for channel, unit, fmt, reader in self.HK_CHANNELS:
+                    self.log_sample(channel, getattr(self, reader)(), unit, fmt=fmt)
         except Exception as e:
             self.log_event("error", f"housekeeping read failed: {e}")
+
+        # OmniControl gauge: separate guard so a mute gauge cannot abort the
+        # pump channels (and vice versa — different RS-485 addresses).
+        # Pressure 0.0 = zero-mantissa telegram = sensor off, never a real
+        # measurement: skipped like the TPG366 rule, off sensors plot as gaps.
+        if self.gauge1_address:
+            try:
+                self.log_sample("Gauge_Sensor_On",
+                                1.0 if self.get_SensOnOff() else 0.0)
+                pressure = self.get_gauge_pressure()
+                if pressure != 0.0:
+                    self.log_sample("Gauge_Pressure", pressure, "hPa", fmt=".2e")
+            except Exception as e:
+                self.log_event("warning", f"gauge read failed: {e}")

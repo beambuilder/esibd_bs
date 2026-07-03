@@ -145,8 +145,9 @@ class TestTPG366SensorControl:
 
     @pytest.mark.parametrize("factory", TPG_FACTORIES)
     def test_sensor_on_states_in_sim_hk_cycle(self, factory, sink):
-        """Sim hk cycle logs Sensor_CH1_On..Sensor_CH6_On (value 0, sim=1)
-        alongside the pressure samples."""
+        """Sim hk cycle logs Sensor_CH1_On..Sensor_CH6_On (sim default:
+        CH1-3 on, CH4-6 off) and pressure samples only for the on channels
+        (off channels read 0.0 and are skipped, like hardware)."""
         device = factory(sink=sink, test_mode=True)
         device.connect()
         device.hk_monitor()
@@ -154,25 +155,30 @@ class TestTPG366SensorControl:
         rows = _read_samples(sink)
         on_rows = {row[1]: row for row in rows if row[1].endswith("_On")}
         assert set(on_rows) == {f"Sensor_CH{n}_On" for n in range(1, 7)}
-        for row in on_rows.values():
-            assert row[2] == 0
+        for n in range(1, 7):
+            row = on_rows[f"Sensor_CH{n}_On"]
+            assert row[2] == (1 if n <= 3 else 0)
             assert row[3] == 1
 
-        press_rows = [row for row in rows if row[1].endswith("_Press")]
-        assert press_rows, f"{device.device_id}: pressure samples missing from sim hk cycle"
+        press_channels = {row[1] for row in rows if row[1].endswith("_Press")}
+        assert press_channels == {f"Sensor_CH{n}_Press" for n in (1, 2, 3)}
 
     @pytest.mark.parametrize("factory", TPG_FACTORIES)
-    def test_get_sensor_on_false_in_test_mode(self, factory):
+    def test_sensor_on_off_flips_sim_state(self, factory):
+        """sensor_on/off must drive the simulated state so the dashboard
+        buttons have the same visible effect as on hardware."""
         device = factory(test_mode=True)
         device.connect()
-        assert device.get_sensor_on(1) is False
+        assert device.get_sensor_on(1) is True   # sim default: CH1-3 on
+        assert device.get_sensor_on(4) is False  # sim default: CH4-6 off
 
-    @pytest.mark.parametrize("factory", TPG_FACTORIES)
-    def test_sensor_on_off_noop_in_test_mode(self, factory):
-        device = factory(test_mode=True)
-        device.connect()
-        device.sensor_on(1)
         device.sensor_off(1)
+        assert device.get_sensor_on(1) is False
+        assert device.read_pressure_value(1) == 0.0
+
+        device.sensor_on(4)
+        assert device.get_sensor_on(4) is True
+        assert device.read_pressure_value(4) > 0.0
 
     @pytest.mark.parametrize("method", ["sensor_on", "sensor_off", "get_sensor_on"])
     @pytest.mark.parametrize("channel", [0, 7, "3"])
@@ -197,6 +203,8 @@ class TestTPG366SensorControl:
 
         device = factory(sink=sink, test_mode=True)
         device.connect()
+        for channel in range(1, 7):  # all sensors on; only the 0.0 patch excludes
+            device.sensor_on(channel)
         device.hk_monitor()
 
         rows = _read_samples(sink)
@@ -241,10 +249,92 @@ class TestNeverAutoSimulate:
             pump.query_parameter(303)
 
     @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
-    def test_hipace_get_heating_enabled_guard_in_test_mode(self, factory):
-        """get_heating_enabled() reads via the protocol, so it must be
-        guarded in test mode just like the other TC400/TC80 getters."""
+    def test_hipace_unsimulated_param_guard_in_test_mode(self, factory):
+        """Parameters without a stateful simulation entry must still fail
+        loudly in test mode (never silently fake a protocol read)."""
         pump = factory(test_mode=True)
         pump.connect()
         with pytest.raises(RuntimeError):
-            pump.get_heating_enabled()
+            pump.is_target_speed_reached()
+
+
+class TestHiPaceSimState:
+    """HiPace stateful simulation: the setters the ctrl API calls must have
+    the same visible effect on simulated data as on hardware."""
+
+    @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
+    def test_pump_stop_start_reflected_in_sim_hk(self, factory, sink):
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+
+        device.disable_pumpStatn()
+        assert device.get_pumpStatn_enabled() is False
+        device.hk_monitor()
+        rows = {row[1]: row[2] for row in _read_samples(sink)}
+        assert rows["Pump_Station_Enabled"] == 0
+        assert rows["Speed_Actual_RPM"] == 0
+
+        device.enable_pumpStatn()
+        assert device.get_pumpStatn_enabled() is True
+        device.hk_monitor()
+        rows = {row[1]: row[2] for row in _read_samples(sink)[len(rows):]}
+        assert rows["Pump_Station_Enabled"] == 1
+        assert rows["Speed_Actual_RPM"] > 0
+
+    @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
+    def test_heating_toggle_reflected_in_sim(self, factory, sink):
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        assert device.get_heating_enabled() is False
+
+        device.enable_heating()
+        assert device.get_heating_enabled() is True
+        device.hk_monitor()
+        heating = [row for row in _read_samples(sink) if row[1] == "Heating_Enabled"]
+        assert heating[-1][2] == 1
+
+        device.disable_heating()
+        assert device.get_heating_enabled() is False
+
+    @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
+    def test_gauge_channels_in_sim_hk_cycle(self, factory, sink):
+        """A configured OmniControl gauge logs Gauge_Sensor_On and (while on)
+        Gauge_Pressure; set_SensOnOff(False) turns the pressure into a gap."""
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+
+        assert device.get_SensOnOff() is True  # sim default: gauge measuring
+        device.hk_monitor()
+        rows = _read_samples(sink)
+        by_channel = {row[1]: row for row in rows}
+        assert by_channel["Gauge_Sensor_On"][2] == 1
+        assert 0.0 < by_channel["Gauge_Pressure"][2] < 1e-5
+
+        device.set_SensOnOff(False)
+        assert device.get_SensOnOff() is False
+        assert device.get_gauge_pressure() == 0.0
+        before = len(rows)
+        device.hk_monitor()
+        new_rows = _read_samples(sink)[before:]
+        new_by_channel = {row[1]: row for row in new_rows}
+        assert new_by_channel["Gauge_Sensor_On"][2] == 0
+        assert "Gauge_Pressure" not in new_by_channel
+
+    @pytest.mark.parametrize(
+        "factory",
+        [
+            lambda **kw: HiPace300Bus("HiPace_Transfer", port="COM95", **kw),
+            lambda **kw: HiPace80Bus("HiPace_LL2", port="COM96", **kw),
+        ],
+    )
+    def test_no_gauge_configured(self, factory, sink):
+        """Without gauge1_address there are no Gauge_* channels, and the
+        gauge accessors fail like on hardware (unknown channel)."""
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        device.hk_monitor()
+        channels = {row[1] for row in _read_samples(sink)}
+        assert not any(ch.startswith("Gauge_") for ch in channels)
+        with pytest.raises(ValueError):
+            device.set_SensOnOff(True)
+        assert device.get_gauge_pressure() == 0.0  # off/no gauge reads zero

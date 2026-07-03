@@ -69,6 +69,17 @@ class TPG366(PfeifferBaseDevice):
             **kwargs
         )
 
+        # Simulated per-channel sensor state (test mode): CH1-3 start on,
+        # CH4-6 off — mirrors the lab's typical state and shows both UI
+        # states (curves and gaps) without touching hardware. sensor_on/off
+        # flip these; an off channel reads pressure 0.0 like the hardware.
+        self._sim_sensor_on = {1: True, 2: True, 3: True,
+                               4: False, 5: False, 6: False}
+        # Stable decade per channel (plus small jitter per read) so the
+        # simulated curves look like measurements, not noise across decades.
+        self._sim_base_exponent = {1: -6.0, 2: -7.2, 3: -8.1,
+                                   4: -8.8, 5: -7.6, 6: -6.6}
+
     # =============================================================================
     #     Channel-Specific Communication Helper
     # =============================================================================
@@ -213,8 +224,10 @@ class TPG366(PfeifferBaseDevice):
             raise ValueError("Channel must be between 1 and 6")
 
         if self.test_mode:
-            # Plausible high-vacuum reading, different decade per channel.
-            exponent = self._sim_uniform(-8.5, -5.5, 2)
+            if not self._sim_sensor_on[channel]:
+                return 0.0  # zero-mantissa telegram = sensor off, like hardware
+            exponent = (self._sim_base_exponent[channel]
+                        + self._sim_uniform(-0.08, 0.08))
             return round(10 ** exponent, 12)
 
         response = self._query_channel_parameter(channel, 740)
@@ -247,6 +260,11 @@ class TPG366(PfeifferBaseDevice):
         if not isinstance(channel, int) or not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
 
+        if self.test_mode:
+            self._sim_sensor_on[channel] = True
+            self.log_event("info", f"sensor CH{channel} on (simulated)")
+            return
+
         value = self.data_converter.int_2_u_short_int(1)
         self._set_channel_parameter(channel, 41, value)
 
@@ -262,6 +280,11 @@ class TPG366(PfeifferBaseDevice):
         """
         if not isinstance(channel, int) or not 1 <= channel <= 6:
             raise ValueError("Channel must be between 1 and 6")
+
+        if self.test_mode:
+            self._sim_sensor_on[channel] = False
+            self.log_event("info", f"sensor CH{channel} off (simulated)")
+            return
 
         value = self.data_converter.int_2_u_short_int(0)
         self._set_channel_parameter(channel, 41, value)
@@ -283,8 +306,7 @@ class TPG366(PfeifferBaseDevice):
             raise ValueError("Channel must be between 1 and 6")
 
         if self.test_mode:
-            # All-deactivated is the lab's required default state in test mode.
-            return False
+            return self._sim_sensor_on[channel]
 
         response = self._query_channel_parameter(channel, 41)
         return bool(self.data_converter.u_short_int_2_int(response))
