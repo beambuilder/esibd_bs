@@ -33,6 +33,18 @@ DEVICE_FACTORIES = [
     lambda **kw: SyringePump("syringe", port="COM97", **kw),
 ]
 
+# HiPace turbo pump bus factories, for tests specific to their heating readback.
+HIPACE_FACTORIES = [
+    lambda **kw: HiPace300Bus("HiPace_QMS", port="COM95", gauge1_address=5, **kw),
+    lambda **kw: HiPace80Bus("HiPace_LL1", port="COM96", gauge1_address=5, **kw),
+]
+
+# TPG366 factories (serial + TCP), for tests specific to per-channel sensor on/off.
+TPG_FACTORIES = [
+    lambda **kw: TPG366("TPG366", port="COM93", **kw),
+    lambda **kw: TPG366TCP("TPG366_tcp", host="127.0.0.1", **kw),
+]
+
 # Canonical sample line: "[SIM] device  port  channel  value [unit]"
 SAMPLE_LINE_RE = re.compile(
     r"^\[SIM\] \S+\s+\S+\s+\S+\s+\S.*$"
@@ -113,6 +125,86 @@ class TestTestMode:
             r"^\[SIM\] Chiller_A\s+COM90\s+Cur_Temp\s+\d+\.\d{2} degC$", line
         )
 
+    @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
+    def test_heating_enabled_in_sim_hk_cycle(self, factory, sink):
+        """HiPace heating readback: Heating_Enabled channel is part of the
+        simulated housekeeping cycle."""
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        heating_rows = [row for row in rows if row[1] == "Heating_Enabled"]
+        assert heating_rows, f"{device.device_id}: Heating_Enabled missing from sim hk cycle"
+        assert heating_rows[0][2] == 0
+        assert heating_rows[0][3] == 1
+
+
+class TestTPG366SensorControl:
+    """TPG366/TPG366TCP per-channel sensor on/off — explicit-caller only, never automatic."""
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_sensor_on_states_in_sim_hk_cycle(self, factory, sink):
+        """Sim hk cycle logs Sensor_CH1_On..Sensor_CH6_On (value 0, sim=1)
+        alongside the pressure samples."""
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        on_rows = {row[1]: row for row in rows if row[1].endswith("_On")}
+        assert set(on_rows) == {f"Sensor_CH{n}_On" for n in range(1, 7)}
+        for row in on_rows.values():
+            assert row[2] == 0
+            assert row[3] == 1
+
+        press_rows = [row for row in rows if row[1].endswith("_Press")]
+        assert press_rows, f"{device.device_id}: pressure samples missing from sim hk cycle"
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_get_sensor_on_false_in_test_mode(self, factory):
+        device = factory(test_mode=True)
+        device.connect()
+        assert device.get_sensor_on(1) is False
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_sensor_on_off_noop_in_test_mode(self, factory):
+        device = factory(test_mode=True)
+        device.connect()
+        device.sensor_on(1)
+        device.sensor_off(1)
+
+    @pytest.mark.parametrize("method", ["sensor_on", "sensor_off", "get_sensor_on"])
+    @pytest.mark.parametrize("channel", [0, 7, "3"])
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_invalid_channel_raises_value_error(self, factory, channel, method):
+        device = factory(test_mode=True)
+        device.connect()
+        with pytest.raises(ValueError):
+            getattr(device, method)(channel)
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_zero_pressure_excluded_from_hk_cycle(self, factory, monkeypatch, sink):
+        """Zero mantissa (sensor off / no measurement) must not reach the sink."""
+        original_read = TPG366.read_pressure_value
+
+        def patched(self, channel):
+            if channel == 3:
+                return 0.0
+            return original_read(self, channel)
+
+        monkeypatch.setattr(TPG366, "read_pressure_value", patched)
+
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        press_channels = {row[1] for row in rows if row[1].endswith("_Press")}
+        assert "Sensor_CH3_Press" not in press_channels
+        for ch in (1, 2, 4, 5, 6):
+            assert f"Sensor_CH{ch}_Press" in press_channels
+
 
 class TestNeverAutoSimulate:
     """A failed real connect must stay a loud error — never fake data."""
@@ -147,3 +239,12 @@ class TestNeverAutoSimulate:
         pump.connect()
         with pytest.raises(RuntimeError):
             pump.query_parameter(303)
+
+    @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
+    def test_hipace_get_heating_enabled_guard_in_test_mode(self, factory):
+        """get_heating_enabled() reads via the protocol, so it must be
+        guarded in test mode just like the other TC400/TC80 getters."""
+        pump = factory(test_mode=True)
+        pump.connect()
+        with pytest.raises(RuntimeError):
+            pump.get_heating_enabled()

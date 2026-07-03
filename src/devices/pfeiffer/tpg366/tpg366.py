@@ -226,6 +226,70 @@ class TPG366(PfeifferBaseDevice):
         return self.data_converter.string_2_str(response)
 
     # =============================================================================
+    #     Sensor On/Off Methods
+    #
+    #     SAFETY: gauges can be DESTROYED if activated at atmospheric
+    #     pressure. These methods must NEVER be called from an automatic
+    #     path (__init__, connect(), hk_monitor()) — they exist solely for
+    #     an explicit external caller (the service ctrl API).
+    # =============================================================================
+
+    def sensor_on(self, channel: int) -> None:
+        """
+        Turn on the sensor for the specified channel.
+
+        Args:
+            channel: Sensor channel number (1-6)
+
+        Raises:
+            ValueError: If channel is not an int between 1 and 6
+        """
+        if not isinstance(channel, int) or not 1 <= channel <= 6:
+            raise ValueError("Channel must be between 1 and 6")
+
+        value = self.data_converter.int_2_u_short_int(1)
+        self._set_channel_parameter(channel, 41, value)
+
+    def sensor_off(self, channel: int) -> None:
+        """
+        Turn off the sensor for the specified channel.
+
+        Args:
+            channel: Sensor channel number (1-6)
+
+        Raises:
+            ValueError: If channel is not an int between 1 and 6
+        """
+        if not isinstance(channel, int) or not 1 <= channel <= 6:
+            raise ValueError("Channel must be between 1 and 6")
+
+        value = self.data_converter.int_2_u_short_int(0)
+        self._set_channel_parameter(channel, 41, value)
+
+    def get_sensor_on(self, channel: int) -> bool:
+        """
+        Get sensor on/off state for the specified channel.
+
+        Args:
+            channel: Sensor channel number (1-6)
+
+        Returns:
+            bool: True if the sensor is on, False if off
+
+        Raises:
+            ValueError: If channel is not an int between 1 and 6
+        """
+        if not isinstance(channel, int) or not 1 <= channel <= 6:
+            raise ValueError("Channel must be between 1 and 6")
+
+        if self.test_mode:
+            # All-deactivated is the lab's required default state in test mode.
+            return False
+
+        response = self._query_channel_parameter(channel, 41)
+        return bool(self.data_converter.u_short_int_2_int(response))
+
+    # =============================================================================
     #     Base Device Status Methods (from HiScroll12)
     # =============================================================================
 
@@ -353,14 +417,24 @@ class TPG366(PfeifferBaseDevice):
                 self.logger.error(f"Failed to set correction factor for channel {channel}: {e}")
 
     def hk_monitor(self):
-        """One housekeeping cycle: report the pressure of all 6 channels."""
+        """One housekeeping cycle: report the pressure and sensor on/off state of all 6 channels."""
         try:
             pressures = self.read_all_pressures()
             for channel in range(1, 7):
                 value = pressures[channel]
                 if value is None:
                     self.log_event("warning", f"Sensor_CH{channel}_Press read failed")
+                elif value == 0.0:
+                    # Zero mantissa means sensor off / no measurement, not atmosphere — skip it (log-scale plots break on 0.0).
+                    pass
                 else:
                     self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")
+
+            for channel in range(1, 7):
+                try:
+                    on = self.get_sensor_on(channel)
+                    self.log_sample(f"Sensor_CH{channel}_On", 1.0 if on else 0.0)
+                except Exception as e:
+                    self.log_event("warning", f"Sensor_CH{channel}_On read failed: {e}")
         except Exception as e:
             self.log_event("error", f"housekeeping read failed: {e}")

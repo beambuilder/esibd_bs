@@ -252,6 +252,11 @@ class HiPace300Bus(PfeifferBaseDevice):
         value = self.data_converter.bool_2_boolean_old(False)
         self._set_channel_parameter('tc400', 1, value)
 
+    def get_heating_enabled(self) -> bool:
+        """Get pump heating enabled status."""
+        response = self._query_channel_parameter('tc400', 1)
+        return self.data_converter.boolean_old_2_bool(response)
+
     def set_standby(self, enabled: bool) -> None:
         """Set pump standby mode."""
         value = self.data_converter.bool_2_boolean_old(enabled)
@@ -750,6 +755,7 @@ class HiPace300Bus(PfeifferBaseDevice):
         ("Seal_Gas_Flow", "sccm", "", "get_seal_gas_flow"),
         ("Operating_Hours_Pump", "h", "", "get_operating_hours_pump"),
         ("Operating_Hours_Electronics", "h", "", "get_operating_hours_electronics"),
+        ("Heating_Enabled", "", "", "get_heating_enabled"),
     )
 
     #: Nominal rotation speed used by the simulator (HiPace300: 1000 Hz).
@@ -781,6 +787,7 @@ class HiPace300Bus(PfeifferBaseDevice):
             "Seal_Gas_Flow": 0,
             "Operating_Hours_Pump": 20000,
             "Operating_Hours_Electronics": 20000,
+            "Heating_Enabled": False,
         }
         if self.gauge1_address:
             values["Gauge_Pressure"] = round(10 ** self._sim_uniform(-9.0, -7.5, 2), 12)

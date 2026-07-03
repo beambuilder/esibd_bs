@@ -239,6 +239,11 @@ class HiPace80Bus(PfeifferBaseDevice):
         value = self.data_converter.bool_2_boolean_old(False)
         self._set_channel_parameter('tc80', 1, value)
 
+    def get_heating_enabled(self) -> bool:
+        """Get pump heating enabled status."""
+        response = self._query_channel_parameter('tc80', 1)
+        return self.data_converter.boolean_old_2_bool(response)
+
     def set_standby(self, enabled: bool) -> None:
         """Set pump standby mode."""
         value = self.data_converter.bool_2_boolean_old(enabled)
@@ -792,6 +797,7 @@ class HiPace80Bus(PfeifferBaseDevice):
         ("Fan_On_Temperature", "degC", "", "get_fan_on_temperature"),
         ("Power_Output_Voltage", "V", ".1f", "get_power_output_voltage"),
         ("Power_Output_Threshold", "W", "", "get_power_output_threshold"),
+        ("Heating_Enabled", "", "", "get_heating_enabled"),
     )
 
     #: Nominal rotation speed used by the simulator (HiPace80: 1500 Hz).
@@ -828,6 +834,7 @@ class HiPace80Bus(PfeifferBaseDevice):
             "Fan_On_Temperature": 40,
             "Power_Output_Voltage": 24.0,
             "Power_Output_Threshold": 10,
+            "Heating_Enabled": False,
         }
         if self.gauge1_address:
             values["Gauge_Pressure"] = round(10 ** self._sim_uniform(-8.0, -6.0, 2), 12)
