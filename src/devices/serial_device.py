@@ -28,6 +28,7 @@ from typing import Any, Dict, Optional
 import logging
 import random
 import threading
+import time
 
 import serial
 
@@ -110,6 +111,10 @@ class SerialDeviceBase:
         self.test_mode = test_mode
         self.is_connected = False
         self.serial_connection: Optional[serial.Serial] = None
+        # Wall-clock time of the last successful measurement (any channel).
+        # Stamped by log_sample(); the basis of responding_state() — a port
+        # can be open while the device is mute, so "connected" alone lies.
+        self.last_sample_ts: Optional[float] = None
 
         # Housekeeping and threading setup
         self.hk_interval = hk_interval
@@ -191,6 +196,9 @@ class SerialDeviceBase:
             value_str = format(value, fmt) if fmt else format(value, "g")
         else:
             value_str = str(value)
+        if is_number or isinstance(value, bool):
+            # A measurement made it through the protocol — the device answers.
+            self.last_sample_ts = time.time()
         suffix = f" {unit}" if unit else ""
         self.logger.info(f"{self._prefix()}{channel:<{_CHANNEL_COL}} {value_str}{suffix}")
 
@@ -265,6 +273,10 @@ class SerialDeviceBase:
         Returns:
             bool: True if connection successful, False otherwise.
         """
+        if self.is_connected:
+            # Idempotent: a supervisor retry racing an API reconnect must
+            # not open the (exclusive) port a second time.
+            return True
         if self.test_mode:
             self.is_connected = True
             self.log_event("info", "connected (simulated, no hardware)")
@@ -298,9 +310,54 @@ class SerialDeviceBase:
             self.log_event("error", f"disconnect FAILED: {e}")
             return False
 
+    def reconnect(self) -> bool:
+        """
+        Close and reopen the transport in place (stale-handle recovery after
+        a power cycle or USB re-enumeration). Housekeeping is resumed
+        afterwards if it was running before.
+
+        The close is best-effort: a dead handle that refuses to close must
+        not block the reopen attempt. Returns the result of the reopen.
+        """
+        was_hk = self.hk_running
+        self.log_event("info", "reconnect requested (closing and reopening transport)")
+        self.stop_housekeeping()
+        with self.thread_lock:
+            if not self.test_mode:
+                try:
+                    self._close_transport()
+                except Exception as e:
+                    self.log_event("warning", f"close before reconnect failed (continuing): {e}")
+            self.is_connected = False
+            self.last_sample_ts = None
+        ok = self.connect()
+        if ok and was_hk:
+            self.start_housekeeping()
+        return ok
+
     # =========================================================================
     #     Status
     # =========================================================================
+
+    def responding_state(self) -> Optional[bool]:
+        """
+        Probe-based liveness, independent of the port-open flag:
+
+        - ``None`` — unknown: not connected, or housekeeping is off (nothing
+          is polling the device, so silence proves nothing).
+        - ``True`` — a measurement arrived within ~2.5 housekeeping
+          intervals (15 s floor).
+        - ``False`` — housekeeping polls but no channel has answered
+          recently: powered-off electronics, wrong address/baud, or a stale
+          USB handle. ``connected`` stays 1 in exactly this case — this
+          flag is the difference between "port open" and "device alive".
+        """
+        if not self.is_connected or not self.hk_running:
+            return None
+        if self.last_sample_ts is None:
+            return False
+        age = time.time() - self.last_sample_ts
+        return age <= max(2.5 * self.hk_interval, 15.0)
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -315,6 +372,11 @@ class SerialDeviceBase:
             "baudrate": self.baudrate,
             "timeout": self.timeout,
             "connected": self.is_connected,
+            "responding": self.responding_state(),
+            "last_sample_age_s": (
+                round(time.time() - self.last_sample_ts, 1)
+                if self.last_sample_ts is not None else None
+            ),
             "test_mode": self.test_mode,
             "sink": type(self.sink).__name__ if self.sink is not None else None,
             "hk_running": self.hk_running,
