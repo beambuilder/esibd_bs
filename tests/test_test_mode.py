@@ -64,6 +64,13 @@ def _read_samples(sink):
     return rows
 
 
+def _read_events(sink):
+    conn = sqlite3.connect(sink.db_path)
+    rows = conn.execute("SELECT source, level, message FROM events").fetchall()
+    conn.close()
+    return rows
+
+
 class TestTestMode:
     """Simulators: same channels, same log format, sim=1 everywhere."""
 
@@ -213,6 +220,66 @@ class TestTPG366SensorControl:
         for ch in (1, 2, 4, 5, 6):
             assert f"Sensor_CH{ch}_Press" in press_channels
 
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_frozen_register_off_sensor_not_logged(self, factory, monkeypatch, sink):
+        """The actual hardware bug (found overnight on the real TPG366,
+        2026-07-03): a deactivated sensor returns its LAST measured value,
+        frozen, instead of the zero-mantissa telegram. hk_monitor must gate
+        the pressure read/log on get_sensor_on(), not on value==0.0 — before
+        the fix, this test fails because the stale non-zero value gets
+        logged for the off channel every cycle."""
+        original_get_sensor_on = TPG366.get_sensor_on
+
+        def patched_get_sensor_on(self, channel):
+            if channel == 2:
+                return False
+            return original_get_sensor_on(self, channel)
+
+        monkeypatch.setattr(TPG366, "get_sensor_on", patched_get_sensor_on)
+        # Every channel's register is "frozen" on a stale non-zero reading,
+        # like the hardware CH4/CH5 the pressure was frozen on overnight.
+        monkeypatch.setattr(TPG366, "read_pressure_value", lambda self, channel: 4.2e-8)
+
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        on_rows = {row[1]: row[2] for row in rows if row[1].endswith("_On")}
+        assert on_rows["Sensor_CH2_On"] == 0
+
+        press_channels = {row[1] for row in rows if row[1].endswith("_Press")}
+        assert "Sensor_CH2_Press" not in press_channels
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_state_read_failure_falls_back_to_pressure_read(self, factory, monkeypatch, sink):
+        """A transient get_sensor_on() failure must not black-hole real
+        pressure data: hk_monitor falls back to the old read-and-log
+        behavior for that channel, plus a warning event recording the
+        state-read failure."""
+
+        def raising_get_sensor_on(self, channel):
+            if channel == 2:
+                raise TimeoutError("no response from CH2")
+            return True
+
+        monkeypatch.setattr(TPG366, "get_sensor_on", raising_get_sensor_on)
+        monkeypatch.setattr(TPG366, "read_pressure_value", lambda self, channel: 4.2e-8)
+
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        press_by_channel = {row[1]: row[2] for row in rows if row[1].endswith("_Press")}
+        assert press_by_channel.get("Sensor_CH2_Press") == 4.2e-8
+
+        events = _read_events(sink)
+        assert any(
+            level == "WARNING" and "Sensor_CH2_On read failed" in message
+            for _, level, message in events
+        )
+
 
 class TestNeverAutoSimulate:
     """A failed real connect must stay a loud error — never fake data."""
@@ -319,6 +386,27 @@ class TestHiPaceSimState:
         new_by_channel = {row[1]: row for row in new_rows}
         assert new_by_channel["Gauge_Sensor_On"][2] == 0
         assert "Gauge_Pressure" not in new_by_channel
+
+    @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
+    def test_gauge_frozen_register_off_not_logged(self, factory, monkeypatch, sink):
+        """The same hardware bug as TPG366, for the OmniControl gauge: a
+        deactivated gauge can return its last measured (non-zero) pressure,
+        frozen, instead of 0.0. hk_monitor must gate the pressure read/log
+        on get_SensOnOff(), not on pressure==0.0."""
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+
+        device.set_SensOnOff(False)
+        assert device.get_SensOnOff() is False
+        # Register "frozen" on a stale non-zero reading despite being off.
+        monkeypatch.setattr(type(device), "get_gauge_pressure", lambda self: 4.2e-8)
+
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        by_channel = {row[1]: row for row in rows}
+        assert by_channel["Gauge_Sensor_On"][2] == 0
+        assert "Gauge_Pressure" not in by_channel
 
     @pytest.mark.parametrize(
         "factory",

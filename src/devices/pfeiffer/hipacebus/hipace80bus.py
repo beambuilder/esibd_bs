@@ -920,14 +920,18 @@ class HiPace80Bus(PfeifferBaseDevice):
 
         # OmniControl gauge: separate guard so a mute gauge cannot abort the
         # pump channels (and vice versa — different RS-485 addresses).
-        # Pressure 0.0 = zero-mantissa telegram = sensor off, never a real
-        # measurement: skipped like the TPG366 rule, off sensors plot as gaps.
+        # Hardware quirk: a deactivated gauge can return its last measured
+        # value, frozen, instead of a zero-mantissa telegram — so gate the
+        # pressure read/log on the reported on/off state (same rule as
+        # TPG366), not on value==0.0. 0.0 (never measured since power-up)
+        # is still skipped, it is never a real measurement either.
         if self.gauge1_address:
             try:
-                self.log_sample("Gauge_Sensor_On",
-                                1.0 if self.get_SensOnOff() else 0.0)
-                pressure = self.get_gauge_pressure()
-                if pressure != 0.0:
-                    self.log_sample("Gauge_Pressure", pressure, "hPa", fmt=".2e")
+                on = self.get_SensOnOff()
+                self.log_sample("Gauge_Sensor_On", 1.0 if on else 0.0)
+                if on:
+                    pressure = self.get_gauge_pressure()
+                    if pressure != 0.0:
+                        self.log_sample("Gauge_Pressure", pressure, "hPa", fmt=".2e")
             except Exception as e:
                 self.log_event("warning", f"gauge read failed: {e}")

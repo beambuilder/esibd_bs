@@ -439,24 +439,50 @@ class TPG366(PfeifferBaseDevice):
                 self.logger.error(f"Failed to set correction factor for channel {channel}: {e}")
 
     def hk_monitor(self):
-        """One housekeeping cycle: report the pressure and sensor on/off state of all 6 channels."""
-        try:
-            pressures = self.read_all_pressures()
-            for channel in range(1, 7):
-                value = pressures[channel]
-                if value is None:
-                    self.log_event("warning", f"Sensor_CH{channel}_Press read failed")
-                elif value == 0.0:
-                    # Zero mantissa means sensor off / no measurement, not atmosphere — skip it (log-scale plots break on 0.0).
+        """
+        One housekeeping cycle: for each of the 6 channels, report the
+        sensor on/off state and, only for channels reporting on, the
+        pressure.
+
+        Hardware quirk (found on real hardware the night of 2026-07-03): a
+        deactivated sensor does NOT return the zero-mantissa telegram (that
+        only happens for a channel that has never measured since
+        power-up) — it returns the LAST measured value, frozen. Reading
+        pressure unconditionally would silently re-log that frozen value
+        as a fresh measurement every cycle (this is exactly what happened
+        to CH4/CH5 overnight). So the on/off state (param 41) is read
+        first and gates the pressure read/log; 0.0 is still skipped since
+        it is never a real measurement either (log-scale plots break on
+        it).
+
+        Each channel runs in its own try/except so one failing channel
+        cannot suppress the others. If the state read itself fails, fall
+        back to the old read-and-skip-zero behavior for that channel — a
+        transient state-read hiccup must not black-hole real data.
+        """
+        for channel in range(1, 7):
+            try:
+                on = self.get_sensor_on(channel)
+            except Exception as e:
+                self.log_event("warning", f"Sensor_CH{channel}_On read failed: {e}")
+                try:
+                    value = self.read_pressure_value(channel)
+                    if value != 0.0:
+                        self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")
+                except Exception as e2:
+                    self.log_event("warning", f"Sensor_CH{channel}_Press read failed: {e2}")
+                continue
+
+            self.log_sample(f"Sensor_CH{channel}_On", 1.0 if on else 0.0)
+            if not on:
+                continue  # deactivated: register is frozen on the last reading — don't read/log it
+
+            try:
+                value = self.read_pressure_value(channel)
+                if value == 0.0:
+                    # Zero mantissa (never measured since power-up) — skip it (log-scale plots break on 0.0).
                     pass
                 else:
                     self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")
-
-            for channel in range(1, 7):
-                try:
-                    on = self.get_sensor_on(channel)
-                    self.log_sample(f"Sensor_CH{channel}_On", 1.0 if on else 0.0)
-                except Exception as e:
-                    self.log_event("warning", f"Sensor_CH{channel}_On read failed: {e}")
-        except Exception as e:
-            self.log_event("error", f"housekeeping read failed: {e}")
+            except Exception as e:
+                self.log_event("warning", f"Sensor_CH{channel}_Press read failed: {e}")
