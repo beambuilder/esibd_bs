@@ -77,6 +77,7 @@ class Chiller(SerialDeviceBase):
         # across calls (set → read roundtrips work without hardware).
         self._sim_set_temp = 20.0
         self._sim_pump_level = 3
+        self._sim_running = True
 
     # =========================================================================
     #     Serial I/O
@@ -198,7 +199,7 @@ class Chiller(SerialDeviceBase):
             Optional[str]: "DEVICE RUNNING" / "DEVICE STANDBY" or None if invalid.
         """
         if self.test_mode:
-            return "DEVICE RUNNING"
+            return "DEVICE RUNNING" if self._sim_running else "DEVICE STANDBY"
         response = int(float(self.read_dev(ChillerCommands.READ_RUNNING_STATE)))
         running_states = {0: "DEVICE RUNNING", 1: "DEVICE STANDBY"}
         return running_states.get(response)
@@ -290,11 +291,15 @@ class Chiller(SerialDeviceBase):
     def start_device(self) -> None:
         """Start pumping and cooling."""
         self.set_param(ChillerCommands.START_DEVICE)
+        if self.test_mode:
+            self._sim_running = True
         self.log_event("info", "device started (pumping + cooling)")
 
     def stop_device(self) -> None:
         """Stop pumping and cooling."""
         self.set_param(ChillerCommands.STOP_DEVICE)
+        if self.test_mode:
+            self._sim_running = False
         self.log_event("info", "device stopped")
 
     # =========================================================================
@@ -308,7 +313,12 @@ class Chiller(SerialDeviceBase):
             self.log_sample("Cur_Temp", self.current_temperature, "degC", fmt=".2f")
             self.target_temperature = self.read_set_temp()
             self.log_sample("Set_Temp", self.target_temperature, "degC", fmt=".2f")
-            self.log_sample("Run_Stat", self.read_running())
+            running = self.read_running()
+            self.log_sample("Run_Stat", running)
+            if running is not None:
+                # Numeric twin of Run_Stat: strings never reach the telemetry
+                # sink, but the dashboard's run/standby switch needs a channel.
+                self.log_sample("Running", 1 if running == "DEVICE RUNNING" else 0)
             self.log_sample("Dev_Stat", self.read_status())
             self.log_sample("Pump_Lvl", self.read_pump_level())
             self.log_sample("Col_Stat", self.read_cooling())

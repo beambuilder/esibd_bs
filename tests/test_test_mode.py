@@ -132,6 +132,20 @@ class TestTestMode:
             r"^\[SIM\] Chiller_A\s+COM90\s+Cur_Temp\s+\d+\.\d{2} degC$", line
         )
 
+    def test_chiller_running_channel_follows_start_stop(self, sink):
+        """Numeric Running channel (dashboard run/standby switch): the sim
+        starts RUNNING, stop_device flips it to standby, start_device back."""
+        chiller = Chiller("Chiller_A", port="COM90", sink=sink, test_mode=True)
+        chiller.connect()
+        chiller.hk_monitor()
+        chiller.stop_device()
+        chiller.hk_monitor()
+        chiller.start_device()
+        chiller.hk_monitor()
+
+        values = [row[2] for row in _read_samples(sink) if row[1] == "Running"]
+        assert values == [1.0, 0.0, 1.0]
+
     @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
     def test_heating_enabled_in_sim_hk_cycle(self, factory, sink):
         """HiPace heating readback: Heating_Enabled channel is part of the
