@@ -120,6 +120,10 @@ class SerialDeviceBase:
         self.hk_interval = hk_interval
         self.hk_running = False
         self.hk_stop_event = threading.Event()
+        # Set by poke_housekeeping() to cut the inter-cycle wait short —
+        # after a control command the dashboard wants the new state now,
+        # not one hk_interval later.
+        self.hk_poke_event = threading.Event()
 
         # Determine if using external or internal thread management
         self.external_thread = hk_thread is not None
@@ -438,6 +442,7 @@ class SerialDeviceBase:
                     interval = self.hk_interval
 
                 self.hk_stop_event.clear()
+                self.hk_poke_event.clear()
 
                 if self.external_thread:
                     # External mode: external code drives do_housekeeping_cycle()
@@ -479,6 +484,9 @@ class SerialDeviceBase:
             try:
                 self.hk_running = False
                 self.hk_stop_event.set()
+                # Wake the worker out of its inter-cycle wait so it sees
+                # the stop now instead of up to hk_interval later.
+                self.hk_poke_event.set()
 
                 if self.external_thread:
                     self.log_event("info", "housekeeping stopped (external mode)")
@@ -508,13 +516,16 @@ class SerialDeviceBase:
                 else:
                     self.log_event("warning", "disconnected, pausing housekeeping")
 
-                # Wait for interval or stop event
-                self.hk_stop_event.wait(timeout=self.hk_interval)
+                # Wait for interval, a poke, or stop (stop sets the poke
+                # event too, and the loop condition re-checks it).
+                self.hk_poke_event.wait(timeout=self.hk_interval)
+                self.hk_poke_event.clear()
 
             except Exception as e:
                 self.log_event("error", f"housekeeping error: {e}")
                 # Continue running even after errors
-                self.hk_stop_event.wait(timeout=self.hk_interval)
+                self.hk_poke_event.wait(timeout=self.hk_interval)
+                self.hk_poke_event.clear()
 
         self.logger.info(f"{self._prefix()}housekeeping worker stopped")
 
@@ -539,6 +550,18 @@ class SerialDeviceBase:
         except Exception as e:
             self.log_event("error", f"housekeeping cycle error: {e}")
             return False
+
+    def poke_housekeeping(self) -> None:
+        """
+        Wake the internal housekeeping worker for one immediate cycle.
+
+        Called by the service ctrl API right after a control command
+        (start/stop, heating, sensor, setting) so the new device state
+        reaches telemetry in ~1 s instead of one hk_interval later. No-op
+        when housekeeping is off or externally driven; never blocks.
+        """
+        if self.hk_running:
+            self.hk_poke_event.set()
 
     def should_continue_housekeeping(self) -> bool:
         """External-thread loop condition: keep cycling while True."""

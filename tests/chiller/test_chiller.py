@@ -757,18 +757,20 @@ class TestChillerIntegration:
         chiller.hk_running = True
         chiller.hk_interval = 0.1  # Short interval for testing
         
+        # The inter-cycle wait moved to hk_poke_event (2026-07-04: a poke
+        # cuts it short for an immediate cycle); stop still exits the loop.
         with patch.object(chiller, 'hk_monitor') as mock_hk_monitor, \
-             patch.object(chiller.hk_stop_event, 'wait') as mock_wait:
-            
+             patch.object(chiller.hk_poke_event, 'wait') as mock_wait:
+
             # Set stop event after first iteration
             def stop_after_first_call(*args, **kwargs):
                 chiller.hk_stop_event.set()
                 return False
-            
+
             mock_wait.side_effect = stop_after_first_call
-            
+
             chiller._hk_worker()
-            
+
             mock_hk_monitor.assert_called_once()
             mock_wait.assert_called_with(timeout=0.1)
 
