@@ -69,10 +69,13 @@ def dll_factory(monkeypatch):
 def reset_private_dll_counter():
     """Instances beyond the first load a private DLL copy (one channel per
     module); reset the process-wide counter so every test starts at the
-    canonical path regardless of test order."""
+    canonical path regardless of test order. Same for the ESI
+    single-instance guard (process-wide class state)."""
     from devices.cgc.ampr.ampr_base import AMPRBase
+    from devices.cgc.esi.esi import ESI
 
     AMPRBase._dll_load_count = 0
+    ESI._connected_instance = None
     yield
 
 
