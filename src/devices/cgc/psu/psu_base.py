@@ -141,7 +141,7 @@ class PSUBase:
             self.err_dict = json.load(f)
 
         self.com = com
-        self.port = port
+        self.dll_port = port
         self.log = log
         self.idn = idn
 
@@ -174,7 +174,7 @@ class PSUBase:
             Status code.
 
         """
-        status = self.rf_psu_dll.COM_HVPSU2D_Close(self.port)
+        status = self.rf_psu_dll.COM_HVPSU2D_Close(self.dll_port)
         return status
 
     def set_comspeed(self, baudrate):
@@ -192,7 +192,7 @@ class PSUBase:
 
         """
         comspeed = ctypes.c_uint32(baudrate)
-        status = self.rf_psu_dll.COM_HVPSU2D_SetBaudRate(self.port, ctypes.byref(comspeed))
+        status = self.rf_psu_dll.COM_HVPSU2D_SetBaudRate(self.dll_port, ctypes.byref(comspeed))
         return status
 
     def purge(self):
@@ -205,7 +205,7 @@ class PSUBase:
             Status code.
 
         """
-        status = self.rf_psu_dll.COM_HVPSU2D_Purge(self.port)
+        status = self.rf_psu_dll.COM_HVPSU2D_Purge(self.dll_port)
         return status
 
     def device_purge(self):
@@ -219,7 +219,7 @@ class PSUBase:
 
         """
         empty = ctypes.c_bool()
-        status = self.rf_psu_dll.COM_HVPSU2D_DevicePurge(self.port, ctypes.byref(empty))
+        status = self.rf_psu_dll.COM_HVPSU2D_DevicePurge(self.dll_port, ctypes.byref(empty))
         return status, empty.value
 
     def get_buffer_state(self):
@@ -233,7 +233,7 @@ class PSUBase:
 
         """
         empty = ctypes.c_bool()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetBufferState(self.port, ctypes.byref(empty))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetBufferState(self.dll_port, ctypes.byref(empty))
         return status, empty.value
 
     # Device control
@@ -256,7 +256,7 @@ class PSUBase:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetInterlockEnable(
-            self.port, ctypes.c_bool(con_out), ctypes.c_bool(con_bnc))
+            self.dll_port, ctypes.c_bool(con_out), ctypes.c_bool(con_bnc))
         return status
 
     def get_interlock_enable(self):
@@ -272,7 +272,7 @@ class PSUBase:
         con_out = ctypes.c_bool()
         con_bnc = ctypes.c_bool()
         status = self.rf_psu_dll.COM_HVPSU2D_GetInterlockEnable(
-            self.port, ctypes.byref(con_out), ctypes.byref(con_bnc))
+            self.dll_port, ctypes.byref(con_out), ctypes.byref(con_bnc))
         return status, con_out.value, con_bnc.value
 
     def get_main_state(self):
@@ -287,7 +287,7 @@ class PSUBase:
 
         """
         state = ctypes.c_uint16()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetMainState(self.port, ctypes.byref(state))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetMainState(self.dll_port, ctypes.byref(state))
         state_value = state.value
         state_name = self.MAIN_STATE.get(state_value, f'UNKNOWN_STATE_0x{state_value:04X}')
         return status, hex(state_value), state_name
@@ -304,7 +304,7 @@ class PSUBase:
 
         """
         device_state = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceState(self.port, ctypes.byref(device_state))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceState(self.dll_port, ctypes.byref(device_state))
         state_value = device_state.value
         
         # Check which flags are set
@@ -334,7 +334,7 @@ class PSUBase:
         temp_cpu = ctypes.c_double()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetHousekeeping(
-            self.port, ctypes.byref(volt_rect), ctypes.byref(volt_5v0), 
+            self.dll_port, ctypes.byref(volt_rect), ctypes.byref(volt_5v0), 
             ctypes.byref(volt_3v3), ctypes.byref(temp_cpu))
         
         return status, volt_rect.value, volt_5v0.value, volt_3v3.value, temp_cpu.value
@@ -350,7 +350,7 @@ class PSUBase:
 
         """
         temperature = (ctypes.c_double * 3)()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetSensorData(self.port, temperature)
+        status = self.rf_psu_dll.COM_HVPSU2D_GetSensorData(self.dll_port, temperature)
         return status, temperature[0], temperature[1], temperature[2]
 
     def get_fan_data(self):
@@ -370,7 +370,7 @@ class PSUBase:
         pwm = (ctypes.c_uint16 * 3)()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetFanData(
-            self.port, enabled, failed, set_rpm, measured_rpm, pwm)
+            self.dll_port, enabled, failed, set_rpm, measured_rpm, pwm)
         
         return (status, [enabled[i] for i in range(3)], [failed[i] for i in range(3)],
                 [set_rpm[i] for i in range(3)], [measured_rpm[i] for i in range(3)],
@@ -391,7 +391,7 @@ class PSUBase:
         blue = ctypes.c_bool()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetLEDData(
-            self.port, ctypes.byref(red), ctypes.byref(green), ctypes.byref(blue))
+            self.dll_port, ctypes.byref(red), ctypes.byref(green), ctypes.byref(blue))
         
         return status, red.value, green.value, blue.value
 
@@ -420,7 +420,7 @@ class PSUBase:
         temp_adc = ctypes.c_double()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetADCHousekeeping(
-            self.port, psu_num, ctypes.byref(volt_avdd), ctypes.byref(volt_dvdd),
+            self.dll_port, psu_num, ctypes.byref(volt_avdd), ctypes.byref(volt_dvdd),
             ctypes.byref(volt_aldo), ctypes.byref(volt_dldo), ctypes.byref(volt_ref),
             ctypes.byref(temp_adc))
         
@@ -456,7 +456,7 @@ class PSUBase:
         volt_ref = ctypes.c_double()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUHousekeeping(
-            self.port, psu_num, ctypes.byref(volt_24vp), ctypes.byref(volt_12vp),
+            self.dll_port, psu_num, ctypes.byref(volt_24vp), ctypes.byref(volt_12vp),
             ctypes.byref(volt_12vn), ctypes.byref(volt_ref))
         
         return status, volt_24vp.value, volt_12vp.value, volt_12vn.value, volt_ref.value
@@ -489,7 +489,7 @@ class PSUBase:
         volt_dropout = ctypes.c_double()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUData(
-            self.port, psu_num, ctypes.byref(voltage), ctypes.byref(current),
+            self.dll_port, psu_num, ctypes.byref(voltage), ctypes.byref(current),
             ctypes.byref(volt_dropout))
         
         return status, voltage.value, current.value, volt_dropout.value
@@ -602,7 +602,7 @@ class PSUBase:
         """
         self.check_U_format(voltage)
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputVoltage(
-            self.port, psu_num, ctypes.c_double(voltage))
+            self.dll_port, psu_num, ctypes.c_double(voltage))
         return status
 
     def set_psu0_output_voltage(self, voltage):
@@ -630,7 +630,7 @@ class PSUBase:
         """
         voltage = ctypes.c_double()
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUOutputVoltage(
-            self.port, psu_num, ctypes.byref(voltage))
+            self.dll_port, psu_num, ctypes.byref(voltage))
         return status, voltage.value
 
     def get_psu0_output_voltage(self):
@@ -660,7 +660,7 @@ class PSUBase:
         voltage_limit = ctypes.c_double()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUSetOutputVoltage(
-            self.port, psu_num, ctypes.byref(voltage_set), ctypes.byref(voltage_limit))
+            self.dll_port, psu_num, ctypes.byref(voltage_set), ctypes.byref(voltage_limit))
         
         return status, voltage_set.value, voltage_limit.value
 
@@ -696,7 +696,7 @@ class PSUBase:
         """
         self.check_I_format(current)
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUOutputCurrent(
-            self.port, psu_num, ctypes.c_double(current))
+            self.dll_port, psu_num, ctypes.c_double(current))
         return status
 
     def set_psu0_output_current(self, current):
@@ -724,7 +724,7 @@ class PSUBase:
         """
         current = ctypes.c_double()
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUOutputCurrent(
-            self.port, psu_num, ctypes.byref(current))
+            self.dll_port, psu_num, ctypes.byref(current))
         return status, current.value
 
     def get_psu0_output_current(self):
@@ -754,7 +754,7 @@ class PSUBase:
         current_limit = ctypes.c_double()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUSetOutputCurrent(
-            self.port, psu_num, ctypes.byref(current_set), ctypes.byref(current_limit))
+            self.dll_port, psu_num, ctypes.byref(current_set), ctypes.byref(current_limit))
         
         return status, current_set.value, current_limit.value
 
@@ -786,7 +786,7 @@ class PSUBase:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUEnable(
-            self.port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
+            self.dll_port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
         return status
 
     def set_psu0_enable(self, enable):
@@ -813,7 +813,7 @@ class PSUBase:
         psu1 = ctypes.c_bool()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUEnable(
-            self.port, ctypes.byref(psu0), ctypes.byref(psu1))
+            self.dll_port, ctypes.byref(psu0), ctypes.byref(psu1))
         
         return status, psu0.value, psu1.value
 
@@ -831,7 +831,7 @@ class PSUBase:
         psu1 = ctypes.c_bool()
         
         status = self.rf_psu_dll.COM_HVPSU2D_HasPSUFullRange(
-            self.port, ctypes.byref(psu0), ctypes.byref(psu1))
+            self.dll_port, ctypes.byref(psu0), ctypes.byref(psu1))
         
         return status, psu0.value, psu1.value
 
@@ -853,7 +853,7 @@ class PSUBase:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetPSUFullRange(
-            self.port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
+            self.dll_port, ctypes.c_bool(psu0), ctypes.c_bool(psu1))
         return status
 
     def set_psu0_full_range(self, enable):
@@ -880,7 +880,7 @@ class PSUBase:
         psu1 = ctypes.c_bool()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetPSUFullRange(
-            self.port, ctypes.byref(psu0), ctypes.byref(psu1))
+            self.dll_port, ctypes.byref(psu0), ctypes.byref(psu1))
         
         return status, psu0.value, psu1.value
 
@@ -896,7 +896,7 @@ class PSUBase:
 
         """
         state = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUState(self.port, ctypes.byref(state))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetPSUState(self.dll_port, ctypes.byref(state))
         state_value = state.value
         
         # Check which flags are set
@@ -920,7 +920,7 @@ class PSUBase:
 
         """
         enable = ctypes.c_bool()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceEnable(self.port, ctypes.byref(enable))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetDeviceEnable(self.dll_port, ctypes.byref(enable))
         return status, enable.value
 
     def set_device_enable(self, enable):
@@ -938,7 +938,7 @@ class PSUBase:
             Status code.
 
         """
-        status = self.rf_psu_dll.COM_HVPSU2D_SetDeviceEnable(self.port, ctypes.c_bool(enable))
+        status = self.rf_psu_dll.COM_HVPSU2D_SetDeviceEnable(self.dll_port, ctypes.c_bool(enable))
         return status
 
     def reset_current_config(self):
@@ -951,7 +951,7 @@ class PSUBase:
             Status code.
 
         """
-        status = self.rf_psu_dll.COM_HVPSU2D_ResetCurrentConfig(self.port)
+        status = self.rf_psu_dll.COM_HVPSU2D_ResetCurrentConfig(self.dll_port)
         return status
 
     def save_current_config(self, config_number):
@@ -969,7 +969,7 @@ class PSUBase:
             Status code.
 
         """
-        status = self.rf_psu_dll.COM_HVPSU2D_SaveCurrentConfig(self.port, config_number)
+        status = self.rf_psu_dll.COM_HVPSU2D_SaveCurrentConfig(self.dll_port, config_number)
         return status
 
     def load_current_config(self, config_number):
@@ -987,7 +987,7 @@ class PSUBase:
             Status code.
 
         """
-        status = self.rf_psu_dll.COM_HVPSU2D_LoadCurrentConfig(self.port, config_number)
+        status = self.rf_psu_dll.COM_HVPSU2D_LoadCurrentConfig(self.dll_port, config_number)
         return status
 
     def get_config_name(self, config_number):
@@ -1006,7 +1006,7 @@ class PSUBase:
 
         """
         name = ctypes.create_string_buffer(75)
-        status = self.rf_psu_dll.COM_HVPSU2D_GetConfigName(self.port, config_number, name)
+        status = self.rf_psu_dll.COM_HVPSU2D_GetConfigName(self.dll_port, config_number, name)
         return status, name.value.decode()
 
     def set_config_name(self, config_number, name):
@@ -1027,7 +1027,7 @@ class PSUBase:
 
         """
         name_buffer = ctypes.create_string_buffer(name.encode(), 75)
-        status = self.rf_psu_dll.COM_HVPSU2D_SetConfigName(self.port, config_number, name_buffer)
+        status = self.rf_psu_dll.COM_HVPSU2D_SetConfigName(self.dll_port, config_number, name_buffer)
         return status
 
     def get_config_flags(self, config_number):
@@ -1049,7 +1049,7 @@ class PSUBase:
         valid = ctypes.c_bool()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetConfigFlags(
-            self.port, config_number, ctypes.byref(active), ctypes.byref(valid))
+            self.dll_port, config_number, ctypes.byref(active), ctypes.byref(valid))
         
         return status, active.value, valid.value
 
@@ -1073,7 +1073,7 @@ class PSUBase:
 
         """
         status = self.rf_psu_dll.COM_HVPSU2D_SetConfigFlags(
-            self.port, config_number, ctypes.c_bool(active), ctypes.c_bool(valid))
+            self.dll_port, config_number, ctypes.c_bool(active), ctypes.c_bool(valid))
         return status
 
     def get_config_list(self):
@@ -1089,7 +1089,7 @@ class PSUBase:
         active = (ctypes.c_bool * 168)()
         valid = (ctypes.c_bool * 168)()
         
-        status = self.rf_psu_dll.COM_HVPSU2D_GetConfigList(self.port, active, valid)
+        status = self.rf_psu_dll.COM_HVPSU2D_GetConfigList(self.dll_port, active, valid)
         return status, [active[i] for i in range(168)], [valid[i] for i in range(168)]
 
     # System
@@ -1104,7 +1104,7 @@ class PSUBase:
             Status code.
 
         """
-        status = self.rf_psu_dll.COM_HVPSU2D_Restart(self.port)
+        status = self.rf_psu_dll.COM_HVPSU2D_Restart(self.dll_port)
         return status
 
     def get_cpu_data(self):
@@ -1121,7 +1121,7 @@ class PSUBase:
         frequency = ctypes.c_double()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetCPUData(
-            self.port, ctypes.byref(load), ctypes.byref(frequency))
+            self.dll_port, ctypes.byref(load), ctypes.byref(frequency))
         
         return status, load.value, frequency.value
 
@@ -1140,7 +1140,7 @@ class PSUBase:
         optime = ctypes.c_uint32()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetUptime(
-            self.port, ctypes.byref(seconds), ctypes.byref(milliseconds), ctypes.byref(optime))
+            self.dll_port, ctypes.byref(seconds), ctypes.byref(milliseconds), ctypes.byref(optime))
         
         return status, seconds.value, milliseconds.value, optime.value
 
@@ -1158,7 +1158,7 @@ class PSUBase:
         optime = ctypes.c_uint32()
         
         status = self.rf_psu_dll.COM_HVPSU2D_GetTotalTime(
-            self.port, ctypes.byref(uptime), ctypes.byref(optime))
+            self.dll_port, ctypes.byref(uptime), ctypes.byref(optime))
         
         return status, uptime.value, optime.value
 
@@ -1173,7 +1173,7 @@ class PSUBase:
 
         """
         hw_type = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetHWType(self.port, ctypes.byref(hw_type))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetHWType(self.dll_port, ctypes.byref(hw_type))
         return status, hw_type.value
 
     def get_hw_version(self):
@@ -1187,7 +1187,7 @@ class PSUBase:
 
         """
         hw_version = ctypes.c_uint16()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetHWVersion(self.port, ctypes.byref(hw_version))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetHWVersion(self.dll_port, ctypes.byref(hw_version))
         return status, hw_version.value
 
     def get_fw_version(self):
@@ -1201,7 +1201,7 @@ class PSUBase:
 
         """
         version = ctypes.c_uint16()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetFWVersion(self.port, ctypes.byref(version))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetFWVersion(self.dll_port, ctypes.byref(version))
         return status, version.value
 
     def get_fw_date(self):
@@ -1215,7 +1215,7 @@ class PSUBase:
 
         """
         date_string = ctypes.create_string_buffer(16)
-        status = self.rf_psu_dll.COM_HVPSU2D_GetFWDate(self.port, date_string)
+        status = self.rf_psu_dll.COM_HVPSU2D_GetFWDate(self.dll_port, date_string)
         return status, date_string.value.decode()
 
     def get_product_id(self):
@@ -1229,7 +1229,7 @@ class PSUBase:
 
         """
         identification = ctypes.create_string_buffer(60)
-        status = self.rf_psu_dll.COM_HVPSU2D_GetProductID(self.port, identification)
+        status = self.rf_psu_dll.COM_HVPSU2D_GetProductID(self.dll_port, identification)
         return status, identification.value.decode()
 
     def get_product_no(self):
@@ -1243,7 +1243,7 @@ class PSUBase:
 
         """
         number = ctypes.c_uint32()
-        status = self.rf_psu_dll.COM_HVPSU2D_GetProductNo(self.port, ctypes.byref(number))
+        status = self.rf_psu_dll.COM_HVPSU2D_GetProductNo(self.dll_port, ctypes.byref(number))
         return status, number.value
 
     # Communication port status
@@ -1258,7 +1258,7 @@ class PSUBase:
             Interface state code.
 
         """
-        state = self.rf_psu_dll.COM_HVPSU2D_GetInterfaceState(self.port)
+        state = self.rf_psu_dll.COM_HVPSU2D_GetInterfaceState(self.dll_port)
         return state
 
     def get_error_message(self):
@@ -1272,7 +1272,7 @@ class PSUBase:
 
         """
         self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage.restype = ctypes.c_char_p
-        msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage(self.port)
+        msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetErrorMessage(self.dll_port)
         message = msg_ptr.decode() if msg_ptr else "No error"
         return message
 
@@ -1286,7 +1286,7 @@ class PSUBase:
             IO state code.
 
         """
-        state = self.rf_psu_dll.COM_HVPSU2D_GetIOState(self.port)
+        state = self.rf_psu_dll.COM_HVPSU2D_GetIOState(self.dll_port)
         return state
 
     def get_io_error_message(self):
@@ -1300,6 +1300,6 @@ class PSUBase:
 
         """
         self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage.restype = ctypes.c_char_p
-        msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage(self.port)
+        msg_ptr = self.rf_psu_dll.COM_HVPSU2D_GetIOErrorMessage(self.dll_port)
         message = msg_ptr.decode() if msg_ptr else "No error"
         return message

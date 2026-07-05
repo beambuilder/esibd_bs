@@ -1,39 +1,55 @@
 """
-SW_HR (High-Resolution Switch) device controller.
+SWHR (HV-AMX-CTRL-4EDH high-resolution switch controller, unit "swA") on
+the shared CGC lab layer.
 
-This module provides the SWHR class for communicating with CGC HV-AMX-CTRL-4EDH
-high-resolution switch devices via the SW_HR base hardware interface with added
-logging functionality.
+``SWHR`` combines the pure ctypes wrapper (``SWHRBase``) with ``CGCDevice``
+(canonical log line, telemetry sink, housekeeping worker + poke,
+responding/reconnect, explicit test mode). This is the deliberate THIN
+rewrite of the abandoned 522-line copy-paste subclass (P6.8): the curated
+lab layer covers housekeeping, enable, oscillators/timers, coarse + fine
+switch delays and NVM configs; everything else stays a raw DLL export
+(real hardware only, traceable via ``trace_dll_calls()``).
+
+The 4EDH manages 4 high-voltage switches with PLLs, clocks, dividers,
+counters, timers, mapping engines and 11 ps fine delay steps
+(``SWITCH_DELAY_FINE_SCALE``); the DLL carries a device index
+(``stream=``) in every export.
+
+SAFETY ([[cgc-sw]], CGC email): per-switch-channel dissipation < 100 W,
+current <= 300 mA at 350 V; ramp voltage at 1 kHz FIRST, then frequency.
+swA's NVM has NO SwitchSym RF configs yet (cloning swB's ladder is the
+campaign's first task) and swA sensor 2 is broken — construct with
+``skip_sensors=(2,)``.
 """
 from typing import Optional
 import logging
 import threading
-from datetime import datetime
-from pathlib import Path
 
+from ..cgc_device import CGCDevice
 from .sw_HR_base import SWHRBase
 
 
-class SWHR(SWHRBase):
+class SWHR(CGCDevice, SWHRBase):
     """
-    SW_HR device communication class with logging functionality.
+    HV-AMX-CTRL-4EDH high-resolution switch controller with canonical
+    logging, telemetry and test mode.
 
-    This class inherits from SWHRBase and provides logging capabilities,
-    device identification, housekeeping thread management, and enhanced
-    function call monitoring similar to other devices in the system.
-
-    The HV-AMX-CTRL-4EDH is a high-resolution switch controller that manages
-    4 high-voltage switches with configurable timers, PLLs, clocks, dividers,
-    counters, mapping engines, digital I/O, fine delay control, and
-    trigger/enable source configuration.
+    Curated high-level methods (simulated in test mode): housekeeping/
+    sensor/fan/CPU reads, combined device state, device enable,
+    per-oscillator period, timer delay/width, coarse switch delay +
+    rise/fall fine delays, NVM config save/load, frequency convenience.
+    Raw DLL exports are real-hardware-only.
 
     Example:
-        sw_hr = SWHR("main_sw_hr", com=5, stream=0)
-        sw_hr.connect()
-        sw_hr.set_device_enable(True)
-        state = sw_hr.get_device_state()
-        sw_hr.disconnect()
+        swhr = SWHR("swA", com=20, stream=0, sink=sink, skip_sensors=(2,))
+        swhr.connect()             # open + comspeed
+        swhr.set_device_enable(True)
+        swhr.set_switch_rise_delay_fine(0, 0x100)
+        swhr.disconnect()
     """
+
+    FAMILY = "SWHR"
+    DLL_BASE = SWHRBase
 
     def __init__(
         self,
@@ -42,481 +58,451 @@ class SWHR(SWHRBase):
         stream: int = 0,
         baudrate: int = 230400,
         logger: Optional[logging.Logger] = None,
+        *,
+        sink=None,
+        test_mode: bool = False,
         hk_thread: Optional[threading.Thread] = None,
         thread_lock: Optional[threading.Lock] = None,
         hk_interval: float = 5.0,
+        skip_sensors=(),
         **kwargs,
     ):
         """
-        Initialize SW_HR device with logging and threading support.
+        Initialize a high-resolution switch controller (see
+        ``CGCDevice.__init__`` for the shared parameters). ``stream`` is
+        the DLL device index; ``skip_sensors`` lists broken
+        temperature-sensor indices (0-2) that housekeeping must never
+        log. In test mode the vendor DLL is never loaded.
         """
-        # Store parameters for SW_HR functionality
-        self.device_id = device_id
-        self.com = com
-        self.stream_num = stream
-        self.baudrate = baudrate
-        self.hk_interval = hk_interval
-
-        # Connection status
-        self.connected = False
-
-        # Housekeeping setup
-        self.hk_running = False
-        self.hk_stop_event = threading.Event()
-
-        # Determine if using external or internal thread management
-        self.external_thread = hk_thread is not None
-        self.external_lock = thread_lock is not None
-
-        # Setup thread lock (for communication)
-        if thread_lock is not None:
-            self.thread_lock = thread_lock
-        else:
-            self.thread_lock = threading.Lock()
-
-        # Setup housekeeping lock (separate from communication lock)
-        self.hk_lock = threading.Lock()
-
-        # Setup housekeeping thread
-        if hk_thread is not None:
-            self.hk_thread = hk_thread
-        else:
-            self.hk_thread = threading.Thread(
-                target=self._hk_worker, name=f"HK_{device_id}", daemon=True
-            )
-
-        # Setup logger
-        if logger is not None:
-            adapter = logging.LoggerAdapter(logger, {"device_id": device_id})
-            adapter.process = lambda msg, kwargs: (f"{device_id} - {msg}", kwargs)
-            self.logger = adapter
-            self._external_logger_provided = True
-        else:
-            self._external_logger_provided = False
-            # Create logger with file handler and timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            logger_name = f"SWHR_{device_id}_{timestamp}"
-            self.logger = logging.getLogger(logger_name)
-
-            # Only add handler if logger doesn't already have one
-            if not self.logger.handlers:
-                # Create logs directory if it doesn't exist
-                logs_dir = (
-                    Path(__file__).parent.parent.parent.parent.parent
-                    / "debugging"
-                    / "logs"
-                )
-                logs_dir.mkdir(parents=True, exist_ok=True)
-
-                # Create file handler with timestamp
-                log_filename = f"SWHR_{device_id}_{timestamp}.log"
-                log_filepath = logs_dir / log_filename
-
-                file_handler = logging.FileHandler(log_filepath)
-                formatter = logging.Formatter(
-                    f"%(asctime)s - {device_id} - %(levelname)s - %(message)s"
-                )
-                file_handler.setFormatter(formatter)
-
-                self.logger.addHandler(file_handler)
-                self.logger.setLevel(logging.DEBUG)
-
-                # Log the initialization
-                self.logger.info(
-                    f"SWHR logger initialized for device '{device_id}' on COM{com}, stream {stream}"
-                )
-                self.logger.info(f"Baudrate: {baudrate}")
-
-        # Initialize the base class
-        super().__init__(com=com, stream=stream, log=None, idn=device_id)
-
-    def connect(self) -> bool:
-        """Connect to the SW_HR device."""
-        try:
-            self.logger.info(
-                f"Connecting to SW_HR device {self.device_id} on COM{self.com}, stream {self.stream_num}"
-            )
-
-            # Open port using base class method
-            status = self.open_port(self.com, self.stream_num)
-
-            if status == self.NO_ERR:
-                # Set communication speed
-                baud_status, actual_baud = self.set_comspeed(self.baudrate)
-                if baud_status == self.NO_ERR:
-                    self.connected = True
-                    self.logger.info(
-                        f"Successfully connected to SW_HR device {self.device_id} "
-                        f"(baud rate: {actual_baud})"
-                    )
-                    return True
-                else:
-                    self.logger.error(
-                        f"Failed to set baud rate: status {baud_status}"
-                    )
-                    return False
-            else:
-                self.logger.error(f"Failed to open port: status {status}")
-                return False
-
-        except Exception as e:
-            self.logger.error(f"Connection error: {e}")
-            return False
-
-    def disconnect(self) -> bool:
-        """Disconnect from the SW_HR device."""
-        try:
-            # Stop housekeeping before disconnecting
-            self.stop_housekeeping()
-
-            self.logger.info(f"Disconnecting SW_HR device {self.device_id}")
-
-            # Close port using base class method
-            status = self.close_port()
-
-            if status == self.NO_ERR:
-                self.connected = False
-                self.logger.info(
-                    f"Successfully disconnected SW_HR device {self.device_id}"
-                )
-                return True
-            else:
-                self.logger.error(f"Failed to close port: status {status}")
-                return False
-
-        except Exception as e:
-            self.logger.error(f"Disconnection error: {e}")
-            return False
-
-    def _hk_worker(self):
-        """
-        Internal housekeeping worker thread function.
-        Runs continuously until stop_event is set.
-        """
-        self.logger.info(f"Housekeeping worker started for {self.device_id}")
-
-        while not self.hk_stop_event.is_set() and self.hk_running:
-            try:
-                if self.connected:
-                    self.hk_monitor()
-                    # Wait for interval or stop event
-                    self.hk_stop_event.wait(timeout=self.hk_interval)
-                else:
-                    # If not connected, wait a short time before checking again
-                    self.hk_stop_event.wait(timeout=1.0)
-
-            except Exception as e:
-                self.logger.error(f"Housekeeping worker error: {e}")
-                self.hk_stop_event.wait(timeout=1.0)
-
-        self.logger.info(f"Housekeeping worker stopped for {self.device_id}")
+        CGCDevice.__init__(
+            self,
+            device_id,
+            com,
+            baudrate,
+            logger=logger,
+            sink=sink,
+            test_mode=test_mode,
+            hk_thread=hk_thread,
+            thread_lock=thread_lock,
+            hk_interval=hk_interval,
+            **kwargs,
+        )
+        # DLL device index; SWHRBase.__init__ sets it too, but test mode
+        # skips that call and close_port()/extra_status() still need it.
+        self.stream = stream
+        self.skip_sensors = tuple(skip_sensors)
+        # Simulated state (test mode only). Oscillator default = 1 kHz.
+        self._sim_device_enable = False
+        self._sim_osc_period = {
+            i: int(self.DEF_CLOCK / 1000.0 - self.OSC_OFFSET)
+            for i in range(self.CLOCK_NUM)
+        }
+        # Timer count is device-queried (get_timer_count); the sim models 4,
+        # matching the other 4EDH resource blocks (clocks/PLLs/dividers).
+        self._sim_timer_delay = {i: 1 for i in range(4)}
+        self._sim_timer_width = {i: 0 for i in range(4)}
+        self._sim_switch_delay = {
+            i: (0, 0) for i in range(self.SWITCH_NUM)
+        }
+        self._sim_rise_fine = {i: 0 for i in range(self.SWITCH_NUM)}
+        self._sim_fall_fine = {i: 0 for i in range(self.SWITCH_NUM)}
+        self._sim_config = None
+        if not test_mode:
+            SWHRBase.__init__(self, com=com, stream=stream, log=None, idn=device_id)
 
     # =========================================================================
-    #     Individual Housekeeping Functions
+    #     Transport (bring-up; reconnect() re-runs it)
     # =========================================================================
 
-    def _hk_product_info(self):
-        """Get and log product information."""
-        status, product_no = self.get_product_no()
-        if status == self.NO_ERR:
-            self.logger.info(f"Product number: {product_no}")
-        return status == self.NO_ERR
+    def _open_transport(self) -> None:
+        """SWHR bring-up: open the DLL stream index on the COM port, then
+        negotiate the baud rate (a comspeed failure is a warning, the
+        device stays usable at its default)."""
+        self._check(self.open_port(self.com, self.stream), "open_port")
+        baud_status, actual_baud = self.set_comspeed(self.baudrate)
+        if baud_status == self.NO_ERR:
+            self.log_event("info", f"comspeed set to {actual_baud}")
+        else:
+            self.log_event(
+                "warning",
+                f"set_comspeed returned {baud_status}; "
+                "continuing at device default",
+            )
 
-    def _hk_device_state(self):
-        """Get and log device state."""
-        (
-            status,
-            main_hex, main_name,
-            dev_hex, dev_names,
-            temp_hex, temp_names,
-        ) = self.get_device_state()
-        if status == self.NO_ERR:
-            self.logger.info(f"Main state: {main_name} ({main_hex})")
-            self.logger.info(
-                f"Device state: {', '.join(dev_names)} ({dev_hex})"
-            )
-            self.logger.info(
-                f"Temperature state: {', '.join(temp_names)} ({temp_hex})"
-            )
-        return status == self.NO_ERR
+    # =========================================================================
+    #     Status
+    # =========================================================================
+
+    def extra_status(self):
+        status = CGCDevice.extra_status(self)
+        status["stream"] = self.stream
+        if self.skip_sensors:
+            status["skip_sensors"] = list(self.skip_sensors)
+        return status
+
+    # =========================================================================
+    #     Housekeeping (one canonical log_sample() line per channel)
+    # =========================================================================
+
+    def hk_monitor(self) -> None:
+        """One housekeeping cycle: controller rails/temps, sensors
+        (minus the broken ones), fans, CPU and states. Blocks are
+        individually guarded so one failing read does not silence the
+        others. PLL/timer/delay configuration reads stay out of
+        housekeeping — those are notebook/campaign territory."""
+        with self.thread_lock:
+            for block in (
+                self._hk_general_housekeeping,
+                self._hk_sensors,
+                self._hk_fans,
+                self._hk_cpu,
+                self._hk_states,
+            ):
+                try:
+                    block()
+                except Exception as e:
+                    self.log_event(
+                        "error", f"housekeeping block {block.__name__} failed: {e}"
+                    )
 
     def _hk_general_housekeeping(self):
-        """Get and log general housekeeping data."""
-        (
-            status,
-            volt_12v, volt_fans, volt_5v0, volt_3v3,
-            volt_3v3p, volt_2v5p, volt_vc, temp_cpu,
-        ) = self.get_housekeeping()
-        if status == self.NO_ERR:
-            self.logger.info("get_housekeeping() results:")
-            self.logger.info(f"  12V Supply: {volt_12v:.2f}V")
-            self.logger.info(f"  Fan Supply: {volt_fans:.2f}V")
-            self.logger.info(f"  5V Supply: {volt_5v0:.2f}V")
-            self.logger.info(f"  3.3V Supply: {volt_3v3:.2f}V")
-            self.logger.info(f"  3.3V PLL Supply: {volt_3v3p:.2f}V")
-            self.logger.info(f"  2.5V PLL Supply: {volt_2v5p:.2f}V")
-            self.logger.info(f"  Vc Supply: {volt_vc:.2f}V")
-            self.logger.info(f"  CPU Temperature: {temp_cpu:.1f}degC")
-        return status == self.NO_ERR
+        (status, volt_12v, volt_fans, volt_5v0, volt_3v3, volt_3v3p,
+         volt_2v5p, volt_vc, temp_cpu) = self.get_housekeeping()
+        if status != self.NO_ERR:
+            self.log_event("warning", f"get_housekeeping returned {status}")
+            return
+        self.log_sample("Volt_12V", volt_12v, "V", ".2f")
+        self.log_sample("Volt_Fans", volt_fans, "V", ".2f")
+        self.log_sample("Volt_5V0", volt_5v0, "V", ".2f")
+        self.log_sample("Volt_3V3", volt_3v3, "V", ".2f")
+        self.log_sample("Volt_3V3P", volt_3v3p, "V", ".2f")
+        self.log_sample("Volt_2V5P", volt_2v5p, "V", ".2f")
+        self.log_sample("Volt_VC", volt_vc, "V", ".2f")
+        self.log_sample("Temp_CPU", temp_cpu, "degC", ".1f")
 
-    def _hk_sensor_data(self):
-        """Get and log sensor data."""
+    def _hk_sensors(self):
         status, temp0, temp1, temp2 = self.get_sensor_data()
         if status == self.NO_ERR:
-            self.logger.info("get_sensor_data() results:")
-            self.logger.info(f"  Sensor 0 Temperature: {temp0:.1f}degC")
-            self.logger.info(f"  Sensor 1 Temperature: {temp1:.1f}degC")
-            self.logger.info(f"  Sensor 2 Temperature: {temp2:.1f}degC")
-        return status == self.NO_ERR
+            for i, temp in enumerate((temp0, temp1, temp2)):
+                if i in self.skip_sensors:
+                    continue
+                self.log_sample(f"Temp_Sensor{i}", temp, "degC", ".1f")
 
-    def _hk_fan_data(self):
-        """Get and log fan data."""
+    def _hk_fans(self):
         status, enabled, failed, set_rpm, measured_rpm, pwm = self.get_fan_data()
-        if status == self.NO_ERR:
-            self.logger.info("get_fan_data() results:")
-            for i in range(self.FAN_COUNT):
-                self.logger.info(
-                    f"  Fan {i}: Enabled={enabled[i]}, Failed={failed[i]}, "
-                    f"SetRPM={set_rpm[i]}, MeasRPM={measured_rpm[i]}, "
-                    f"PWM={pwm[i]} ({pwm[i] / self.FAN_PWM_MAX * 100:.1f}%)"
-                )
-        return status == self.NO_ERR
+        if status != self.NO_ERR:
+            return
+        for i in range(self.FAN_COUNT):
+            self.log_sample(f"Fan{i}_RPM", measured_rpm[i], "rpm", ".0f")
+            if failed[i]:
+                self.log_event("warning", f"fan {i} reports FAILED")
 
-    def _hk_led_data(self):
-        """Get and log LED data."""
-        status, red, green, blue = self.get_led_data()
-        if status == self.NO_ERR:
-            self.logger.info(f"LED state: R={red}, G={green}, B={blue}")
-        return status == self.NO_ERR
-
-    def _hk_controller_state(self):
-        """Get and log controller state."""
-        status, state_hex, config, state_names = self.get_state()
-        if status == self.NO_ERR:
-            self.logger.info(
-                f"Controller state: {', '.join(state_names)} ({state_hex}), "
-                f"Config=0x{config:04X}"
-            )
-        return status == self.NO_ERR
-
-    def _hk_cpu_data(self):
-        """Get and log CPU data."""
+    def _hk_cpu(self):
         status, load, frequency = self.get_cpu_data()
         if status == self.NO_ERR:
-            self.logger.info(
-                f"CPU: Load={load * 100:.1f}%, Frequency={frequency / 1e6:.1f}MHz"
+            self.log_sample("CPU_Load", load * 100, "%", ".1f")
+
+    def _hk_states(self):
+        (status, main_hex, main_name, dev_hex, dev_names,
+         temp_hex, temp_names) = self.get_device_state()
+        if status == self.NO_ERR:
+            self.log_sample("Main_State", main_name)
+            self.log_sample("Device_State", ", ".join(dev_names))
+            self.log_sample("Temperature_State", ", ".join(temp_names))
+        status, enabled = self.get_device_enable()
+        if status == self.NO_ERR:
+            self.log_sample("Device_Enabled", 1 if enabled else 0)
+
+    # =========================================================================
+    #     Curated reads (simulated in test mode)
+    # =========================================================================
+
+    def get_housekeeping(self):
+        if self.test_mode:
+            return (
+                self.NO_ERR,
+                self._sim_uniform(11.8, 12.2),     # volt_12v
+                self._sim_uniform(11.8, 12.2),     # volt_fans
+                self._sim_uniform(4.9, 5.1),       # volt_5v0
+                self._sim_uniform(3.25, 3.35),     # volt_3v3
+                self._sim_uniform(3.25, 3.35),     # volt_3v3p
+                self._sim_uniform(2.45, 2.55),     # volt_2v5p
+                self._sim_uniform(1.15, 1.25),     # volt_vc
+                self._sim_uniform(30.0, 45.0, 1),  # temp_cpu
             )
-        return status == self.NO_ERR
+        return SWHRBase.get_housekeeping(self)
 
-    def _hk_oscillator(self):
-        """Get and log oscillator data."""
-        status_c, osc_count = self.get_oscillator_count()
-        if status_c == self.NO_ERR:
-            for i in range(osc_count):
-                status_p, period = self.get_oscillator_period(i)
-                if status_p == self.NO_ERR:
-                    freq = self.DEF_CLOCK / (period + self.OSC_OFFSET) if period > 0 else 0
-                    self.logger.info(
-                        f"Oscillator {i}: Period={period}, Frequency={freq:.1f}Hz"
-                    )
-        return status_c == self.NO_ERR
+    def get_sensor_data(self):
+        if self.test_mode:
+            return (
+                self.NO_ERR,
+                self._sim_uniform(25.0, 40.0, 1),
+                self._sim_uniform(25.0, 40.0, 1),
+                self._sim_uniform(25.0, 40.0, 1),
+            )
+        return SWHRBase.get_sensor_data(self)
 
-    def _hk_timer_data(self):
-        """Get and log timer data for all timers."""
-        status_c, timer_count = self.get_timer_count()
-        if status_c == self.NO_ERR:
-            for i in range(timer_count):
-                status_d, delay = self.get_timer_delay(i)
-                status_w, width = self.get_timer_width(i)
-                status_b, burst = self.get_timer_burst(i)
-                if all(
-                    s == self.NO_ERR
-                    for s in [status_d, status_w, status_b]
-                ):
-                    self.logger.info(
-                        f"Timer {i}: Delay={delay}, Width={width}, Burst={burst}"
-                    )
-        return status_c == self.NO_ERR
+    def get_fan_data(self):
+        if self.test_mode:
+            rpm = [self._sim_uniform(2900, 3100, 0) for _ in range(self.FAN_COUNT)]
+            return (
+                self.NO_ERR,
+                [True] * self.FAN_COUNT,
+                [False] * self.FAN_COUNT,
+                [3000] * self.FAN_COUNT,
+                rpm,
+                [500] * self.FAN_COUNT,
+            )
+        return SWHRBase.get_fan_data(self)
 
-    def _hk_switch_data(self):
-        """Get and log switch configuration for all switches."""
-        for i in range(self.SWITCH_NUM):
-            status_ts, trig_src = self.get_switch_trigger_source(i)
-            status_es, enb_src = self.get_switch_enable_source(i)
-            status_d, rise_d, fall_d = self.get_switch_delay(i)
-            status_rf, rise_fine = self.get_switch_rise_delay_fine(i)
-            status_ff, fall_fine = self.get_switch_fall_delay_fine(i)
-            if all(
-                s == self.NO_ERR
-                for s in [status_ts, status_es, status_d, status_rf, status_ff]
-            ):
-                self.logger.info(
-                    f"Switch {i}: TrigSrc=0x{trig_src:02X}, EnbSrc=0x{enb_src:02X}, "
-                    f"Delay(rise={rise_d}, fall={fall_d}), "
-                    f"FineDelay(rise={rise_fine}, fall={fall_fine})"
-                )
-        return True
+    def get_cpu_data(self):
+        if self.test_mode:
+            return self.NO_ERR, self._sim_uniform(0.05, 0.20, 3), 168e6
+        return SWHRBase.get_cpu_data(self)
 
-    def hk_monitor(self):
-        """
-        Perform housekeeping monitoring of SW_HR device data.
-        This method executes all individual housekeeping functions.
-        """
-        try:
-            with self.thread_lock:
-                self._hk_product_info()
-                self._hk_device_state()
-                self._hk_general_housekeeping()
-                self._hk_sensor_data()
-                self._hk_fan_data()
-                self._hk_led_data()
-                self._hk_controller_state()
-                self._hk_cpu_data()
-                self._hk_oscillator()
-                self._hk_timer_data()
-                self._hk_switch_data()
+    def get_device_state(self):
+        """Returns the base's 7-tuple: (status, main_hex, main_name,
+        dev_hex, dev_names, temp_hex, temp_names)."""
+        if self.test_mode:
+            main = 1 if self._sim_device_enable else 0
+            return (
+                self.NO_ERR,
+                hex(main), self.MAIN_STATE[main],
+                hex(0), ["DEVST_OK"],
+                hex(0), ["TMPST_OK"],
+            )
+        return SWHRBase.get_device_state(self)
 
-        except Exception as e:
-            self.logger.error(f"Housekeeping monitoring failed: {e}")
+    def get_device_enable(self):
+        if self.test_mode:
+            return self.NO_ERR, self._sim_device_enable
+        return SWHRBase.get_device_enable(self)
 
-    # =========================================================================
-    #     Housekeeping and Threading Methods
-    # =========================================================================
+    def get_oscillator_period(self, oscillator):
+        if self.test_mode:
+            if oscillator not in self._sim_osc_period:
+                return self.ERR_ARGUMENT, 0
+            return self.NO_ERR, self._sim_osc_period[oscillator]
+        return SWHRBase.get_oscillator_period(self, oscillator)
 
-    def start_housekeeping(self, interval=-1, log_to_file=True) -> bool:
-        """
-        Start housekeeping monitoring. Works automatically in both internal
-        and external thread modes.
+    def get_timer_delay(self, timer):
+        if self.test_mode:
+            if timer not in self._sim_timer_delay:
+                return self.ERR_ARGUMENT, 0
+            return self.NO_ERR, self._sim_timer_delay[timer]
+        return SWHRBase.get_timer_delay(self, timer)
 
-        - Internal mode (no thread passed to __init__): Creates and manages
-          its own thread.
-        - External mode (thread passed to __init__): Enables monitoring for
-          external thread control.
+    def get_timer_width(self, timer):
+        if self.test_mode:
+            if timer not in self._sim_timer_width:
+                return self.ERR_ARGUMENT, 0
+            return self.NO_ERR, self._sim_timer_width[timer]
+        return SWHRBase.get_timer_width(self, timer)
 
-        Args:
-            interval (int): Monitoring interval in seconds
-                (default: uses hk_interval from __init__).
-            log_to_file (bool): Whether to enable file logging (default: True).
+    def get_switch_delay(self, switch_no):
+        if self.test_mode:
+            if switch_no not in self._sim_switch_delay:
+                return self.ERR_ARGUMENT, 0, 0
+            rise, fall = self._sim_switch_delay[switch_no]
+            return self.NO_ERR, rise, fall
+        return SWHRBase.get_switch_delay(self, switch_no)
 
-        Returns:
-            bool: True if started successfully, False otherwise.
-        """
-        if not self.connected:
-            self.logger.warning("Cannot start housekeeping: device not connected")
-            return False
+    def get_switch_rise_delay_fine(self, switch_no):
+        if self.test_mode:
+            if switch_no not in self._sim_rise_fine:
+                return self.ERR_ARGUMENT, 0
+            return self.NO_ERR, self._sim_rise_fine[switch_no]
+        return SWHRBase.get_switch_rise_delay_fine(self, switch_no)
 
-        with self.hk_lock:
-            if self.hk_running:
-                self.logger.warning("Housekeeping already running")
-                return True
-
-            try:
-                # Set the monitoring interval
-                if interval > 0:
-                    self.hk_interval = interval
-
-                # Clear stop event
-                self.hk_stop_event.clear()
-                self.hk_running = True
-
-                if self.external_thread:
-                    # External thread mode - just enable monitoring
-                    self.logger.info(
-                        "Housekeeping enabled for external thread control"
-                    )
-                else:
-                    # Internal thread mode - start our own thread
-                    if not self.hk_thread.is_alive():
-                        self.hk_thread = threading.Thread(
-                            target=self._hk_worker,
-                            name=f"HK_{self.device_id}",
-                            daemon=True,
-                        )
-                    self.hk_thread.start()
-                    self.logger.info(
-                        f"Housekeeping thread started with {self.hk_interval}s interval"
-                    )
-
-                return True
-
-            except Exception as e:
-                self.logger.error(f"Failed to start housekeeping: {e}")
-                self.hk_running = False
-                return False
-
-    def stop_housekeeping(self) -> bool:
-        """
-        Stop housekeeping monitoring. Works in both internal and external modes.
-
-        Returns:
-            bool: True if stopped successfully, False otherwise.
-        """
-        if not self.hk_running:
-            return True
-
-        with self.hk_lock:
-            try:
-                self.hk_running = False
-                self.hk_stop_event.set()
-
-                if not self.external_thread and self.hk_thread.is_alive():
-                    self.hk_thread.join(timeout=2.0)
-                    if self.hk_thread.is_alive():
-                        self.logger.warning(
-                            "Housekeeping thread did not stop cleanly"
-                        )
-                    else:
-                        self.logger.info("Housekeeping thread stopped")
-                else:
-                    self.logger.info("Housekeeping monitoring disabled")
-
-                return True
-
-            except Exception as e:
-                self.logger.error(f"Failed to stop housekeeping: {e}")
-                return False
-
-    def do_housekeeping_cycle(self) -> bool:
-        """
-        Perform one housekeeping cycle. Use this in external threads.
-
-        Returns:
-            bool: True if cycle completed successfully, False otherwise.
-        """
-        if not self.hk_running:
-            return False
-
-        try:
-            if self.connected:
-                self.hk_monitor()
-                return True
-            else:
-                self.logger.warning(
-                    "Housekeeping cycle skipped: device not connected"
-                )
-                return False
-
-        except Exception as e:
-            self.logger.error(f"Housekeeping cycle error: {e}")
-            return False
-
-    def get_status(self) -> dict:
-        """
-        Get current SW_HR device status.
-
-        Returns:
-            Dict: Dictionary containing device status information.
-        """
-        return {
-            "device_id": self.device_id,
-            "com": self.com,
-            "stream": self.stream_num,
-            "baudrate": self.baudrate,
-            "connected": self.connected,
-            "hk_running": self.hk_running,
-            "hk_interval": self.hk_interval,
-            "external_thread": self.external_thread,
-            "external_lock": self.external_lock,
-        }
+    def get_switch_fall_delay_fine(self, switch_no):
+        if self.test_mode:
+            if switch_no not in self._sim_fall_fine:
+                return self.ERR_ARGUMENT, 0
+            return self.NO_ERR, self._sim_fall_fine[switch_no]
+        return SWHRBase.get_switch_fall_delay_fine(self, switch_no)
 
     # =========================================================================
+    #     Curated controls (logging + test-mode simulation)
+    # =========================================================================
+
+    def set_device_enable(self, enable):
+        """Set the device enable state. Returns the status."""
+        self.log_event("info", f"setting device enable to {enable}")
+        if self.test_mode:
+            self._sim_device_enable = bool(enable)
+            return self.NO_ERR
+        status = SWHRBase.set_device_enable(self, enable)
+        if status != self.NO_ERR:
+            self.log_event("error", f"failed to set device enable: status {status}")
+        return status
+
+    def set_oscillator_period(self, oscillator, period):
+        """Set one oscillator's period register. Returns the status."""
+        freq = self.DEF_CLOCK / (period + self.OSC_OFFSET) if period > 0 else 0
+        self.log_event(
+            "info",
+            f"setting oscillator {oscillator} period to {period} (~{freq:.1f} Hz)",
+        )
+        if self.test_mode:
+            if oscillator not in self._sim_osc_period:
+                return self.ERR_ARGUMENT
+            self._sim_osc_period[oscillator] = int(period)
+            return self.NO_ERR
+        status = SWHRBase.set_oscillator_period(self, oscillator, period)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error",
+                f"failed to set oscillator {oscillator} period: status {status}",
+            )
+        return status
+
+    def set_timer_delay(self, timer, delay):
+        """Set one timer's delay register. Returns the status."""
+        self.log_event("info", f"setting timer {timer} delay to {delay}")
+        if self.test_mode:
+            if timer not in self._sim_timer_delay:
+                return self.ERR_ARGUMENT
+            self._sim_timer_delay[timer] = int(delay)
+            return self.NO_ERR
+        status = SWHRBase.set_timer_delay(self, timer, delay)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error", f"failed to set timer {timer} delay: status {status}"
+            )
+        return status
+
+    def set_timer_width(self, timer, width):
+        """Set one timer's width register. Returns the status."""
+        self.log_event("info", f"setting timer {timer} width to {width}")
+        if self.test_mode:
+            if timer not in self._sim_timer_width:
+                return self.ERR_ARGUMENT
+            self._sim_timer_width[timer] = int(width)
+            return self.NO_ERR
+        status = SWHRBase.set_timer_width(self, timer, width)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error", f"failed to set timer {timer} width: status {status}"
+            )
+        return status
+
+    def set_switch_delay(self, switch_no, rise_delay, fall_delay):
+        """Set one switch's coarse rise/fall delays (5 ns steps).
+        Returns the status."""
+        self.log_event(
+            "info",
+            f"setting switch {switch_no} delay: rise={rise_delay}, "
+            f"fall={fall_delay}",
+        )
+        if self.test_mode:
+            if switch_no not in self._sim_switch_delay:
+                return self.ERR_ARGUMENT
+            self._sim_switch_delay[switch_no] = (int(rise_delay), int(fall_delay))
+            return self.NO_ERR
+        status = SWHRBase.set_switch_delay(self, switch_no, rise_delay, fall_delay)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error", f"failed to set switch {switch_no} delay: status {status}"
+            )
+        return status
+
+    def set_switch_rise_delay_fine(self, switch_no, delay):
+        """Set one switch's fine rise delay (11 ps steps, 0 to
+        SWITCH_DELAY_FINE_MAX). Returns the status."""
+        self.log_event(
+            "info", f"setting switch {switch_no} fine rise delay to {delay}"
+        )
+        if self.test_mode:
+            if switch_no not in self._sim_rise_fine:
+                return self.ERR_ARGUMENT
+            self._sim_rise_fine[switch_no] = int(delay)
+            return self.NO_ERR
+        status = SWHRBase.set_switch_rise_delay_fine(self, switch_no, delay)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error",
+                f"failed to set switch {switch_no} fine rise delay: "
+                f"status {status}",
+            )
+        return status
+
+    def set_switch_fall_delay_fine(self, switch_no, delay):
+        """Set one switch's fine fall delay (11 ps steps). Returns the
+        status."""
+        self.log_event(
+            "info", f"setting switch {switch_no} fine fall delay to {delay}"
+        )
+        if self.test_mode:
+            if switch_no not in self._sim_fall_fine:
+                return self.ERR_ARGUMENT
+            self._sim_fall_fine[switch_no] = int(delay)
+            return self.NO_ERR
+        status = SWHRBase.set_switch_fall_delay_fine(self, switch_no, delay)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error",
+                f"failed to set switch {switch_no} fine fall delay: "
+                f"status {status}",
+            )
+        return status
+
+    def load_current_config(self, config_number):
+        """Load one NVM config slot. NOTE: swA's NVM has no SwitchSym RF
+        configs yet ([[cgc-sw]]) — cloning swB's ladder is the campaign's
+        first task."""
+        self.log_event("info", f"loading config slot {config_number}")
+        if self.test_mode:
+            self._sim_config = int(config_number)
+            return self.NO_ERR
+        status = SWHRBase.load_current_config(self, config_number)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error", f"failed to load config {config_number}: status {status}"
+            )
+        return status
+
+    def save_current_config(self, config_number):
+        """Save the current settings to one NVM config slot."""
+        self.log_event("info", f"saving config slot {config_number}")
+        if self.test_mode:
+            self._sim_config = int(config_number)
+            return self.NO_ERR
+        status = SWHRBase.save_current_config(self, config_number)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error", f"failed to save config {config_number}: status {status}"
+            )
+        return status
+
+    def restart(self):
+        """Restart the controller (real hardware only)."""
+        self.log_event("info", "restarting SWHR controller")
+        status = SWHRBase.restart(self)
+        if status != self.NO_ERR:
+            self.log_event("error", f"controller restart failed: status {status}")
+        return status
+
+    # =========================================================================
+    #     Conveniences (work in sim too — the campaign dry-run uses them)
+    # =========================================================================
+
+    def set_frequency_khz(self, oscillator, frequency_khz):
+        """
+        Set one oscillator's frequency in kHz via the period register:
+        ``Period_register = DEF_CLOCK / (f_khz * 1000) - OSC_OFFSET``.
+        Returns the status.
+        """
+        if frequency_khz <= 0:
+            self.log_event(
+                "error", f"invalid frequency: {frequency_khz} kHz (must be > 0)"
+            )
+            return self.ERR_ARGUMENT
+        period = round(self.DEF_CLOCK / (frequency_khz * 1000) - self.OSC_OFFSET)
+        if period < 1 or period > 0xFFFFFFFF:
+            self.log_event(
+                "error",
+                f"frequency {frequency_khz} kHz gives out-of-range period "
+                f"register {period}",
+            )
+            return self.ERR_ARGUMENT
+        return self.set_oscillator_period(oscillator, period)

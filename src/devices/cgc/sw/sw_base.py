@@ -162,7 +162,7 @@ class SWBase:
             self.err_dict = json.load(f)
 
         self.com = com
-        self.port = port
+        self.dll_port = port
         self.log = log
         self.idn = idn
 
@@ -193,7 +193,7 @@ class SWBase:
         com_number : int
             COM port number (1 = COM1, 2 = COM2, etc.).
         port_number : int, optional
-            Port number (default: self.port).
+            Port number (default: self.dll_port).
 
         Returns
         -------
@@ -202,7 +202,7 @@ class SWBase:
 
         """
         if port_number is None:
-            port_number = self.port
+            port_number = self.dll_port
         status = self.sw_dll.COM_HVAMX4ED_Open(port_number, com_number)
         return status
 
@@ -216,7 +216,7 @@ class SWBase:
             Status code.
 
         """
-        status = self.sw_dll.COM_HVAMX4ED_Close(self.port)
+        status = self.sw_dll.COM_HVAMX4ED_Close(self.dll_port)
         return status
 
     def set_comspeed(self, baud_rate):
@@ -236,7 +236,7 @@ class SWBase:
         """
         baud_rate_ref = ctypes.c_uint(baud_rate)
         status = self.sw_dll.COM_HVAMX4ED_SetBaudRate(
-            self.port, ctypes.byref(baud_rate_ref)
+            self.dll_port, ctypes.byref(baud_rate_ref)
         )
         return status, baud_rate_ref.value
 
@@ -250,7 +250,7 @@ class SWBase:
             Status code.
 
         """
-        status = self.sw_dll.COM_HVAMX4ED_Purge(self.port)
+        status = self.sw_dll.COM_HVAMX4ED_Purge(self.dll_port)
         return status
 
     def device_purge(self):
@@ -265,7 +265,7 @@ class SWBase:
         """
         empty = ctypes.c_bool()
         status = self.sw_dll.COM_HVAMX4ED_DevicePurge(
-            self.port, ctypes.byref(empty)
+            self.dll_port, ctypes.byref(empty)
         )
         return status, empty.value
 
@@ -281,7 +281,7 @@ class SWBase:
         """
         empty = ctypes.c_bool()
         status = self.sw_dll.COM_HVAMX4ED_GetBufferState(
-            self.port, ctypes.byref(empty)
+            self.dll_port, ctypes.byref(empty)
         )
         return status, empty.value
 
@@ -301,7 +301,7 @@ class SWBase:
         """
         state = ctypes.c_uint16()
         status = self.sw_dll.COM_HVAMX4ED_GetMainState(
-            self.port, ctypes.byref(state)
+            self.dll_port, ctypes.byref(state)
         )
         state_value = state.value
         state_name = self.MAIN_STATE.get(
@@ -322,7 +322,7 @@ class SWBase:
         """
         device_state = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetDeviceState(
-            self.port, ctypes.byref(device_state)
+            self.dll_port, ctypes.byref(device_state)
         )
         state_value = device_state.value
 
@@ -352,7 +352,7 @@ class SWBase:
         temp_cpu = ctypes.c_double()
 
         status = self.sw_dll.COM_HVAMX4ED_GetHousekeeping(
-            self.port,
+            self.dll_port,
             ctypes.byref(volt_12v),
             ctypes.byref(volt_5v0),
             ctypes.byref(volt_3v3),
@@ -371,7 +371,7 @@ class SWBase:
 
         """
         temperature = (ctypes.c_double * self.SEN_COUNT)()
-        status = self.sw_dll.COM_HVAMX4ED_GetSensorData(self.port, temperature)
+        status = self.sw_dll.COM_HVAMX4ED_GetSensorData(self.dll_port, temperature)
         return status, temperature[0], temperature[1], temperature[2]
 
     def get_fan_data(self):
@@ -391,7 +391,7 @@ class SWBase:
         pwm = (ctypes.c_uint16 * self.FAN_COUNT)()
 
         status = self.sw_dll.COM_HVAMX4ED_GetFanData(
-            self.port, enabled, failed, set_rpm, measured_rpm, pwm
+            self.dll_port, enabled, failed, set_rpm, measured_rpm, pwm
         )
         return (
             status,
@@ -417,7 +417,7 @@ class SWBase:
         blue = ctypes.c_bool()
 
         status = self.sw_dll.COM_HVAMX4ED_GetLEDData(
-            self.port, ctypes.byref(red), ctypes.byref(green), ctypes.byref(blue)
+            self.dll_port, ctypes.byref(red), ctypes.byref(green), ctypes.byref(blue)
         )
         return status, red.value, green.value, blue.value
 
@@ -437,7 +437,7 @@ class SWBase:
         """
         period = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetOscillatorPeriod(
-            self.port, ctypes.byref(period)
+            self.dll_port, ctypes.byref(period)
         )
         return status, period.value
 
@@ -457,7 +457,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetOscillatorPeriod(
-            self.port, ctypes.c_uint32(period)
+            self.dll_port, ctypes.c_uint32(period)
         )
         return status
 
@@ -478,7 +478,7 @@ class SWBase:
         """
         delay = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetPulserDelay(
-            self.port, pulser_no, ctypes.byref(delay)
+            self.dll_port, pulser_no, ctypes.byref(delay)
         )
         return status, delay.value
 
@@ -500,7 +500,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetPulserDelay(
-            self.port, pulser_no, ctypes.c_uint32(delay)
+            self.dll_port, pulser_no, ctypes.c_uint32(delay)
         )
         return status
 
@@ -521,7 +521,7 @@ class SWBase:
         """
         width = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetPulserWidth(
-            self.port, pulser_no, ctypes.byref(width)
+            self.dll_port, pulser_no, ctypes.byref(width)
         )
         return status, width.value
 
@@ -543,7 +543,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetPulserWidth(
-            self.port, pulser_no, ctypes.c_uint32(width)
+            self.dll_port, pulser_no, ctypes.c_uint32(width)
         )
         return status
 
@@ -564,7 +564,7 @@ class SWBase:
         """
         burst = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetPulserBurst(
-            self.port, pulser_no, ctypes.byref(burst)
+            self.dll_port, pulser_no, ctypes.byref(burst)
         )
         return status, burst.value
 
@@ -586,7 +586,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetPulserBurst(
-            self.port, pulser_no, ctypes.c_uint32(burst)
+            self.dll_port, pulser_no, ctypes.c_uint32(burst)
         )
         return status
 
@@ -615,7 +615,7 @@ class SWBase:
         """
         config = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetPulserConfig(
-            self.port, pulser_cfg_no, ctypes.byref(config)
+            self.dll_port, pulser_cfg_no, ctypes.byref(config)
         )
         return status, config.value
 
@@ -637,7 +637,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetPulserConfig(
-            self.port, pulser_cfg_no, ctypes.c_ubyte(config)
+            self.dll_port, pulser_cfg_no, ctypes.c_ubyte(config)
         )
         return status
 
@@ -662,7 +662,7 @@ class SWBase:
         """
         config = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchTriggerConfig(
-            self.port, switch_no, ctypes.byref(config)
+            self.dll_port, switch_no, ctypes.byref(config)
         )
         return status, config.value
 
@@ -684,7 +684,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchTriggerConfig(
-            self.port, switch_no, ctypes.c_ubyte(config)
+            self.dll_port, switch_no, ctypes.c_ubyte(config)
         )
         return status
 
@@ -705,7 +705,7 @@ class SWBase:
         """
         config = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchEnableConfig(
-            self.port, switch_no, ctypes.byref(config)
+            self.dll_port, switch_no, ctypes.byref(config)
         )
         return status, config.value
 
@@ -727,7 +727,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchEnableConfig(
-            self.port, switch_no, ctypes.c_ubyte(config)
+            self.dll_port, switch_no, ctypes.c_ubyte(config)
         )
         return status
 
@@ -749,7 +749,7 @@ class SWBase:
         rise_delay = ctypes.c_ubyte()
         fall_delay = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchTriggerDelay(
-            self.port, switch_no, ctypes.byref(rise_delay), ctypes.byref(fall_delay)
+            self.dll_port, switch_no, ctypes.byref(rise_delay), ctypes.byref(fall_delay)
         )
         return status, rise_delay.value, fall_delay.value
 
@@ -773,7 +773,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchTriggerDelay(
-            self.port, switch_no, ctypes.c_ubyte(rise_delay), ctypes.c_ubyte(fall_delay)
+            self.dll_port, switch_no, ctypes.c_ubyte(rise_delay), ctypes.c_ubyte(fall_delay)
         )
         return status
 
@@ -794,7 +794,7 @@ class SWBase:
         """
         delay = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchEnableDelay(
-            self.port, switch_no, ctypes.byref(delay)
+            self.dll_port, switch_no, ctypes.byref(delay)
         )
         return status, delay.value
 
@@ -816,7 +816,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchEnableDelay(
-            self.port, switch_no, ctypes.c_ubyte(delay)
+            self.dll_port, switch_no, ctypes.c_ubyte(delay)
         )
         return status
 
@@ -841,7 +841,7 @@ class SWBase:
         """
         mapping = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchTriggerMapping(
-            self.port, mapping_no, ctypes.byref(mapping)
+            self.dll_port, mapping_no, ctypes.byref(mapping)
         )
         return status, mapping.value
 
@@ -863,7 +863,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchTriggerMapping(
-            self.port, mapping_no, ctypes.c_ubyte(mapping)
+            self.dll_port, mapping_no, ctypes.c_ubyte(mapping)
         )
         return status
 
@@ -884,7 +884,7 @@ class SWBase:
         """
         mapping = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchEnableMapping(
-            self.port, mapping_no, ctypes.byref(mapping)
+            self.dll_port, mapping_no, ctypes.byref(mapping)
         )
         return status, mapping.value
 
@@ -906,7 +906,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchEnableMapping(
-            self.port, mapping_no, ctypes.c_ubyte(mapping)
+            self.dll_port, mapping_no, ctypes.c_ubyte(mapping)
         )
         return status
 
@@ -922,7 +922,7 @@ class SWBase:
         """
         enable = ctypes.c_bool()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchTriggerMappingEnable(
-            self.port, ctypes.byref(enable)
+            self.dll_port, ctypes.byref(enable)
         )
         return status, enable.value
 
@@ -942,7 +942,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchTriggerMappingEnable(
-            self.port, ctypes.c_bool(enable)
+            self.dll_port, ctypes.c_bool(enable)
         )
         return status
 
@@ -958,7 +958,7 @@ class SWBase:
         """
         enable = ctypes.c_bool()
         status = self.sw_dll.COM_HVAMX4ED_GetSwitchEnableMappingEnable(
-            self.port, ctypes.byref(enable)
+            self.dll_port, ctypes.byref(enable)
         )
         return status, enable.value
 
@@ -978,7 +978,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetSwitchEnableMappingEnable(
-            self.port, ctypes.c_bool(enable)
+            self.dll_port, ctypes.c_bool(enable)
         )
         return status
 
@@ -999,7 +999,7 @@ class SWBase:
         output_enable = ctypes.c_ubyte()
         termination_enable = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetInputConfig(
-            self.port, ctypes.byref(output_enable), ctypes.byref(termination_enable)
+            self.dll_port, ctypes.byref(output_enable), ctypes.byref(termination_enable)
         )
         return status, output_enable.value, termination_enable.value
 
@@ -1021,7 +1021,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetInputConfig(
-            self.port, ctypes.c_ubyte(output_enable), ctypes.c_ubyte(termination_enable)
+            self.dll_port, ctypes.c_ubyte(output_enable), ctypes.c_ubyte(termination_enable)
         )
         return status
 
@@ -1042,7 +1042,7 @@ class SWBase:
         """
         configuration = ctypes.c_ubyte()
         status = self.sw_dll.COM_HVAMX4ED_GetOutputConfig(
-            self.port, output_no, ctypes.byref(configuration)
+            self.dll_port, output_no, ctypes.byref(configuration)
         )
         return status, configuration.value
 
@@ -1064,7 +1064,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetOutputConfig(
-            self.port, output_no, ctypes.c_ubyte(configuration)
+            self.dll_port, output_no, ctypes.c_ubyte(configuration)
         )
         return status
 
@@ -1085,7 +1085,7 @@ class SWBase:
         """
         state = ctypes.c_uint16()
         status = self.sw_dll.COM_HVAMX4ED_GetControllerState(
-            self.port, ctypes.byref(state)
+            self.dll_port, ctypes.byref(state)
         )
         state_value = state.value
 
@@ -1112,7 +1112,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetControllerConfig(
-            self.port, ctypes.c_ubyte(config)
+            self.dll_port, ctypes.c_ubyte(config)
         )
         return status
 
@@ -1132,7 +1132,7 @@ class SWBase:
         """
         enable = ctypes.c_bool()
         status = self.sw_dll.COM_HVAMX4ED_GetDeviceEnable(
-            self.port, ctypes.byref(enable)
+            self.dll_port, ctypes.byref(enable)
         )
         return status, enable.value
 
@@ -1152,7 +1152,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetDeviceEnable(
-            self.port, ctypes.c_bool(enable)
+            self.dll_port, ctypes.c_bool(enable)
         )
         return status
 
@@ -1166,7 +1166,7 @@ class SWBase:
             Status code.
 
         """
-        status = self.sw_dll.COM_HVAMX4ED_ResetCurrentConfig(self.port)
+        status = self.sw_dll.COM_HVAMX4ED_ResetCurrentConfig(self.dll_port)
         return status
 
     def save_current_config(self, config_number):
@@ -1185,7 +1185,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SaveCurrentConfig(
-            self.port, config_number
+            self.dll_port, config_number
         )
         return status
 
@@ -1205,7 +1205,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_LoadCurrentConfig(
-            self.port, config_number
+            self.dll_port, config_number
         )
         return status
 
@@ -1226,7 +1226,7 @@ class SWBase:
         """
         name = ctypes.create_string_buffer(self.CONFIG_NAME_SIZE)
         status = self.sw_dll.COM_HVAMX4ED_GetConfigName(
-            self.port, config_number, name
+            self.dll_port, config_number, name
         )
         return status, name.value.decode()
 
@@ -1251,7 +1251,7 @@ class SWBase:
             name.encode(), self.CONFIG_NAME_SIZE
         )
         status = self.sw_dll.COM_HVAMX4ED_SetConfigName(
-            self.port, config_number, name_buffer
+            self.dll_port, config_number, name_buffer
         )
         return status
 
@@ -1273,7 +1273,7 @@ class SWBase:
         active = ctypes.c_bool()
         valid = ctypes.c_bool()
         status = self.sw_dll.COM_HVAMX4ED_GetConfigFlags(
-            self.port, config_number, ctypes.byref(active), ctypes.byref(valid)
+            self.dll_port, config_number, ctypes.byref(active), ctypes.byref(valid)
         )
         return status, active.value, valid.value
 
@@ -1297,7 +1297,7 @@ class SWBase:
 
         """
         status = self.sw_dll.COM_HVAMX4ED_SetConfigFlags(
-            self.port, config_number, ctypes.c_bool(active), ctypes.c_bool(valid)
+            self.dll_port, config_number, ctypes.c_bool(active), ctypes.c_bool(valid)
         )
         return status
 
@@ -1314,7 +1314,7 @@ class SWBase:
         """
         active = (ctypes.c_bool * self.MAX_CONFIG)()
         valid = (ctypes.c_bool * self.MAX_CONFIG)()
-        status = self.sw_dll.COM_HVAMX4ED_GetConfigList(self.port, active, valid)
+        status = self.sw_dll.COM_HVAMX4ED_GetConfigList(self.dll_port, active, valid)
         return (
             status,
             [active[i] for i in range(self.MAX_CONFIG)],
@@ -1335,7 +1335,7 @@ class SWBase:
             Status code.
 
         """
-        status = self.sw_dll.COM_HVAMX4ED_Restart(self.port)
+        status = self.sw_dll.COM_HVAMX4ED_Restart(self.dll_port)
         return status
 
     def get_cpu_data(self):
@@ -1351,7 +1351,7 @@ class SWBase:
         load = ctypes.c_double()
         frequency = ctypes.c_double()
         status = self.sw_dll.COM_HVAMX4ED_GetCPUData(
-            self.port, ctypes.byref(load), ctypes.byref(frequency)
+            self.dll_port, ctypes.byref(load), ctypes.byref(frequency)
         )
         return status, load.value, frequency.value
 
@@ -1369,7 +1369,7 @@ class SWBase:
         milliseconds = ctypes.c_uint16()
         optime = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetUptime(
-            self.port,
+            self.dll_port,
             ctypes.byref(seconds),
             ctypes.byref(milliseconds),
             ctypes.byref(optime),
@@ -1389,7 +1389,7 @@ class SWBase:
         uptime = ctypes.c_uint32()
         optime = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetTotalTime(
-            self.port, ctypes.byref(uptime), ctypes.byref(optime)
+            self.dll_port, ctypes.byref(uptime), ctypes.byref(optime)
         )
         return status, uptime.value, optime.value
 
@@ -1405,7 +1405,7 @@ class SWBase:
         """
         hw_type = ctypes.c_uint16()
         status = self.sw_dll.COM_HVAMX4ED_GetHWType(
-            self.port, ctypes.byref(hw_type)
+            self.dll_port, ctypes.byref(hw_type)
         )
         return status, hw_type.value
 
@@ -1421,7 +1421,7 @@ class SWBase:
         """
         hw_version = ctypes.c_uint16()
         status = self.sw_dll.COM_HVAMX4ED_GetHWVersion(
-            self.port, ctypes.byref(hw_version)
+            self.dll_port, ctypes.byref(hw_version)
         )
         return status, hw_version.value
 
@@ -1437,7 +1437,7 @@ class SWBase:
         """
         version = ctypes.c_uint16()
         status = self.sw_dll.COM_HVAMX4ED_GetFWVersion(
-            self.port, ctypes.byref(version)
+            self.dll_port, ctypes.byref(version)
         )
         return status, version.value
 
@@ -1452,7 +1452,7 @@ class SWBase:
 
         """
         date_string = ctypes.create_string_buffer(16)
-        status = self.sw_dll.COM_HVAMX4ED_GetFWDate(self.port, date_string)
+        status = self.sw_dll.COM_HVAMX4ED_GetFWDate(self.dll_port, date_string)
         return status, date_string.value.decode()
 
     def get_product_id(self):
@@ -1466,7 +1466,7 @@ class SWBase:
 
         """
         identification = ctypes.create_string_buffer(60)
-        status = self.sw_dll.COM_HVAMX4ED_GetProductID(self.port, identification)
+        status = self.sw_dll.COM_HVAMX4ED_GetProductID(self.dll_port, identification)
         return status, identification.value.decode()
 
     def get_product_no(self):
@@ -1481,7 +1481,7 @@ class SWBase:
         """
         number = ctypes.c_uint32()
         status = self.sw_dll.COM_HVAMX4ED_GetProductNo(
-            self.port, ctypes.byref(number)
+            self.dll_port, ctypes.byref(number)
         )
         return status, number.value
 
@@ -1499,7 +1499,7 @@ class SWBase:
             Interface state code.
 
         """
-        state = self.sw_dll.COM_HVAMX4ED_GetInterfaceState(self.port)
+        state = self.sw_dll.COM_HVAMX4ED_GetInterfaceState(self.dll_port)
         return state
 
     def get_error_message(self):
@@ -1513,7 +1513,7 @@ class SWBase:
 
         """
         self.sw_dll.COM_HVAMX4ED_GetErrorMessage.restype = ctypes.c_char_p
-        msg_ptr = self.sw_dll.COM_HVAMX4ED_GetErrorMessage(self.port)
+        msg_ptr = self.sw_dll.COM_HVAMX4ED_GetErrorMessage(self.dll_port)
         message = msg_ptr.decode() if msg_ptr else "No error"
         return message
 
@@ -1527,7 +1527,7 @@ class SWBase:
             IO state code.
 
         """
-        state = self.sw_dll.COM_HVAMX4ED_GetIOState(self.port)
+        state = self.sw_dll.COM_HVAMX4ED_GetIOState(self.dll_port)
         return state
 
     def get_io_error_message(self):
@@ -1541,6 +1541,6 @@ class SWBase:
 
         """
         self.sw_dll.COM_HVAMX4ED_GetIOErrorMessage.restype = ctypes.c_char_p
-        msg_ptr = self.sw_dll.COM_HVAMX4ED_GetIOErrorMessage(self.port)
+        msg_ptr = self.sw_dll.COM_HVAMX4ED_GetIOErrorMessage(self.dll_port)
         message = msg_ptr.decode() if msg_ptr else "No error"
         return message
