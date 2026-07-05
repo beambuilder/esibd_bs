@@ -28,6 +28,33 @@ def test_amprbase_construction_loads_dll_and_error_dict(dll_factory):
     assert base.com == 6
 
 
+def test_second_amprbase_loads_private_dll_copy(dll_factory):
+    # The vendor DLL holds ONE implicit communication channel per loaded
+    # module (no port handles); a second instance sharing the module would
+    # steal the first one's channel. Instances beyond the first must load
+    # a private on-disk copy of the DLL (distinct path = distinct module).
+    import os
+
+    first = AMPRBase(com=6)
+    second = AMPRBase(com=8)
+    assert dll_factory.paths[0].endswith("AMPR-12_1_01\\x64\\COM-AMPR-12.dll")
+    assert dll_factory.paths[1] != dll_factory.paths[0]
+    assert "cgc_private_dlls" in dll_factory.paths[1]
+    assert os.path.isfile(dll_factory.paths[1])  # a real copy on disk
+    assert first.ampr_dll is not second.ampr_dll
+
+
+def test_two_amprbases_open_ports_on_separate_channels(dll_factory):
+    first = AMPRBase(com=6)
+    second = AMPRBase(com=8)
+    first.open_port(6)
+    second.open_port(8)
+    first_opens = [args[0].value for name, args in dll_factory.dlls[0].calls if name == "COM_AMPR_12_Open"]
+    second_opens = [args[0].value for name, args in dll_factory.dlls[1].calls if name == "COM_AMPR_12_Open"]
+    assert first_opens == [6]
+    assert second_opens == [8]
+
+
 def test_amprbase_open_port_marshals_c_ubyte(dll_factory):
     base = AMPRBase(com=6)
     assert base.open_port(6) == 0

@@ -60,6 +60,28 @@ def test_ampr_connect_opens_port_and_sets_baud(dll_factory):
     assert any("connected (vendor DLL, 230400 baud)" in r for r in records)
 
 
+def test_two_amprs_in_one_process_drive_separate_channels(dll_factory):
+    # The ampr12 plugin runs AMPR500 (COM6) and AMPR1000 (COM8) in ONE
+    # Explorer process. The vendor DLL has one implicit channel per loaded
+    # module, so each instance must end up on its own module — otherwise
+    # the second connect() steals the first unit's channel (observed on
+    # real hardware 2026-07-05: only one unit usable, sets went astray).
+    logger, _ = capture_logger()
+    a500 = AMPR("AMPR500", 6, logger=logger)
+    a1000 = AMPR("AMPR1000", 8, logger=logger)
+    assert a500.connect() is True
+    assert a1000.connect() is True
+    assert len(dll_factory.dlls) == 2
+    first_opens = [args[0].value for name, args in dll_factory.dlls[0].calls if name == "COM_AMPR_12_Open"]
+    second_opens = [args[0].value for name, args in dll_factory.dlls[1].calls if name == "COM_AMPR_12_Open"]
+    assert first_opens == [6]
+    assert second_opens == [8]
+    # a command on one unit never reaches the other unit's channel
+    a1000.set_module_voltage(0, 0, 12.5)
+    assert "COM_AMPR_12_SetModuleOutputVoltage" in dll_factory.dlls[1].call_names()
+    assert "COM_AMPR_12_SetModuleOutputVoltage" not in dll_factory.dlls[0].call_names()
+
+
 def test_ampr_connect_failure_never_simulates(dll_factory, sink, tmp_path):
     logger, records = capture_logger()
     ampr = AMPR("AMPR1000", 8, logger=logger, sink=sink)

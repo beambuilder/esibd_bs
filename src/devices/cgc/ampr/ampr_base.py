@@ -3,10 +3,24 @@
 import ctypes
 import json
 import os
+import shutil
+import tempfile
+import threading
 
 class AMPRBase:
     """AMPR base device class."""
-    
+
+    # The vendor DLL manages ONE communication channel per loaded module
+    # (COM-AMPR-12.h: "The communication channel must be opened before the
+    # first usage" — every routine operates on that implicit channel; there
+    # are no port handles). Windows loads a DLL only once per path per
+    # process, so a second AMPRBase in the same process would silently
+    # share — and steal — the first one's channel. Instances beyond the
+    # first therefore load a PRIVATE COPY of the DLL file: a different
+    # path yields a separate module with its own channel state.
+    _dll_load_lock = threading.Lock()
+    _dll_load_count = 0
+
     # Error codes (from COM-AMPR-12.h)
     NO_ERR = 0
     ERR_OPEN = -2
@@ -138,7 +152,7 @@ class AMPRBase:
         
         # Importing dll for hardware control - path relative to ampr_base.py
         self.ampr_dll_path = os.path.join(self.class_dir, r"AMPR-12_1_01\x64\COM-AMPR-12.dll")
-        self.ampr_dll = ctypes.WinDLL(self.ampr_dll_path)
+        self.ampr_dll = self._load_dll()
 
         # Importing error messages. See AMPR manual - path relative to cgc folder
         self.err_path = os.path.join(os.path.dirname(self.class_dir), "error_codes.json")
@@ -148,6 +162,52 @@ class AMPRBase:
         self.com = com
         self.log = log
         self.idn = idn
+
+    def _load_dll(self):
+        """
+        Load the vendor DLL with one communication channel per instance.
+
+        The first instance in the process loads the canonical DLL path.
+        Every further instance copies the DLL file to a per-process
+        temporary path first — Windows caches modules by path, and the
+        DLL's implicit communication channel is per module, so driving
+        several AMPR-12 units in one process needs one module per unit.
+        Stale copies from earlier (crashed) runs are swept best-effort;
+        a copy loaded by a live process cannot be deleted and is skipped.
+
+        Returns
+        -------
+        ctypes.WinDLL
+            The loaded DLL module.
+
+        """
+        with AMPRBase._dll_load_lock:
+            instance_no = AMPRBase._dll_load_count
+            AMPRBase._dll_load_count += 1
+        if instance_no == 0:
+            return ctypes.WinDLL(self.ampr_dll_path)
+        copy_dir = os.path.join(tempfile.gettempdir(), "cgc_private_dlls")
+        os.makedirs(copy_dir, exist_ok=True)
+        self._sweep_stale_dll_copies(copy_dir, "COM-AMPR-12_")
+        self._private_dll_path = os.path.join(
+            copy_dir, f"COM-AMPR-12_{os.getpid()}_{instance_no}.dll"
+        )
+        shutil.copy2(self.ampr_dll_path, self._private_dll_path)
+        return ctypes.WinDLL(self._private_dll_path)
+
+    @staticmethod
+    def _sweep_stale_dll_copies(copy_dir, prefix):
+        """Best-effort removal of DLL copies left by other (dead) processes."""
+        try:
+            names = os.listdir(copy_dir)
+        except OSError:
+            return
+        for name in names:
+            if name.startswith(prefix) and f"_{os.getpid()}_" not in name:
+                try:
+                    os.remove(os.path.join(copy_dir, name))
+                except OSError:
+                    pass  # still loaded by a live process
 
     def open_port(self, com_number):
         """

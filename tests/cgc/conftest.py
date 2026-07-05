@@ -65,6 +65,17 @@ def dll_factory(monkeypatch):
     return factory
 
 
+@pytest.fixture(autouse=True)
+def reset_private_dll_counter():
+    """Instances beyond the first load a private DLL copy (one channel per
+    module); reset the process-wide counter so every test starts at the
+    canonical path regardless of test order."""
+    from devices.cgc.ampr.ampr_base import AMPRBase
+
+    AMPRBase._dll_load_count = 0
+    yield
+
+
 class _ListHandler(logging.Handler):
     def __init__(self, records):
         super().__init__()
