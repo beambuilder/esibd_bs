@@ -433,10 +433,24 @@ class PSU(CGCDevice, PSUBase):
 
     def load_current_config(self, config_number):
         """Load one NVM config slot (campaign code prefers the curated
-        slots over raw setpoints, [[cgc-psu]]). Returns the status."""
+        slots over raw setpoints, [[cgc-psu]]). Returns the status.
+
+        The simulation models the working-set semantics: slot 0 = standby
+        (everything off, 0 V), any other slot arms the device like the
+        campaign baseline 63 (DeviceEnable + both outputs on, 10 V /
+        100 mA) — without this a simulated config bring-up reads 0 V
+        forever and the Explorer plugin's Test Mode looks broken."""
         self.log_event("info", f"loading config slot {config_number}")
         if self.test_mode:
             self._sim_config = int(config_number)
+            standby = int(config_number) == 0
+            self._sim_device_enable = not standby
+            self._sim_psu_enable = {
+                self.PSU_POS: not standby, self.PSU_NEG: not standby,
+            }
+            volts, ma = (0.0, 300.0) if standby else (10.0, 100.0)
+            self._sim_v_target = {self.PSU_POS: volts, self.PSU_NEG: volts}
+            self._sim_i_limit_ma = {self.PSU_POS: ma, self.PSU_NEG: ma}
             return self.NO_ERR
         status = PSUBase.load_current_config(self, config_number)
         if status != self.NO_ERR:

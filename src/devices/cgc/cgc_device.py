@@ -135,6 +135,53 @@ class CGCDevice(DeviceBase):
             raise CGCStatusError(status, what, message)
         return status
 
+    def call_with_retry(self, fn, *args, retries: int = 1, what: str = "", **kwargs):
+        """
+        Call a DLL method under ``thread_lock``; on a nonzero status,
+        purge the port and retry.
+
+        HV switching corrupts single serial exchanges (-11/-13/-14, EMI
+        suspected; campaign 2026-07-06) and a crossed/corrupted reply
+        leaves bytes in the RX buffer that desync every later query into
+        -13 until ``purge()`` flushes the port — so a bare retry without
+        the purge would keep failing. ``PSUWatchdog._read`` proved this
+        recovery on hardware for reads; this is the same net for setters.
+
+        Args:
+            fn: Bound device method returning a status int or a
+                ``(status, ...)`` tuple (every curated CGC method does).
+            *args/**kwargs: Passed through to ``fn``.
+            retries: Extra attempts after the first failure (default 1).
+            what: Label for log lines; defaults to ``fn.__name__``.
+
+        Returns:
+            The final ``fn`` result unchanged (status int or tuple), so
+            callers keep their normal unpacking. The caller must NOT
+            already hold ``thread_lock`` (plain Lock, not reentrant).
+        """
+        what = what or getattr(fn, "__name__", str(fn))
+        result: Any = None
+        with self.thread_lock:
+            for attempt in range(retries + 1):
+                result = fn(*args, **kwargs)
+                status = result[0] if isinstance(result, tuple) else result
+                if status == 0:
+                    return result
+                if attempt < retries:
+                    self.log_event(
+                        "warning",
+                        f"{what} returned {status} — purging port and retrying",
+                    )
+                    if not self.test_mode:
+                        try:
+                            self.purge()
+                        except Exception as exc:  # noqa: BLE001 — purge is best-effort
+                            self.log_event("warning", f"purge failed: {exc}")
+            self.log_event(
+                "error", f"{what} returned {status} after {retries + 1} attempts"
+            )
+        return result
+
     # =========================================================================
     #     Transport hooks (vendor DLL)
     # =========================================================================

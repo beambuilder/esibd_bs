@@ -298,6 +298,28 @@ def test_sim_voltage_readback_gated_on_both_enables(forbid_windll):
     assert (voltage, current) == (0.0, 0.0)
 
 
+def test_sim_load_config_models_working_set(forbid_windll):
+    # A config is the FULL working set incl. enables (campaign 2026-07-06:
+    # bare enables arm nothing; slot 0 = standby, 63 = 10 V / 100 mA all
+    # on). The sim must model that or a simulated config bring-up reads
+    # 0 V forever (P6.10 plugin Test Mode).
+    logger, _ = capture_logger()
+    psu = PSU("PSU1", 15, logger=logger, test_mode=True)
+    psu.connect()
+    assert psu.load_current_config(63) == psu.NO_ERR
+    assert psu.get_device_enable() == (psu.NO_ERR, True)
+    assert psu.get_psu_enable() == (psu.NO_ERR, True, True)
+    status, voltage, current, _ = psu.get_psu_data(psu.PSU_POS)
+    assert voltage == pytest.approx(10.0, abs=0.2)
+    assert psu.get_psu_set_output_current(psu.PSU_POS)[1] == 100.0
+    # standby parks everything
+    assert psu.load_current_config(0) == psu.NO_ERR
+    assert psu.get_device_enable() == (psu.NO_ERR, False)
+    assert psu.get_psu_enable() == (psu.NO_ERR, False, False)
+    status, voltage, current, _ = psu.get_psu_data(psu.PSU_POS)
+    assert (voltage, current) == (0.0, 0.0)
+
+
 def test_sim_current_limit_roundtrip_in_ma(forbid_windll):
     logger, _ = capture_logger()
     psu = PSU("PSU1", 15, logger=logger, test_mode=True)

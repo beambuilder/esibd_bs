@@ -215,6 +215,74 @@ def test_trace_dll_calls_shadows_only_unoverridden_methods(dll_factory):
     assert not any("TRACE" in r for r in records)
 
 
+# =============================================================================
+#     call_with_retry (purge-retry net for setters, campaign 2026-07-06)
+# =============================================================================
+
+def test_call_with_retry_purges_between_attempts_and_recovers(dll_factory):
+    from devices.cgc import PSU
+
+    logger, records = capture_logger()
+    psu = PSU("psu1", 15, port=0, logger=logger)
+    attempts = []
+
+    def flaky(*args):
+        attempts.append(args)
+        return -13 if len(attempts) == 1 else 0
+
+    dll_factory.last.handlers["COM_HVPSU2D_SetPSUOutputVoltage"] = flaky
+    status = psu.call_with_retry(psu.set_psu_output_voltage, 0, 10.0)
+    assert status == 0
+    names = dll_factory.last.call_names()
+    assert names.count("COM_HVPSU2D_SetPSUOutputVoltage") == 2
+    first_set = names.index("COM_HVPSU2D_SetPSUOutputVoltage")
+    second_set = names.index("COM_HVPSU2D_SetPSUOutputVoltage", first_set + 1)
+    assert first_set < names.index("COM_HVPSU2D_Purge") < second_set
+    assert any(
+        "set_psu_output_voltage returned -13 — purging port and retrying" in r
+        for r in records
+    )
+
+
+def test_call_with_retry_gives_up_after_retries(dll_factory):
+    from devices.cgc import PSU
+
+    logger, records = capture_logger()
+    psu = PSU("psu1", 15, port=0, logger=logger)
+    dll_factory.last.handlers["COM_HVPSU2D_SetPSUOutputVoltage"] = lambda *a: -13
+    status = psu.call_with_retry(psu.set_psu_output_voltage, 0, 10.0)
+    assert status == -13
+    names = dll_factory.last.call_names()
+    assert names.count("COM_HVPSU2D_SetPSUOutputVoltage") == 2
+    assert names.count("COM_HVPSU2D_Purge") == 1
+    assert any(
+        "set_psu_output_voltage returned -13 after 2 attempts" in r for r in records
+    )
+
+
+def test_call_with_retry_passes_tuple_results_through(dll_factory):
+    from devices.cgc import PSU
+
+    logger, _ = capture_logger()
+    psu = PSU("psu1", 15, port=0, logger=logger)
+    result = psu.call_with_retry(psu.get_psu_data, 0)
+    assert isinstance(result, tuple)
+    assert result[0] == 0
+    assert "COM_HVPSU2D_Purge" not in dll_factory.last.call_names()
+
+
+def test_call_with_retry_test_mode_skips_purge():
+    from devices.cgc import PSU
+
+    logger, records = capture_logger()
+    psu = PSU("psu1", 15, port=0, logger=logger, test_mode=True)
+    status = psu.call_with_retry(lambda: -13, what="stub_setter")
+    assert status == -13
+    # purge() is a raw DLL export (real-hardware-only) — the retry loop
+    # must not touch it in test mode, and still reports the failure.
+    assert any("stub_setter returned -13 after 2 attempts" in r for r in records)
+
+
 def test_disconnect_close_failure_is_warning_only(dll_factory):
     logger, records = capture_logger()
     ampr = AMPR("AMPR1000", 8, logger=logger)
