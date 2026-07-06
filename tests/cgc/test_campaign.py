@@ -124,6 +124,43 @@ def test_watchdog_limits_are_the_cgc_numbers():
     assert P_LIMIT_W == 100.0
 
 
+def test_watchdog_purges_and_retries_on_bad_status():
+    # Poisoned-RX-buffer recovery (bench 2026-07-06): a nonzero status on
+    # real hardware purges the port and retries the read once.
+    psu, records = _sim_psu()
+    psu.test_mode = False  # take the real-hardware path in _read
+    calls = []
+    readings = iter([(-13, 0.0, 0.0, 0.0), (psu.NO_ERR, 100.0, 0.1, 3.0)])
+    psu.get_psu_data = lambda psu_num: next(readings)
+    psu.purge = lambda: calls.append("purge") or 0
+    dog = PSUWatchdog([psu])
+    reading = dog._read(psu, psu.PSU_POS)
+    assert calls == ["purge"]
+    assert reading is not None
+    assert reading["voltage_v"] == pytest.approx(100.0)
+    assert any("purging + retrying" in r for r in records)
+
+
+def test_watchdog_gives_up_after_failed_purge_retry():
+    psu, records = _sim_psu()
+    psu.test_mode = False
+    psu.get_psu_data = lambda psu_num: (-13, 0.0, 0.0, 0.0)
+    psu.purge = lambda: 0
+    dog = PSUWatchdog([psu])
+    assert dog._read(psu, psu.PSU_POS) is None
+    assert dog.check() == []  # bad reads never count as breaches
+    assert any("returned -13" in r for r in records)
+
+
+def test_watchdog_never_purges_in_test_mode():
+    # purge() is a raw DLL export — real-hardware-only. Simulated
+    # devices must never reach it, even on a nonzero status.
+    psu, _ = _sim_psu()
+    psu.get_psu_data = lambda psu_num: (psu.ERR_ARGUMENT, 0.0, 0.0, 0.0)
+    dog = PSUWatchdog([psu])
+    assert dog._read(psu, psu.PSU_POS) is None  # no AttributeError
+
+
 # =============================================================================
 #     Ramp helpers (recipe order: voltage at 1 kHz first, then frequency)
 # =============================================================================

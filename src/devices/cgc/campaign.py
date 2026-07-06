@@ -56,6 +56,14 @@ class PSUWatchdog:
     ``check()`` polls every output once and returns the list of breach
     dicts (empty = all clear). The campaign helpers call it between
     steps; the notebook also calls it from its monitor loop.
+
+    Every DLL touch runs under the device's ``thread_lock`` — the
+    campaign notebook polls the same supplies from a monitor thread, and
+    unlocked concurrent calls cross frames on the wire: the RX buffer
+    desyncs and every later query returns -13 (ERR_COMMAND_WRONG) until
+    a ``purge()`` (bench 2026-07-06; same failure mode as the AMPR12
+    storm, [[cgc-psu]]). ``_read`` therefore also purges + retries once
+    when a poll comes back with a nonzero status.
     """
 
     def __init__(self, psus, i_limit_ma=I_LIMIT_MA, p_limit_w=P_LIMIT_W,
@@ -86,7 +94,18 @@ class PSUWatchdog:
         return breaches
 
     def _read(self, psu, psu_num):
-        status, voltage, current_a, _ = psu.get_psu_data(psu_num)
+        with psu.thread_lock:
+            status, voltage, current_a, _ = psu.get_psu_data(psu_num)
+            if status != psu.NO_ERR and not psu.test_mode:
+                # Almost always the poisoned-RX-buffer desync (crossed
+                # frames): flush the port and give it one more try.
+                psu.log_event(
+                    "warning",
+                    f"watchdog: get_psu_data({psu_num}) returned {status} "
+                    "- purging + retrying",
+                )
+                psu.purge()
+                status, voltage, current_a, _ = psu.get_psu_data(psu_num)
         if status != psu.NO_ERR:
             psu.log_event(
                 "warning",
@@ -121,9 +140,11 @@ class PSUWatchdog:
                 "error",
                 "watchdog: second consecutive breach - disabling both outputs",
             )
-            psu.set_psu_enable(False, False)
+            with psu.thread_lock:
+                psu.set_psu_enable(False, False)
             return
-        status, v_set, _ = psu.get_psu_set_output_voltage(psu_num)
+        with psu.thread_lock:
+            status, v_set, _ = psu.get_psu_set_output_voltage(psu_num)
         if status == psu.NO_ERR and v_set > 0:
             new_target = round(v_set * 0.9, 3)
             psu.log_event(
@@ -131,7 +152,8 @@ class PSUWatchdog:
                 f"watchdog: stepping output {psu_num} down "
                 f"{v_set:.1f} V -> {new_target:.1f} V",
             )
-            psu.set_psu_output_voltage(psu_num, new_target)
+            with psu.thread_lock:
+                psu.set_psu_output_voltage(psu_num, new_target)
 
     def reset(self):
         """Forget consecutive-breach history (new measurement point)."""
@@ -139,12 +161,14 @@ class PSUWatchdog:
 
 
 def _set_switch_frequency(switch, frequency_khz, oscillator=None):
-    """Family dispatch: SW takes (khz), SWHR takes (oscillator, khz)."""
-    if getattr(switch, "FAMILY", "") == "SWHR":
-        return switch.set_frequency_khz(
-            0 if oscillator is None else oscillator, frequency_khz
-        )
-    return switch.set_frequency_khz(frequency_khz)
+    """Family dispatch: SW takes (khz), SWHR takes (oscillator, khz).
+    Locked — the campaign monitor thread polls the switch too."""
+    with switch.thread_lock:
+        if getattr(switch, "FAMILY", "") == "SWHR":
+            return switch.set_frequency_khz(
+                0 if oscillator is None else oscillator, frequency_khz
+            )
+        return switch.set_frequency_khz(frequency_khz)
 
 
 def ramp_voltage_at_1khz(switch, psu, psu_num, target_v, step_v=10.0,
@@ -172,12 +196,14 @@ def ramp_voltage_at_1khz(switch, psu, psu_num, target_v, step_v=10.0,
             f"could not set the {RAMP_FREQ_KHZ:.0f} kHz ramp frequency "
             f"(status {status}) - refusing to ramp voltage"
         )
-    status, v_now, _ = psu.get_psu_set_output_voltage(psu_num)
+    with psu.thread_lock:
+        status, v_now, _ = psu.get_psu_set_output_voltage(psu_num)
     if status != psu.NO_ERR:
         v_now = 0.0
     while v_now < target_v:
         v_now = min(v_now + step_v, target_v)
-        psu.set_psu_output_voltage(psu_num, round(v_now, 3))
+        with psu.thread_lock:
+            psu.set_psu_output_voltage(psu_num, round(v_now, 3))
         sleep(dwell_s)
         if watchdog is not None and watchdog.check():
             raise WatchdogBreach(
