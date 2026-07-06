@@ -266,6 +266,25 @@ class TestTPG366SensorControl:
         assert "Sensor_CH2_Press" not in press_channels
 
     @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_over_range_sentinel_not_logged(self, factory, monkeypatch, sink):
+        """The 2026-07-06 hardware finding (Collision_Cell, same telegram
+        format): a gauge with no valid measurement answers the all-nines
+        u_expo_new sentinel "999999" (= 9.999e+79 hPa) in checksum-valid
+        frames while reporting sensor ON. hk_monitor must skip it like the
+        0.0 sensor-off value — before the fix it lands in telemetry and
+        wrecks autoscaled pressure plots."""
+        monkeypatch.setattr(TPG366, "read_pressure_value", lambda self, channel: 9.999e79)
+
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        on_rows = {row[1]: row[2] for row in rows if row[1].endswith("_On")}
+        assert on_rows  # sensor states still logged
+        assert not any(row[1].endswith("_Press") for row in rows)
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
     def test_state_read_failure_falls_back_to_pressure_read(self, factory, monkeypatch, sink):
         """A transient get_sensor_on() failure must not black-hole real
         pressure data: hk_monitor falls back to the old read-and-log
@@ -420,6 +439,27 @@ class TestHiPaceSimState:
         rows = _read_samples(sink)
         by_channel = {row[1]: row for row in rows}
         assert by_channel["Gauge_Sensor_On"][2] == 0
+        assert "Gauge_Pressure" not in by_channel
+
+    @pytest.mark.parametrize("factory", HIPACE_FACTORIES)
+    def test_gauge_over_range_sentinel_not_logged(self, factory, monkeypatch, sink):
+        """The 2026-07-06 hardware finding (Collision_Cell at atmosphere):
+        the over-ranged cold-cathode gauge answers the all-nines u_expo_new
+        sentinel "999999" (= 9.999e+79 hPa) in checksum-valid frames while
+        Gauge_Sensor_On stays 1. hk_monitor must skip it like the 0.0
+        sensor-off value — before the fix, 126 bogus samples landed in
+        telemetry.db in one morning."""
+        device = factory(sink=sink, test_mode=True)
+        device.connect()
+
+        assert device.get_SensOnOff() is True  # gauge reports measuring
+        monkeypatch.setattr(type(device), "get_gauge_pressure", lambda self: 9.999e79)
+
+        device.hk_monitor()
+
+        rows = _read_samples(sink)
+        by_channel = {row[1]: row for row in rows}
+        assert by_channel["Gauge_Sensor_On"][2] == 1
         assert "Gauge_Pressure" not in by_channel
 
     @pytest.mark.parametrize(

@@ -467,7 +467,7 @@ class TPG366(PfeifferBaseDevice):
                 self.log_event("warning", f"Sensor_CH{channel}_On read failed: {e}")
                 try:
                     value = self.read_pressure_value(channel)
-                    if value != 0.0:
+                    if value != 0.0 and not self.data_converter.is_pressure_sentinel(value):
                         self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")
                 except Exception as e2:
                     self.log_event("warning", f"Sensor_CH{channel}_Press read failed: {e2}")
@@ -479,8 +479,10 @@ class TPG366(PfeifferBaseDevice):
 
             try:
                 value = self.read_pressure_value(channel)
-                if value == 0.0:
-                    # Zero mantissa (never measured since power-up) — skip it (log-scale plots break on 0.0).
+                if value == 0.0 or self.data_converter.is_pressure_sentinel(value):
+                    # Zero mantissa (never measured since power-up) or the all-nines
+                    # over-range sentinel — skip it, never a real measurement
+                    # (log-scale plots break on 0.0, autoscale on 9.999e+79).
                     pass
                 else:
                     self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")

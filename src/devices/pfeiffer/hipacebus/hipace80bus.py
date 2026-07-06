@@ -924,14 +924,17 @@ class HiPace80Bus(PfeifferBaseDevice):
         # value, frozen, instead of a zero-mantissa telegram — so gate the
         # pressure read/log on the reported on/off state (same rule as
         # TPG366), not on value==0.0. 0.0 (never measured since power-up)
-        # is still skipped, it is never a real measurement either.
+        # is still skipped, it is never a real measurement either. An
+        # over-ranged gauge (cold cathode at atmosphere) answers the
+        # all-nines u_expo_new sentinel (9.999e+79 hPa) in valid frames —
+        # skipped the same way (found 2026-07-06, Collision_Cell).
         if self.gauge1_address:
             try:
                 on = self.get_SensOnOff()
                 self.log_sample("Gauge_Sensor_On", 1.0 if on else 0.0)
                 if on:
                     pressure = self.get_gauge_pressure()
-                    if pressure != 0.0:
+                    if pressure != 0.0 and not self.data_converter.is_pressure_sentinel(pressure):
                         self.log_sample("Gauge_Pressure", pressure, "hPa", fmt=".2e")
             except Exception as e:
                 self.log_event("warning", f"gauge read failed: {e}")

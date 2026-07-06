@@ -252,6 +252,26 @@ class PfeifferDataConverter:
 
         return mantissa * (10**exponent)
 
+    # u_expo_new sentinel: exponent digits >= 98 (10^78 and up) never encode a
+    # real pressure — the device reports "no valid measurement". Observed on
+    # hardware as the all-nines telegram "999999" (= 9.999e+79) from the
+    # Collision_Cell cold-cathode gauge over-ranged at atmosphere
+    # (2026-07-04 + 2026-07-06, checksum-valid frames).
+    PRESSURE_SENTINEL_MIN_HPA = 1e75
+
+    def is_pressure_sentinel(self, value: float) -> bool:
+        """
+        Check whether a converted u_expo_new pressure is a device sentinel.
+
+        Args:
+            value: Pressure in hPa as returned by u_expo_new_2_float.
+
+        Returns:
+            bool: True if the value is a "no valid measurement" sentinel
+            (over-range/under-range), never a real pressure.
+        """
+        return value >= self.PRESSURE_SENTINEL_MIN_HPA
+
     # Type 11: string16
     def str_2_string16(self, val: str) -> str:
         """
