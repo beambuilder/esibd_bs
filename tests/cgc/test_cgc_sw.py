@@ -446,6 +446,151 @@ def test_sw_set_rf_purge_retry_recovers_emi_failure(dll_factory):
     assert any("purging port and retrying" in r for r in records)
 
 
+# =============================================================================
+#     SWHR.set_rf (P6.10 session 3: timer-width re-fit mirror of SW.set_rf)
+# =============================================================================
+
+def test_swhr_set_rf_sim_roundtrip(forbid_windll):
+    logger, _ = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger, test_mode=True)
+    swhr.connect()
+    assert swhr.set_rf(100) == swhr.NO_ERR
+    status, period = swhr.get_oscillator_period(0)
+    assert period == round(swhr.DEF_CLOCK / 100e3 - swhr.OSC_OFFSET)  # 998
+    status, width = swhr.get_timer_width(0)
+    assert width == round(0.5 * (period + swhr.OSC_OFFSET) - swhr.TIMER_WIDTH_OFFSET)
+    assert swhr.get_timer_delay(0) == (swhr.NO_ERR, 1)  # delay untouched
+
+
+def test_swhr_set_rf_sim_custom_duty_timer_oscillator(forbid_windll):
+    logger, _ = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger, test_mode=True)
+    swhr.connect()
+    assert swhr.set_rf(10, duty=0.2, oscillator=1, timer=2) == swhr.NO_ERR
+    status, period = swhr.get_oscillator_period(1)
+    assert period == round(swhr.DEF_CLOCK / 10e3 - swhr.OSC_OFFSET)  # 9998
+    status, width = swhr.get_timer_width(2)
+    assert width == round(0.2 * (period + swhr.OSC_OFFSET) - swhr.TIMER_WIDTH_OFFSET)
+    # Oscillator 0 and timer 0 untouched by a move on 1/2.
+    assert swhr.get_oscillator_period(0) == (
+        swhr.NO_ERR, round(swhr.DEF_CLOCK / 1e3 - swhr.OSC_OFFSET))
+    assert swhr.get_timer_width(0) == (swhr.NO_ERR, 0)
+
+
+def test_swhr_set_rf_rejects_bad_arguments_without_touching_state(forbid_windll):
+    logger, _ = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger, test_mode=True)
+    swhr.connect()
+    status, period_before = swhr.get_oscillator_period(0)
+    for bad_call in (
+        lambda: swhr.set_rf(100, oscillator=-1),
+        lambda: swhr.set_rf(100, oscillator=swhr.CLOCK_NUM),
+        lambda: swhr.set_rf(100, timer=-1),
+        lambda: swhr.set_rf(100, timer=swhr.TIMER_NUM),
+        lambda: swhr.set_rf(100, duty=0.0),
+        lambda: swhr.set_rf(100, duty=1.0),
+        lambda: swhr.set_rf(0),
+        lambda: swhr.set_rf(-5),
+    ):
+        assert bad_call() == swhr.ERR_ARGUMENT
+    assert swhr.get_oscillator_period(0) == (swhr.NO_ERR, period_before)
+    assert swhr.get_timer_width(0) == (swhr.NO_ERR, 0)
+
+
+def test_swhr_set_rf_monoflop_reject(forbid_windll):
+    # Same registers as the ED: at 1 MHz / 50 % the width register is 48;
+    # delay 47 makes (47+3) + (48+2) = 100 = period+2 -> silently ignored.
+    logger, records = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger, test_mode=True)
+    swhr.connect()
+    status, period_before = swhr.get_oscillator_period(0)
+    swhr.set_timer_delay(0, 47)
+    assert swhr.set_rf(1000) == swhr.ERR_ARGUMENT
+    assert any("monoflop rule violated" in r for r in records)
+    assert swhr.get_oscillator_period(0) == (swhr.NO_ERR, period_before)
+    assert swhr.get_timer_width(0) == (swhr.NO_ERR, 0)
+    # A shorter width fits: duty 0.3 -> width 28, 3+50+30 = 80 < 100.
+    assert swhr.set_rf(1000, duty=0.3) == swhr.NO_ERR
+
+
+def test_swhr_set_rf_stuck_high_reject(forbid_windll):
+    logger, records = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger, test_mode=True)
+    swhr.connect()
+    swhr.set_timer_delay(0, 0)
+    assert swhr.set_rf(100) == swhr.ERR_ARGUMENT
+    assert any("stick the output HIGH" in r for r in records)
+
+
+def test_swhr_set_duty_cycle_reads_the_named_oscillator(forbid_windll):
+    logger, _ = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger, test_mode=True)
+    swhr.connect()
+    swhr.set_frequency_khz(1, 100)  # oscillator 1 at 100 kHz, osc 0 stays 1 kHz
+    assert swhr.set_duty_cycle(0, 0.5, oscillator=1) == swhr.NO_ERR
+    status, width = swhr.get_timer_width(0)
+    period = round(swhr.DEF_CLOCK / 100e3 - swhr.OSC_OFFSET)
+    assert width == round(0.5 * (period + swhr.OSC_OFFSET) - swhr.TIMER_WIDTH_OFFSET)
+    assert swhr.set_delay_minimum(0) == swhr.NO_ERR
+    assert swhr.get_timer_delay(0) == (swhr.NO_ERR, 1)
+
+
+def test_swhr_set_rf_order_on_wire(dll_factory):
+    logger, _ = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger)
+    assert swhr.connect() is True
+
+    def delay_handler(stream, timer, delay):
+        delay._obj.value = 7
+        return 0
+
+    def period_handler(stream, oscillator, period):
+        period._obj.value = 998  # set_duty_cycle re-reads the fresh period
+        return 0
+
+    dll_factory.last.handlers["COM_HVAMX4EDH_GetTimerDelay"] = delay_handler
+    dll_factory.last.handlers["COM_HVAMX4EDH_GetOscillatorPeriod"] = period_handler
+    assert swhr.set_rf(100) == swhr.NO_ERR
+    names = [n for n in dll_factory.last.call_names()
+             if n not in ("COM_HVAMX4EDH_Open", "COM_HVAMX4EDH_SetBaudRate")]
+    assert names == [
+        "COM_HVAMX4EDH_GetTimerDelay",       # monoflop validation
+        "COM_HVAMX4EDH_SetTimerWidth",       # width -> 1 first
+        "COM_HVAMX4EDH_SetOscillatorPeriod",  # then the period moves
+        "COM_HVAMX4EDH_GetOscillatorPeriod",  # duty re-fit reads it back
+        "COM_HVAMX4EDH_SetTimerWidth",       # width re-fit
+    ]
+    width_calls = [args for name, args in dll_factory.last.calls
+                   if name == "COM_HVAMX4EDH_SetTimerWidth"]
+    assert width_calls[0][2].value == 1
+    assert width_calls[1][2].value == 498  # 0.5 * (998+2) - 2
+
+
+def test_swhr_set_rf_purge_retry_recovers_emi_failure(dll_factory):
+    logger, records = capture_logger()
+    swhr = SWHR("swA", 20, logger=logger)
+    assert swhr.connect() is True
+    failures = {"count": 0}
+
+    def flaky_set_period(stream, oscillator, period):
+        if failures["count"] == 0:
+            failures["count"] += 1
+            return -13  # ERR_COMMAND_WRONG: corrupted exchange under HV
+        return 0
+
+    def delay_handler(stream, timer, delay):
+        delay._obj.value = 7  # without this the delay reads 0 -> stuck-HIGH reject
+        return 0
+
+    dll_factory.last.handlers["COM_HVAMX4EDH_GetTimerDelay"] = delay_handler
+    dll_factory.last.handlers["COM_HVAMX4EDH_SetOscillatorPeriod"] = flaky_set_period
+    assert swhr.set_rf(100) == swhr.NO_ERR
+    names = dll_factory.last.call_names()
+    assert names.count("COM_HVAMX4EDH_SetOscillatorPeriod") == 2
+    assert "COM_HVAMX4EDH_Purge" in names  # purge between the attempts
+    assert any("purging port and retrying" in r for r in records)
+
+
 def test_sim_raw_dll_exports_are_real_hardware_only(forbid_windll):
     logger, _ = capture_logger()
     sw = SW("swB", 19, logger=logger, test_mode=True)

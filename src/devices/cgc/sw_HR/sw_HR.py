@@ -17,9 +17,9 @@ counters, timers, mapping engines and 11 ps fine delay steps
 
 SAFETY ([[cgc-sw]], CGC email): per-switch-channel dissipation < 100 W,
 current <= 300 mA at 350 V; ramp voltage at 1 kHz FIRST, then frequency.
-swA's NVM has NO SwitchSym RF configs yet (cloning swB's ladder is the
-campaign's first task) and swA sensor 2 is broken — construct with
-``skip_sensors=(2,)``.
+swA's NVM carries its own SwitchSym RF ladder (python 269-277 + HF
+279-288; 277 = 1 MHz, the 023-proven campaign baseline). swA sensor 2 is
+broken — construct with ``skip_sensors=(2,)``.
 """
 from typing import Optional
 import logging
@@ -50,6 +50,10 @@ class SWHR(CGCDevice, SWHRBase):
 
     FAMILY = "SWHR"
     DLL_BASE = SWHRBase
+    # Timer count is device-queried (get_timer_count); 4 matches every
+    # other 4EDH resource block (clocks/PLLs/dividers/counters) and the
+    # campaign hardware. Used for argument validation and the sim dicts.
+    TIMER_NUM = 4
 
     def __init__(
         self,
@@ -97,10 +101,8 @@ class SWHR(CGCDevice, SWHRBase):
             i: int(self.DEF_CLOCK / 1000.0 - self.OSC_OFFSET)
             for i in range(self.CLOCK_NUM)
         }
-        # Timer count is device-queried (get_timer_count); the sim models 4,
-        # matching the other 4EDH resource blocks (clocks/PLLs/dividers).
-        self._sim_timer_delay = {i: 1 for i in range(4)}
-        self._sim_timer_width = {i: 0 for i in range(4)}
+        self._sim_timer_delay = {i: 1 for i in range(self.TIMER_NUM)}
+        self._sim_timer_width = {i: 0 for i in range(self.TIMER_NUM)}
         self._sim_switch_delay = {
             i: (0, 0) for i in range(self.SWITCH_NUM)
         }
@@ -447,9 +449,8 @@ class SWHR(CGCDevice, SWHRBase):
         return status
 
     def load_current_config(self, config_number):
-        """Load one NVM config slot. NOTE: swA's NVM has no SwitchSym RF
-        configs yet ([[cgc-sw]]) — cloning swB's ladder is the campaign's
-        first task."""
+        """Load one NVM config slot (swA's SwitchSym RF ladder: 0=Standby,
+        269-277 = 1 kHz - 1 MHz, 279-288 = HF, [[cgc-sw]])."""
         self.log_event("info", f"loading config slot {config_number}")
         if self.test_mode:
             self._sim_config = int(config_number)
@@ -506,3 +507,137 @@ class SWHR(CGCDevice, SWHRBase):
             )
             return self.ERR_ARGUMENT
         return self.set_oscillator_period(oscillator, period)
+
+    def set_rf(self, frequency_khz, duty=0.5, oscillator=0, timer=0):
+        """
+        Symmetric frequency move — the timer-width mirror of ``SW.set_rf``
+        (the EDH drives its switches from timers, not pulsers; register
+        offsets are identical to the ED, [[cgc-sw]]): the NVM configs fix
+        the width REGISTER (50 % only at their own period — hardware-
+        confirmed in M5-A, where the campaign swept constant ~500 ns
+        pulses), so the width must be re-fit after every period change —
+        width goes minimal first so width >= period (stuck-HIGH output)
+        can never happen mid-move, then the period moves, then the duty
+        is re-fit.
+
+        Validates before touching the device: oscillator/timer/duty/
+        frequency ranges, the stuck-HIGH trap (current delay 0 with a
+        nonzero width) and the monoflop rule
+        ``Period+2 > (Delay+3) + (Width+2)`` against the NEW period and
+        the CURRENT delay — a violated rule means silently ignored
+        triggers ([[cgc-sw]]).
+
+        Each step runs via ``call_with_retry`` (locked, purge-retry on
+        EMI serial corruption); the caller must NOT hold ``thread_lock``.
+        Returns the first nonzero status, or ``NO_ERR``.
+        """
+        if oscillator < 0 or oscillator >= self.CLOCK_NUM:
+            self.log_event(
+                "error",
+                f"invalid oscillator number: {oscillator} "
+                f"(must be 0-{self.CLOCK_NUM - 1})",
+            )
+            return self.ERR_ARGUMENT
+        if timer < 0 or timer >= self.TIMER_NUM:
+            self.log_event(
+                "error",
+                f"invalid timer number: {timer} "
+                f"(must be 0-{self.TIMER_NUM - 1})",
+            )
+            return self.ERR_ARGUMENT
+        if duty <= 0.0 or duty >= 1.0:
+            self.log_event(
+                "error",
+                f"invalid duty cycle: {duty} "
+                "(must be in exclusive range 0.0 to 1.0)",
+            )
+            return self.ERR_ARGUMENT
+        if frequency_khz <= 0:
+            self.log_event(
+                "error", f"invalid frequency: {frequency_khz} kHz (must be > 0)"
+            )
+            return self.ERR_ARGUMENT
+        period = round(self.DEF_CLOCK / (frequency_khz * 1000) - self.OSC_OFFSET)
+        if period < 1 or period > 0xFFFFFFFF:
+            self.log_event(
+                "error",
+                f"frequency {frequency_khz} kHz gives out-of-range period "
+                f"register {period}",
+            )
+            return self.ERR_ARGUMENT
+        width = max(
+            1, round(duty * (period + self.OSC_OFFSET) - self.TIMER_WIDTH_OFFSET)
+        )
+        status, delay = self.call_with_retry(self.get_timer_delay, timer)
+        if status != self.NO_ERR:
+            return status
+        if delay == 0:
+            self.log_event(
+                "error",
+                f"timer {timer} delay register is 0 — a nonzero width "
+                "would stick the output HIGH (DC on the load); set a "
+                "delay >= 1 first",
+            )
+            return self.ERR_ARGUMENT
+        if (period + self.OSC_OFFSET) <= (
+            (delay + self.TIMER_DELAY_OFFSET) + (width + self.TIMER_WIDTH_OFFSET)
+        ):
+            self.log_event(
+                "error",
+                f"monoflop rule violated for {frequency_khz} kHz at duty "
+                f"{duty}: period+{self.OSC_OFFSET} = {period + self.OSC_OFFSET} "
+                f"must exceed (delay+{self.TIMER_DELAY_OFFSET}) + "
+                f"(width+{self.TIMER_WIDTH_OFFSET}) = "
+                f"{delay + self.TIMER_DELAY_OFFSET + width + self.TIMER_WIDTH_OFFSET}"
+                " — triggers would be silently ignored",
+            )
+            return self.ERR_ARGUMENT
+        status = self.call_with_retry(self.set_timer_width, timer, 1)
+        if status != self.NO_ERR:
+            return status
+        status = self.call_with_retry(self.set_frequency_khz, oscillator, frequency_khz)
+        if status != self.NO_ERR:
+            return status
+        return self.call_with_retry(self.set_duty_cycle, timer, duty, oscillator)
+
+    def set_delay_minimum(self, timer):
+        """Set one timer's delay to the minimum (register 1 =
+        ``(1 + TIMER_DELAY_OFFSET) * 10`` ns). Returns the status."""
+        if timer < 0 or timer >= self.TIMER_NUM:
+            self.log_event(
+                "error",
+                f"invalid timer number: {timer} "
+                f"(must be 0-{self.TIMER_NUM - 1})",
+            )
+            return self.ERR_ARGUMENT
+        return self.set_timer_delay(timer, 1)
+
+    def set_duty_cycle(self, timer, duty_cycle, oscillator=0):
+        """
+        Set one timer's duty cycle relative to one oscillator's current
+        period: ``Width_register = duty * (Period_register + OSC_OFFSET)
+        - TIMER_WIDTH_OFFSET``. Returns the status.
+        """
+        if timer < 0 or timer >= self.TIMER_NUM:
+            self.log_event(
+                "error",
+                f"invalid timer number: {timer} "
+                f"(must be 0-{self.TIMER_NUM - 1})",
+            )
+            return self.ERR_ARGUMENT
+        if duty_cycle <= 0.0 or duty_cycle >= 1.0:
+            self.log_event(
+                "error",
+                f"invalid duty cycle: {duty_cycle} "
+                "(must be in exclusive range 0.0 to 1.0)",
+            )
+            return self.ERR_ARGUMENT
+        status, period = self.get_oscillator_period(oscillator)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error", f"failed to read oscillator period: status {status}"
+            )
+            return status
+        width = duty_cycle * (period + self.OSC_OFFSET) - self.TIMER_WIDTH_OFFSET
+        width = max(1, round(width))
+        return self.set_timer_width(timer, width)
