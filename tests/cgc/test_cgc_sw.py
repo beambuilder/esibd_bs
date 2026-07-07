@@ -318,6 +318,134 @@ def test_sim_hk_channels_and_sim_flag(forbid_windll, sink, tmp_path):
     assert any(r.startswith("[SIM] swB") for r in records)
 
 
+# =============================================================================
+#     set_rf (P6.10: hoisted notebook-025 swb_set_frequency, width re-fit)
+# =============================================================================
+
+def test_sw_set_rf_sim_roundtrip(forbid_windll):
+    logger, _ = capture_logger()
+    sw = SW("swB", 19, logger=logger, test_mode=True)
+    sw.connect()
+    assert sw.set_rf(100) == sw.NO_ERR
+    status, period = sw.get_oscillator_period()
+    assert period == round(sw.CLOCK / 100e3 - sw.OSC_OFFSET)  # 998
+    status, width = sw.get_pulser_width(0)
+    assert width == round(0.5 * (period + sw.OSC_OFFSET) - sw.PULSER_WIDTH_OFFSET)
+    assert sw.get_pulser_delay(0) == (sw.NO_ERR, 1)  # delay untouched
+
+
+def test_sw_set_rf_sim_custom_duty_and_pulser(forbid_windll):
+    logger, _ = capture_logger()
+    sw = SW("swB", 19, logger=logger, test_mode=True)
+    sw.connect()
+    assert sw.set_rf(10, duty=0.2, pulser=1) == sw.NO_ERR
+    status, period = sw.get_oscillator_period()
+    assert period == round(sw.CLOCK / 10e3 - sw.OSC_OFFSET)  # 9998
+    status, width = sw.get_pulser_width(1)
+    assert width == round(0.2 * (period + sw.OSC_OFFSET) - sw.PULSER_WIDTH_OFFSET)
+    # Pulser 0 untouched by a move on pulser 1.
+    assert sw.get_pulser_width(0) == (sw.NO_ERR, 0)
+
+
+def test_sw_set_rf_rejects_bad_arguments_without_touching_state(forbid_windll):
+    logger, _ = capture_logger()
+    sw = SW("swB", 19, logger=logger, test_mode=True)
+    sw.connect()
+    status, period_before = sw.get_oscillator_period()
+    for bad_call in (
+        lambda: sw.set_rf(100, pulser=-1),
+        lambda: sw.set_rf(100, pulser=sw.PULSER_NUM),
+        lambda: sw.set_rf(100, duty=0.0),
+        lambda: sw.set_rf(100, duty=1.0),
+        lambda: sw.set_rf(0),
+        lambda: sw.set_rf(-5),
+    ):
+        assert bad_call() == sw.ERR_ARGUMENT
+    assert sw.get_oscillator_period() == (sw.NO_ERR, period_before)
+    assert sw.get_pulser_width(0) == (sw.NO_ERR, 0)
+
+
+def test_sw_set_rf_monoflop_reject(forbid_windll):
+    # At 1 MHz / 50 % the width register is 48; a delay of 47 makes
+    # (delay+3) + (width+2) = 100 = period+2 -> triggers silently ignored.
+    logger, records = capture_logger()
+    sw = SW("swB", 19, logger=logger, test_mode=True)
+    sw.connect()
+    status, period_before = sw.get_oscillator_period()
+    sw.set_pulser_delay(0, 47)
+    assert sw.set_rf(1000) == sw.ERR_ARGUMENT
+    assert any("monoflop rule violated" in r for r in records)
+    assert sw.get_oscillator_period() == (sw.NO_ERR, period_before)
+    assert sw.get_pulser_width(0) == (sw.NO_ERR, 0)
+    # A shorter width fits: duty 0.3 -> width 28, 3+50+30 = 80 < 100.
+    assert sw.set_rf(1000, duty=0.3) == sw.NO_ERR
+
+
+def test_sw_set_rf_stuck_high_reject(forbid_windll):
+    logger, records = capture_logger()
+    sw = SW("swB", 19, logger=logger, test_mode=True)
+    sw.connect()
+    sw.set_pulser_delay(0, 0)
+    assert sw.set_rf(100) == sw.ERR_ARGUMENT
+    assert any("stick the output HIGH" in r for r in records)
+
+
+def test_sw_set_rf_order_on_wire(dll_factory):
+    logger, _ = capture_logger()
+    sw = SW("swB", 19, logger=logger)
+    assert sw.connect() is True
+
+    def delay_handler(port, pulser_no, delay):
+        delay._obj.value = 7
+        return 0
+
+    def period_handler(port, period):
+        period._obj.value = 998  # set_duty_cycle re-reads the fresh period
+        return 0
+
+    dll_factory.last.handlers["COM_HVAMX4ED_GetPulserDelay"] = delay_handler
+    dll_factory.last.handlers["COM_HVAMX4ED_GetOscillatorPeriod"] = period_handler
+    assert sw.set_rf(100) == sw.NO_ERR
+    names = [n for n in dll_factory.last.call_names()
+             if n not in ("COM_HVAMX4ED_Open", "COM_HVAMX4ED_SetBaudRate")]
+    assert names == [
+        "COM_HVAMX4ED_GetPulserDelay",       # monoflop validation
+        "COM_HVAMX4ED_SetPulserWidth",       # width -> 1 first
+        "COM_HVAMX4ED_SetOscillatorPeriod",  # then the period moves
+        "COM_HVAMX4ED_GetOscillatorPeriod",  # duty re-fit reads it back
+        "COM_HVAMX4ED_SetPulserWidth",       # width re-fit
+    ]
+    width_calls = [args for name, args in dll_factory.last.calls
+                   if name == "COM_HVAMX4ED_SetPulserWidth"]
+    assert width_calls[0][2].value == 1
+    assert width_calls[1][2].value == 498  # 0.5 * (998+2) - 2
+
+
+def test_sw_set_rf_purge_retry_recovers_emi_failure(dll_factory):
+    logger, records = capture_logger()
+    sw = SW("swB", 19, logger=logger)
+    assert sw.connect() is True
+    failures = {"count": 0}
+
+    def flaky_set_period(port, period):
+        if failures["count"] == 0:
+            failures["count"] += 1
+            return -13  # ERR_COMMAND_WRONG: corrupted exchange under HV
+        return 0
+
+    def delay_handler(port, pulser_no, delay):
+        delay._obj.value = 7  # without this the delay reads 0 -> stuck-HIGH reject
+        return 0
+
+    dll_factory.last.handlers["COM_HVAMX4ED_GetPulserDelay"] = delay_handler
+    dll_factory.last.handlers["COM_HVAMX4ED_SetOscillatorPeriod"] = flaky_set_period
+    assert sw.set_rf(100) == sw.NO_ERR
+    names = dll_factory.last.call_names()
+    assert names.count("COM_HVAMX4ED_SetOscillatorPeriod") == 2
+    assert "COM_HVAMX4ED_Purge" in names  # purge between the attempts
+    assert any("purging port and retrying" in r for r in records)
+
+
 def test_sim_raw_dll_exports_are_real_hardware_only(forbid_windll):
     logger, _ = capture_logger()
     sw = SW("swB", 19, logger=logger, test_mode=True)

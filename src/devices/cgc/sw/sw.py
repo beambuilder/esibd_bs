@@ -451,6 +451,88 @@ class SW(CGCDevice, SWBase):
             return self.ERR_ARGUMENT
         return self.set_oscillator_period(period)
 
+    def set_rf(self, frequency_khz, duty=0.5, pulser=0):
+        """
+        Symmetric frequency move (hoisted from notebook 025's
+        ``swb_set_frequency``): the NVM configs fix the width REGISTER
+        (50 % only at their own period), so the width must be re-fit
+        after every period change — width goes minimal first so
+        width >= period (stuck-HIGH output) can never happen mid-move,
+        then the period moves, then the duty is re-fit.
+
+        Validates before touching the device: pulser/duty/frequency
+        ranges, the stuck-HIGH trap (current delay 0 with a nonzero
+        width) and the monoflop rule ``Period+2 > (Delay+3) + (Width+2)``
+        against the NEW period and the CURRENT delay — a violated rule
+        means silently ignored triggers ([[cgc-sw]]).
+
+        Each step runs via ``call_with_retry`` (locked, purge-retry on
+        EMI serial corruption); the caller must NOT hold ``thread_lock``.
+        Returns the first nonzero status, or ``NO_ERR``.
+        """
+        if pulser < 0 or pulser >= self.PULSER_NUM:
+            self.log_event(
+                "error",
+                f"invalid pulser number: {pulser} "
+                f"(must be 0-{self.PULSER_NUM - 1})",
+            )
+            return self.ERR_ARGUMENT
+        if duty <= 0.0 or duty >= 1.0:
+            self.log_event(
+                "error",
+                f"invalid duty cycle: {duty} "
+                "(must be in exclusive range 0.0 to 1.0)",
+            )
+            return self.ERR_ARGUMENT
+        if frequency_khz <= 0:
+            self.log_event(
+                "error", f"invalid frequency: {frequency_khz} kHz (must be > 0)"
+            )
+            return self.ERR_ARGUMENT
+        period = round(self.CLOCK / (frequency_khz * 1000) - self.OSC_OFFSET)
+        if period < 1 or period > 0xFFFFFFFF:
+            self.log_event(
+                "error",
+                f"frequency {frequency_khz} kHz gives out-of-range period "
+                f"register {period}",
+            )
+            return self.ERR_ARGUMENT
+        width = max(
+            1, round(duty * (period + self.OSC_OFFSET) - self.PULSER_WIDTH_OFFSET)
+        )
+        result = self.call_with_retry(self.get_pulser_delay, pulser)
+        status, delay = result
+        if status != self.NO_ERR:
+            return status
+        if delay == 0:
+            self.log_event(
+                "error",
+                f"pulser {pulser} delay register is 0 — a nonzero width "
+                "would stick the output HIGH (DC on the load); set a "
+                "delay >= 1 first",
+            )
+            return self.ERR_ARGUMENT
+        if (period + self.OSC_OFFSET) <= (
+            (delay + self.PULSER_DELAY_OFFSET) + (width + self.PULSER_WIDTH_OFFSET)
+        ):
+            self.log_event(
+                "error",
+                f"monoflop rule violated for {frequency_khz} kHz at duty "
+                f"{duty}: period+{self.OSC_OFFSET} = {period + self.OSC_OFFSET} "
+                f"must exceed (delay+{self.PULSER_DELAY_OFFSET}) + "
+                f"(width+{self.PULSER_WIDTH_OFFSET}) = "
+                f"{delay + self.PULSER_DELAY_OFFSET + width + self.PULSER_WIDTH_OFFSET}"
+                " — triggers would be silently ignored",
+            )
+            return self.ERR_ARGUMENT
+        status = self.call_with_retry(self.set_pulser_width, pulser, 1)
+        if status != self.NO_ERR:
+            return status
+        status = self.call_with_retry(self.set_frequency_khz, frequency_khz)
+        if status != self.NO_ERR:
+            return status
+        return self.call_with_retry(self.set_duty_cycle, pulser, duty)
+
     def set_delay_minimum(self, pulser_no):
         """Set one pulser's delay to the minimum (register 1 =
         ``(1 + PULSER_DELAY_OFFSET) * 10`` ns). Returns the status."""
