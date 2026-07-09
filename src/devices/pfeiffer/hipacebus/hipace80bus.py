@@ -106,6 +106,7 @@ class HiPace80Bus(PfeifferBaseDevice):
             "motor_pump": True,  # TC80 default is enabled
             "standby": False,
             "vent": False,
+            "vent_mode": 2,  # TC80 factory default: direct venting
             "heating": False,
             "gauge_on": True,
             # Accessory-port configs (params 35/36/68/69) — defaults mirror
@@ -125,6 +126,7 @@ class HiPace80Bus(PfeifferBaseDevice):
         ("tc80", 10): ("pump_on", "boolean_old"),
         ("tc80", 12): ("vent", "boolean_old"),
         ("tc80", 23): ("motor_pump", "boolean_old"),
+        ("tc80", 30): ("vent_mode", "u_short_int"),
         ("tc80", 35): ("acc_a1", "u_short_int"),
         ("tc80", 36): ("acc_b1", "u_short_int"),
         ("tc80", 68): ("acc_c1", "u_short_int"),
@@ -844,6 +846,9 @@ class HiPace80Bus(PfeifferBaseDevice):
         ("Standby_Mode", "", "", "get_standby"),
         ("Motor_Pump_Enabled", "", "", "get_motor_pump_enabled"),
         ("Vent_Enabled", "", "", "get_vent_enabled"),
+        # VentMode [P:030] readback drives the dashboard's vent-mode
+        # dropdown (same set-then-verify rails as the Cfg_* channels).
+        ("Vent_Mode", "", "", "get_vent_mode"),
         ("Speed_Actual_Hz", "Hz", "", "get_actual_speed_hz"),
         ("Speed_Actual_RPM", "rpm", "", "get_actual_speed_rpm"),
         ("Speed_Set_Hz", "Hz", "", "get_set_speed_hz"),
@@ -896,6 +901,7 @@ class HiPace80Bus(PfeifferBaseDevice):
             "Standby_Mode": self._sim_state["standby"],
             "Motor_Pump_Enabled": self._sim_state["motor_pump"],
             "Vent_Enabled": self._sim_state["vent"],
+            "Vent_Mode": self._sim_state["vent_mode"],
             "Speed_Actual_Hz": speed_hz,
             "Speed_Actual_RPM": speed_hz * 60,
             "Speed_Set_Hz": self.SIM_NOMINAL_SPEED_HZ,

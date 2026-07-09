@@ -225,7 +225,10 @@ class HiPace80DCU(HiPace80Bus):
         self.comm_retry_delay = comm_retry_delay
         # Sim defaults mirror the MPI-loadlock wiring: A1 = venting valve,
         # B1 = heating, DO1 = free (rotation-speed switch point).
-        self._sim_state.update({"acc_a1": 1, "acc_b1": 2, "do1": 0})
+        # vent_mode: TC110 factory default is delayed (0), not the TC80's
+        # direct (2) — manual p.24.
+        self._sim_state.update({"acc_a1": 1, "acc_b1": 2, "do1": 0,
+                                "vent_mode": 0})
 
     # -------------------------------------------------------------------------
     #     TC110 accessory / output configuration
