@@ -9,5 +9,6 @@ electronics and parameter set).
 
 from .hipace300bus import HiPace300Bus
 from .hipace80bus import HiPace80Bus
+from .hipace80dcu import HiPace80DCU
 
-__all__ = ["HiPace300Bus", "HiPace80Bus"]
+__all__ = ["HiPace300Bus", "HiPace80Bus", "HiPace80DCU"]

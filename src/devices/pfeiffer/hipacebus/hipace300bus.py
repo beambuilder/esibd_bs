@@ -101,6 +101,12 @@ class HiPace300Bus(PfeifferBaseDevice):
             "vent": False,
             "heating": False,
             "gauge_on": True,
+            # Accessory-port configs (params 35-38) — defaults mirror the
+            # lab HiPace300s (A1 = heating band, rest = always "0").
+            "acc_a1": 2,
+            "acc_b1": 6,
+            "acc_a2": 6,
+            "acc_b2": 6,
         }
 
     #: (channel, param) -> (_sim_state key, encoding) for parameters that are
@@ -111,6 +117,10 @@ class HiPace300Bus(PfeifferBaseDevice):
         ("tc400", 10): ("pump_on", "boolean_old"),
         ("tc400", 12): ("vent", "boolean_old"),
         ("tc400", 23): ("motor_pump", "boolean_old"),
+        ("tc400", 35): ("acc_a1", "u_short_int"),
+        ("tc400", 36): ("acc_b1", "u_short_int"),
+        ("tc400", 37): ("acc_a2", "u_short_int"),
+        ("tc400", 38): ("acc_b2", "u_short_int"),
         ("gauge1", 41): ("gauge_on", "u_short_int"),
     }
 
@@ -196,7 +206,12 @@ class HiPace300Bus(PfeifferBaseDevice):
         if self.test_mode:
             entry = self._sim_param_entry(channel, param_num)
             if entry is not None:
-                self._sim_state[entry[0]] = bool(int(value))
+                key, encoding = entry
+                # boolean params stay bools; u_short_int params (accessory
+                # configs) keep their integer value.
+                self._sim_state[key] = (bool(int(value))
+                                        if encoding == "boolean_old"
+                                        else int(value))
             self.log_event("info", f"set {channel} param {param_num} = {value} (simulated)")
             return
         if not self.is_connected or not self.serial_connection:
@@ -799,6 +814,14 @@ class HiPace300Bus(PfeifferBaseDevice):
         ("Operating_Hours_Pump", "h", "", "get_operating_hours_pump"),
         ("Operating_Hours_Electronics", "h", "", "get_operating_hours_electronics"),
         ("Heating_Enabled", "", "", "get_heating_enabled"),
+        # Accessory-port configs (params 35-38): readback drives the
+        # dashboard dropdowns; a poked hk cycle right after a set is the
+        # get-verify the user required. Appended last — hk aborts at the
+        # first failing channel.
+        ("Cfg_Acc_A1", "", "", "get_cfg_acc_a1"),
+        ("Cfg_Acc_B1", "", "", "get_cfg_acc_b1"),
+        ("Cfg_Acc_A2", "", "", "get_cfg_acc_a2"),
+        ("Cfg_Acc_B2", "", "", "get_cfg_acc_b2"),
     )
 
     #: Nominal rotation speed used by the simulator (HiPace300: 1000 Hz).
@@ -842,6 +865,10 @@ class HiPace300Bus(PfeifferBaseDevice):
             "Operating_Hours_Pump": 20000,
             "Operating_Hours_Electronics": 20000,
             "Heating_Enabled": self._sim_state["heating"],
+            "Cfg_Acc_A1": self._sim_state["acc_a1"],
+            "Cfg_Acc_B1": self._sim_state["acc_b1"],
+            "Cfg_Acc_A2": self._sim_state["acc_a2"],
+            "Cfg_Acc_B2": self._sim_state["acc_b2"],
         }
 
     def hk_monitor(self):
