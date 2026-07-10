@@ -107,7 +107,14 @@ class HiPace300Bus(PfeifferBaseDevice):
             "acc_b1": 6,
             "acc_a2": 6,
             "acc_b2": 6,
+            # Error history [P:360-362], newest first — blank = no entry.
+            "err_hist": ["", "", ""],
         }
+
+        # Latest error history (ErrHist1-3), cached by hk_monitor() and
+        # served via extra_status() — strings never enter the telemetry
+        # sink (numeric-only).
+        self._error_history: list = []
 
     #: (channel, param) -> (_sim_state key, encoding) for parameters that are
     #: simulated statefully; writes update the state, queries encode it back.
@@ -326,9 +333,27 @@ class HiPace300Bus(PfeifferBaseDevice):
         return self.data_converter.boolean_old_2_bool(response)
 
     def acknowledge_error(self) -> None:
-        """Acknowledge pump errors."""
+        """Acknowledge pump errors (ErrorAckn [P:009]) — required before a
+        pump that tripped into an error state accepts a new start."""
         value = self.data_converter.bool_2_boolean_old(True)
         self._set_channel_parameter('tc400', 9, value)
+
+    def get_error_history(self, slot: int) -> str:
+        """Error history entry (ErrHist1-3 = [P:360-362], newest first).
+
+        Args:
+            slot: History slot 1-3.
+
+        Returns:
+            str: Error code like ``"Err021"`` or ``"Wrn007"``; blank when
+            the slot is empty.
+        """
+        if slot not in (1, 2, 3):
+            raise ValueError("Error-history slot must be 1, 2 or 3")
+        if self.test_mode:
+            return self._sim_state["err_hist"][slot - 1]
+        response = self._query_channel_parameter('tc400', 359 + slot)
+        return self.data_converter.string_2_str(response).strip()
 
     def enable_pumpStatn(self) -> None:
         """Enable/start the turbo pump Station."""
@@ -908,3 +933,16 @@ class HiPace300Bus(PfeifferBaseDevice):
                         self.log_sample("Gauge_Pressure", pressure, "hPa", fmt=".2e")
             except Exception as e:
                 self.log_event("warning", f"gauge read failed: {e}")
+
+        # Error history [P:360-362]: strings, so they bypass the (numeric)
+        # sink — cached for get_status()/the dashboard card instead. Own
+        # guard: a failed history read must not abort anything else.
+        try:
+            self._error_history = [self.get_error_history(n) for n in (1, 2, 3)]
+        except Exception as e:
+            self.log_event("warning", f"error-history read failed: {e}")
+
+    def extra_status(self) -> dict:
+        status = super().extra_status()
+        status["error_history"] = self._error_history
+        return status
