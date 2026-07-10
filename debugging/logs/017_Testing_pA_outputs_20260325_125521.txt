@@ -1,0 +1,260 @@
+PA Test Outputs - 20260325_125521
+==================================================
+
+In [3]: from IPython import get_ipython
+
+output_file = log_dir / f"017_Testing_pA_outputs_{timestamp}.txt"
+_out_f = open(output_file, "w")
+_out_f.write(f"PA Test Outputs - {timestamp}\n{'='*50}\n\n")
+
+def _capture_cell(result):
+    src = result.info.raw_cell.strip()
+    if "pa." not in src:
+        return
+    n = result.execution_count
+    if result.error_in_exec:
+        _out_f.write(f"In [{n}]: {src}\nERROR: {result.error_in_exec}\n\n")
+    elif result.result is not None:
+        _out_f.write(f"In [{n}]: {src}\nOut[{n}]: {result.result!r}\n\n")
+    else:
+        _out_f.write(f"In [{n}]: {src}\n(no return value)\n\n")
+    _out_f.flush()
+
+get_ipython().events.register('post_run_cell', _capture_cell)
+print(f"Output file: {output_file}")
+(no return value)
+
+In [5]: pa.connect()
+Out[5]: True
+
+In [6]: pa.get_sw_version()
+Out[6]: 258
+
+In [7]: pa.get_fw_version()
+Out[7]: (0, 257)
+
+In [8]: pa.get_fw_date()
+Out[8]: (0, 'Feb 13 2025')
+
+In [9]: pa.get_product_id()
+Out[9]: (0, 'Controller for DMMR Devices')
+
+In [10]: pa.get_product_no()
+Out[10]: (0, 124630)
+
+In [11]: pa.get_manuf_date()
+Out[11]: (0, 2024, 40)
+
+In [12]: pa.get_device_type()
+Out[12]: (0, 44088)
+
+In [13]: pa.get_hw_type()
+Out[13]: (0, 2236480)
+
+In [14]: pa.get_hw_version()
+Out[14]: (0, 256)
+
+In [15]: pa.get_uptime()
+Out[15]: (0, 307.763671875, 204272.4052734375)
+
+In [16]: pa.get_uptime_int()
+Out[16]: (0, 309, 100, 204273, 742)
+
+In [17]: pa.get_optime()
+Out[17]: (0, 0.0, 0.0)
+
+In [18]: pa.get_optime_int()
+Out[18]: (0, 0, 0, 0, 0)
+
+In [19]: pa.get_cpu_data()
+Out[19]: (0, 0.946, 15685632.0)
+
+In [20]: pa.get_housekeeping()
+Out[20]: (0, 11.97, 5.004, 3.303, 23.82)
+
+In [21]: pa.get_state()
+Out[21]: (0, '0x0', 'ST_ON')
+
+In [22]: pa.get_device_state()
+Out[22]: (0, '0x0', ['DEVICE_OK'])
+
+In [23]: pa.get_voltage_state()
+Out[23]: (0, '0x7', ['VS_3V3_OK', 'VS_5V0_OK', 'VS_12V_OK'])
+
+In [24]: pa.get_temperature_state()
+Out[24]: (0, '0x0', ['TEMPERATURE_OK'])
+
+In [25]: pa.get_enable()
+Out[25]: (0, True)
+
+In [26]: pa.get_base_product_no()
+Out[26]: (0, 124623)
+
+In [27]: pa.get_base_manuf_date()
+Out[27]: (0, 2024, 40)
+
+In [28]: pa.get_base_hw_version()
+Out[28]: (0, 266)
+
+In [29]: pa.get_base_hw_type()
+Out[29]: (0, 5080)
+
+In [30]: pa.get_base_state()
+Out[30]: (0, '0x4e80', ['BS_ENB', 'BS_ENABLE', 'BS_ILOCK_IN', 'BS_ILOCK_OUT', 'BS_ON_TEMP'])
+
+In [31]: pa.get_base_temp()
+Out[31]: (0, 27.25)
+
+In [32]: pa.get_base_led_data()
+Out[32]: (0, False, False, False)
+
+In [33]: pa.get_base_fan_pwm()
+Out[33]: (0, 0, '0x1600', ['FAN_OK', 'FAN_PWM_DIS', 'FAN_INSTAL'])
+
+In [34]: pa.get_base_fan_rpm()
+Out[34]: (0, 0.0)
+
+In [35]: pa.get_buffer_state()
+Out[35]: (0, True)
+
+In [36]: pa.get_auto_mask()
+Out[36]: (0, 0)
+
+In [37]: pa.get_module_presence()
+Out[37]: (0, True, 8, [1, 1, 1, 1, 1, 0, 0, 0])
+
+In [38]: pa.update_module_presence()
+Out[38]: 0
+
+In [39]: pa.rescan_modules()
+Out[39]: 0
+
+In [40]: pa.get_scanned_module_state()
+Out[40]: (0, False)
+
+In [41]: pa.scan_modules()
+Out[41]: {0: {'fw_version': 257, 'product_no': 124625, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 1: {'fw_version': 257, 'product_no': 124626, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 2: {'fw_version': 257, 'product_no': 124627, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 3: {'fw_version': 257, 'product_no': 124628, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 4: {'fw_version': 257, 'product_no': 124629, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}}
+
+In [42]: pa.get_module_info(MOD_ADDR)
+Out[42]: {'product_no': 124625, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.2981530343007917, 'temp_cpu': 25.16, 'volt_5v0': 4.997, 'volt_12v': 11.955, 'volt_3v3i': 3.2981530343007917, 'temp_cpui': 27.93, 'volt_2v5i': 2.505, 'volt_36vn': -35.832933557207966, 'volt_20vp': 23.208, 'volt_20vn': -23.54381546334053, 'volt_15vp': 17.895, 'volt_15vn': -17.96693851443192, 'volt_1v8p': 1.801, 'volt_1v8n': -1.7919964819700969, 'volt_vrefp': 1.248, 'volt_vrefn': -1.7430239066122972}, 'current': {'value': -2.59e-13, 'range': 0}}
+
+In [43]: pa.get_module_fw_version(MOD_ADDR)
+Out[43]: (0, 257)
+
+In [44]: pa.get_module_fw_date(MOD_ADDR)
+Out[44]: (0, 'Feb  3 2025')
+
+In [45]: pa.get_module_product_id(MOD_ADDR)
+Out[45]: (0, 'pA-meter module, 1 isolated channel')
+
+In [46]: pa.get_module_product_no(MOD_ADDR)
+Out[46]: (0, 124625)
+
+In [47]: pa.get_module_manuf_date(MOD_ADDR)
+Out[47]: (0, 2024, 40)
+
+In [48]: pa.get_module_device_type(MOD_ADDR)
+Out[48]: (0, 50206)
+
+In [49]: pa.get_module_hw_type(MOD_ADDR)
+Out[49]: (0, 4734992)
+
+In [50]: pa.get_module_hw_version(MOD_ADDR)
+Out[50]: (0, 276)
+
+In [51]: pa.get_module_uptime(MOD_ADDR)
+Out[51]: (0, 1034.144, 551551.687)
+
+In [52]: pa.get_module_uptime_int(MOD_ADDR)
+Out[52]: (0, 1035, 701, 551553, 244)
+
+In [53]: pa.get_module_optime(MOD_ADDR)
+Out[53]: (0, 1039.708, 542576.719)
+
+In [54]: pa.get_module_optime_int(MOD_ADDR)
+Out[54]: (0, 1040, 681, 542577, 691)
+
+In [55]: pa.get_module_cpu_data(MOD_ADDR)
+Out[55]: (0, 0.407)
+
+In [56]: pa.get_module_housekeeping(MOD_ADDR)
+Out[56]: (0, 3.2981530343007917, 25.35, 4.997, 11.955, 3.2981530343007917, 28.25, 2.505, -35.832933557207966, 23.208, -23.544814903653954, 17.894, -17.96793795474534, 1.801, -1.7919964819700969, 1.248, -1.7430239066122972)
+
+In [57]: pa.get_module_state(MOD_ADDR)
+Out[57]: (0, 0)
+
+In [58]: pa.get_module_buffer_state(MOD_ADDR)
+Out[58]: (0, True)
+
+In [59]: pa.get_module_ready_flags(MOD_ADDR)
+Out[59]: (0, 6)
+
+In [60]: pa.get_scanned_module_params(MOD_ADDR)
+Out[60]: (0, 124625, 124625, 4734992, 4734992)
+
+In [61]: pa.get_module_meas_range(MOD_ADDR)
+Out[61]: (0, 0, True)
+
+In [62]: pa.get_module_current(MOD_ADDR)
+Out[62]: (0, -2.59e-13, 0)
+
+In [63]: pa.get_automatic_current()
+Out[63]: (0, False)
+
+In [64]: pa.get_current()
+Out[64]: (1, 0, 0.0, 0, 0.0)
+
+In [65]: pa.get_module_current(MOD_ADDR)
+Out[65]: (0, -2.6200000000000004e-13, 0)
+
+In [66]: pa.get_current_config()
+Out[66]: (-10, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+In [67]: pa.get_config_flags(0)
+Out[67]: (-10, False, False)
+
+In [68]: pa.get_config_name(0)
+Out[68]: (-10, '')
+
+In [69]: pa.get_module_current(MOD_ADDR)
+Out[69]: (0, -2.59e-13, 0)
+
+In [70]: pa.get_config_data(0)
+Out[70]: (-10, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+In [71]: pa.get_interface_state()
+Out[71]: -10
+
+In [72]: pa.get_error_message()
+Out[72]: 'Error receiving command'
+
+In [73]: pa.get_module_current(MOD_ADDR)
+Out[73]: (0, -2.71e-13, 0)
+
+In [74]: pa.get_io_state()
+Out[74]: (0, 11)
+
+In [75]: pa.get_io_error_message()
+Out[75]: 'No error'
+
+In [76]: pa.get_comm_error()
+Out[76]: (0, 0)
+
+In [77]: pa.get_status()
+Out[77]: {'device_id': 'test_pa', 'com': 9, 'baudrate': 230400, 'connected': True, 'hk_running': False, 'hk_interval': 5.0, 'external_thread': False, 'external_lock': False}
+
+In [78]: pa.hk_monitor()
+(no return value)
+
+In [79]: pa.start_housekeeping(interval=5)
+Out[79]: True
+
+In [80]: pa.stop_housekeeping()
+Out[80]: True
+
+In [81]: pa.set_enable(False)
+Out[81]: 0
+
+In [82]: pa.disconnect()
+Out[82]: True
+

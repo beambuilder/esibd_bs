@@ -1,0 +1,168 @@
+PA Test Outputs - 20260331_163014
+==================================================
+
+In [3]: from IPython import get_ipython
+
+output_file = log_dir / f"017_Testing_pA_outputs_{timestamp}.txt"
+_out_f = open(output_file, "w")
+_out_f.write(f"PA Test Outputs - {timestamp}\n{'='*50}\n\n")
+
+def _capture_cell(result):
+    src = result.info.raw_cell.strip()
+    if "pa." not in src:
+        return
+    n = result.execution_count
+    if result.error_in_exec:
+        _out_f.write(f"In [{n}]: {src}\nERROR: {result.error_in_exec}\n\n")
+    elif result.result is not None:
+        _out_f.write(f"In [{n}]: {src}\nOut[{n}]: {result.result!r}\n\n")
+    else:
+        _out_f.write(f"In [{n}]: {src}\n(no return value)\n\n")
+    _out_f.flush()
+
+get_ipython().events.register('post_run_cell', _capture_cell)
+print(f"Output file: {output_file}")
+(no return value)
+
+In [5]: pa.connect()
+Out[5]: True
+
+In [6]: pa.get_sw_version()
+Out[6]: 258
+
+In [7]: pa.get_module_presence()
+Out[7]: (0, True, 8, [1, 1, 1, 1, 1, 0, 0, 0])
+
+In [8]: pa.get_automatic_current()
+Out[8]: (0, False)
+
+In [9]: pa.set_automatic_current(True)
+Out[9]: 0
+
+In [10]: pa.get_automatic_current()
+Out[10]: (0, True)
+
+In [11]: pa.get_current()
+Out[11]: (1, 0, 0.0, 0, 0.0)
+
+In [12]: pa.get_current()
+Out[12]: (1, 0, 0.0, 0, 0.0)
+
+In [13]: pa.set_automatic_current(False)
+Out[13]: 0
+
+In [14]: pa.get_module_current(MOD_ADDR)
+Out[14]: (0, -2.7500000000000004e-13, 0)
+
+In [15]: pa.get_module_current(MOD_ADDR)
+Out[15]: (0, -2.7500000000000004e-13, 0)
+
+In [16]: pa.get_module_current(MOD_ADDR)
+Out[16]: (0, -2.7500000000000004e-13, 0)
+
+In [17]: pa.get_module_current(MOD_ADDR)
+Out[17]: (0, -2.7500000000000004e-13, 0)
+
+In [18]: pa.get_module_current(MOD_ADDR)
+Out[18]: (0, -2.7500000000000004e-13, 0)
+
+In [19]: pa.get_module_current(MOD_ADDR)
+Out[19]: (0, -2.7500000000000004e-13, 0)
+
+In [20]: pa.get_module_current(MOD_ADDR)
+Out[20]: (0, -2.7500000000000004e-13, 0)
+
+In [21]: pa.get_module_current(00)
+Out[21]: (0, -2.7500000000000004e-13, 0)
+
+In [22]: pa.get_module_current(1)
+Out[22]: (0, -2.8700000000000004e-13, 0)
+
+In [23]: pa.get_module_current(2)
+Out[23]: (0, -2.6400000000000004e-13, 0)
+
+In [24]: pa.get_module_current(2)
+Out[24]: (0, -2.6400000000000004e-13, 0)
+
+In [25]: pa.set_enable(True)
+Out[25]: 0
+
+In [26]: pa.get_automatic_current()
+Out[26]: (0, False)
+
+In [27]: pa.set_automatic_current(True)
+Out[27]: 0
+
+In [28]: pa.get_automatic_current()
+Out[28]: (0, True)
+
+In [29]: pa.get_current()
+Out[29]: (0, 1, -2.73e-13, 0, 10030.2333984375)
+
+In [30]: pa.get_current()
+Out[30]: (0, 4, -1.3800000000000002e-13, 0, 10030.2353515625)
+
+In [31]: pa.get_current()
+Out[31]: (0, 0, -2.2700000000000002e-13, 0, 10030.3017578125)
+
+In [32]: pa.get_current()
+Out[32]: (0, 2, -2.2900000000000003e-13, 0, 10030.302734375)
+
+In [33]: pa.get_current()
+Out[33]: (0, 3, -3.4900000000000003e-13, 0, 10030.3125)
+
+In [34]: pa.get_current()
+Out[34]: (0, 1, -2.82e-13, 0, 10030.33203125)
+
+In [35]: pa.get_current()
+Out[35]: (0, 4, -1.24e-13, 0, 10030.3330078125)
+
+In [36]: pa.get_current()
+Out[36]: (0, 0, -2.36e-13, 0, 10030.3994140625)
+
+In [37]: pa.get_current()
+Out[37]: (0, 2, -2.4100000000000003e-13, 0, 10030.4013671875)
+
+In [38]: pa.get_current()
+Out[38]: (0, 3, -3.53e-13, 0, 10030.41015625)
+
+In [39]: import time
+from collections import defaultdict
+
+duration = 5 * 60  # seconds
+interval = 0.5     # 2 Hz
+
+results = defaultdict(list)
+n_no_data = 0
+n_total = 0
+
+t_start = time.time()
+while time.time() - t_start < duration:
+    t0 = time.time()
+    status, address, current, meas_range, timestamp = pa.get_current()
+    n_total += 1
+    if status == pa.NO_ERR:
+        results[address].append(current)
+    elif status == pa.NO_DATA:
+        n_no_data += 1
+    sleep_time = interval - (time.time() - t0)
+    if sleep_time > 0:
+        time.sleep(sleep_time)
+
+print(f"Total calls: {n_total}, NO_DATA: {n_no_data}, with data: {n_total - n_no_data}")
+for addr in sorted(results):
+    print(f"  Module {addr}: {len(results[addr])} readings")
+(no return value)
+
+In [41]: pa.set_automatic_current(False)
+Out[41]: 0
+
+In [42]: pa.set_enable(False)
+Out[42]: 0
+
+In [43]: pa.get_enable()
+Out[43]: (0, False)
+
+In [44]: pa.disconnect()
+Out[44]: True
+

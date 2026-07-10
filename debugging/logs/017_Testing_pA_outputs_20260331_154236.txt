@@ -1,0 +1,116 @@
+PA Test Outputs - 20260331_154236
+==================================================
+
+In [3]: from IPython import get_ipython
+
+output_file = log_dir / f"017_Testing_pA_outputs_{timestamp}.txt"
+_out_f = open(output_file, "w")
+_out_f.write(f"PA Test Outputs - {timestamp}\n{'='*50}\n\n")
+
+def _capture_cell(result):
+    src = result.info.raw_cell.strip()
+    if "pa." not in src:
+        return
+    n = result.execution_count
+    if result.error_in_exec:
+        _out_f.write(f"In [{n}]: {src}\nERROR: {result.error_in_exec}\n\n")
+    elif result.result is not None:
+        _out_f.write(f"In [{n}]: {src}\nOut[{n}]: {result.result!r}\n\n")
+    else:
+        _out_f.write(f"In [{n}]: {src}\n(no return value)\n\n")
+    _out_f.flush()
+
+get_ipython().events.register('post_run_cell', _capture_cell)
+print(f"Output file: {output_file}")
+(no return value)
+
+In [5]: pa.connect()
+Out[5]: True
+
+In [6]: pa.get_sw_version()
+Out[6]: 258
+
+In [7]: pa.get_module_presence()
+Out[7]: (0, True, 8, [1, 1, 1, 1, 1, 0, 0, 0])
+
+In [8]: pa.get_scanned_module_state()
+Out[8]: (0, False)
+
+In [9]: pa.scan_modules()
+Out[9]: {0: {'fw_version': 257, 'product_no': 124625, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 1: {'fw_version': 257, 'product_no': 124626, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 2: {'fw_version': 257, 'product_no': 124627, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 3: {'fw_version': 257, 'product_no': 124628, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 4: {'fw_version': 257, 'product_no': 124629, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}}
+
+In [11]: pa.get_module_info(MOD_ADDR)
+Out[11]: {'product_no': 124625, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.2981530343007917, 'temp_cpu': 20.82, 'volt_5v0': 4.998, 'volt_12v': 11.976, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [13]: pa.get_module_info(MOD_ADDR)
+Out[13]: {'product_no': 124626, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.2981530343007917, 'temp_cpu': 21.32, 'volt_5v0': 4.996, 'volt_12v': 11.973, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [15]: pa.get_module_info(MOD_ADDR)
+Out[15]: {'product_no': 124627, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.2981530343007917, 'temp_cpu': 20.96, 'volt_5v0': 4.996, 'volt_12v': 11.98, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [17]: pa.get_module_info(MOD_ADDR)
+Out[17]: {'product_no': 124628, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.2959789057350033, 'temp_cpu': 20.93, 'volt_5v0': 4.993, 'volt_12v': 11.969, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [19]: pa.get_module_info(MOD_ADDR)
+Out[19]: {'product_no': 124629, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.297065611605671, 'temp_cpu': 20.75, 'volt_5v0': 4.994, 'volt_12v': 11.974, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [21]: pa.get_module_info(MOD_ADDR)
+Out[21]: {}
+
+In [23]: pa.get_module_info(MOD_ADDR)
+Out[23]: {'product_no': 124629, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.297065611605671, 'temp_cpu': 20.75, 'volt_5v0': 4.994, 'volt_12v': 11.974, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [24]: pa.get_module_meas_range(MOD_ADDR)
+Out[24]: (-10, 0, False)
+
+In [25]: pa.get_module_housekeeping(MOD_ADDR)
+Out[25]: (0, 3.297065611605671, 20.74, 4.994, 11.974, 0.0, -273.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+In [26]: pa.get_module_housekeeping(MOD_ADDR)
+Out[26]: (0, 3.297065611605671, 20.75, 4.994, 11.974, 0.0, -273.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+In [27]: pa.get_module_housekeeping(MOD_ADDR)
+Out[27]: (0, 3.297065611605671, 20.75, 4.994, 11.974, 0.0, -273.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+In [28]: pa.get_module_housekeeping(MOD_ADDR)
+Out[28]: (0, 3.297065611605671, 20.75, 4.994, 11.973, 0.0, -273.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+In [29]: pa.get_module_info(MOD_ADDR)
+Out[29]: {'product_no': 124629, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.297065611605671, 'temp_cpu': 20.71, 'volt_5v0': 4.994, 'volt_12v': 11.974, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [31]: pa.get_module_info(MOD_ADDR)
+Out[31]: {'product_no': 124626, 'fw_version': 257, 'hw_type': 4734992, 'hw_version': 276, 'state': 0, 'housekeeping': {'volt_3v3': 3.2981530343007917, 'temp_cpu': 21.36, 'volt_5v0': 4.996, 'volt_12v': 11.973, 'volt_3v3i': 0.0, 'temp_cpui': -273.15, 'volt_2v5i': 0.0, 'volt_36vn': 0.0, 'volt_20vp': 0.0, 'volt_20vn': 0.0, 'volt_15vp': 0.0, 'volt_15vn': 0.0, 'volt_1v8p': 0.0, 'volt_1v8n': 0.0, 'volt_vrefp': 0.0, 'volt_vrefn': 0.0}, 'current': {'value': 0.0, 'range': 0}}
+
+In [32]: pa.get_module_current(MOD_ADDR)
+Out[32]: (0, 0.0, 0)
+
+In [33]: pa.get_module_current(MOD_ADDR)
+Out[33]: (0, 0.0, 0)
+
+In [34]: pa.set_module_auto_range(MOD_ADDR, True)
+Out[34]: -10
+
+In [35]: pa.get_status()
+Out[35]: {'device_id': 'test_pa', 'com': 8, 'baudrate': 230400, 'connected': True, 'hk_running': False, 'hk_interval': 5.0, 'external_thread': False, 'external_lock': False}
+
+In [36]: pa.get_io_error_message()
+Out[36]: 'Error reading data from the port'
+
+In [37]: pa.get_comm_error()
+Out[37]: (0, 0)
+
+In [38]: pa.get_io_state()
+Out[38]: (0, 11)
+
+In [39]: pa.get_error_message()
+Out[39]: 'Error receiving command'
+
+In [40]: pa.get_interface_state()
+Out[40]: -10
+
+In [41]: pa.get_enable()
+Out[41]: (0, False)
+
+In [42]: pa.disconnect()
+Out[42]: True
+

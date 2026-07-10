@@ -1,0 +1,263 @@
+PA Test Outputs - 20260331_155542
+==================================================
+
+In [3]: from IPython import get_ipython
+
+output_file = log_dir / f"017_Testing_pA_outputs_{timestamp}.txt"
+_out_f = open(output_file, "w")
+_out_f.write(f"PA Test Outputs - {timestamp}\n{'='*50}\n\n")
+
+def _capture_cell(result):
+    src = result.info.raw_cell.strip()
+    if "pa." not in src:
+        return
+    n = result.execution_count
+    if result.error_in_exec:
+        _out_f.write(f"In [{n}]: {src}\nERROR: {result.error_in_exec}\n\n")
+    elif result.result is not None:
+        _out_f.write(f"In [{n}]: {src}\nOut[{n}]: {result.result!r}\n\n")
+    else:
+        _out_f.write(f"In [{n}]: {src}\n(no return value)\n\n")
+    _out_f.flush()
+
+get_ipython().events.register('post_run_cell', _capture_cell)
+print(f"Output file: {output_file}")
+(no return value)
+
+In [5]: pa.connect()
+Out[5]: True
+
+In [6]: pa.get_sw_version()
+Out[6]: 258
+
+In [7]: pa.get_fw_version()
+Out[7]: (0, 257)
+
+In [8]: pa.get_fw_date()
+Out[8]: (0, 'Feb 13 2025')
+
+In [9]: pa.get_product_id()
+Out[9]: (0, 'Controller for DMMR Devices')
+
+In [10]: pa.get_product_no()
+Out[10]: (0, 124630)
+
+In [11]: pa.get_uptime()
+Out[11]: (0, 7883.052734375, 215351.84765625)
+
+In [12]: pa.get_cpu_data()
+Out[12]: (0, 0.378, 15661056.0)
+
+In [13]: pa.get_housekeeping()
+Out[13]: (0, 11.985, 5.004, 3.302, 21.57)
+
+In [14]: pa.get_state()
+Out[14]: (0, '0x1', 'UNKNOWN_STATE_0x0001')
+
+In [15]: pa.get_device_state()
+Out[15]: (0, '0x0', ['DEVICE_OK'])
+
+In [16]: pa.get_voltage_state()
+Out[16]: (0, '0x7', ['VS_3V3_OK', 'VS_5V0_OK', 'VS_12V_OK'])
+
+In [17]: pa.get_temperature_state()
+Out[17]: (0, '0x0', ['TEMPERATURE_OK'])
+
+In [18]: pa.get_enable()
+Out[18]: (0, False)
+
+In [19]: pa.set_enable(True)
+Out[19]: 0
+
+In [20]: pa.get_enable()
+Out[20]: (0, True)
+
+In [21]: pa.get_module_presence()
+Out[21]: (0, True, 8, [1, 1, 1, 1, 1, 0, 0, 0])
+
+In [22]: pa.scan_modules()
+Out[22]: {0: {'fw_version': 257, 'product_no': 124625, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 1: {'fw_version': 257, 'product_no': 124626, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 2: {'fw_version': 257, 'product_no': 124627, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 3: {'fw_version': 257, 'product_no': 124628, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}, 4: {'fw_version': 257, 'product_no': 124629, 'hw_type': 4734992, 'hw_version': 276, 'state': 0}}
+
+In [23]: pa.get_module_housekeeping(MOD_ADDR)
+Out[23]: (0, 3.297065611605671, 20.86, 4.997, 11.951, 3.299241174529858, 20.38, 2.505, -35.83275846555292, 23.209, -23.543584975455648, 17.89, -17.9668676204473, 1.801, -1.79258770482789, 1.248, -1.7435989722363856)
+
+In [24]: pa.get_module_current(MOD_ADDR)
+Out[24]: (0, -2.85e-13, 0)
+
+In [25]: pa.get_current()
+Out[25]: (1, 0, 0.0, 0, 0.0)
+
+In [26]: pa.get_automatic_current()
+Out[26]: (0, False)
+
+In [27]: pa.set_automatic_current(True)
+Out[27]: 0
+
+In [28]: pa.get_automatic_current()
+Out[28]: (0, True)
+
+In [29]: pa.get_current()
+Out[29]: (0, 4, -1.77e-13, 0, 8001.865234375)
+
+In [30]: pa.get_current()
+Out[30]: (0, 3, -3.4900000000000003e-13, 0, 8001.884765625)
+
+In [31]: pa.get_current()
+Out[31]: (0, 2, -2.34e-13, 0, 8001.89453125)
+
+In [32]: pa.get_current()
+Out[32]: (0, 1, -2.71e-13, 0, 8001.9033203125)
+
+In [33]: pa.get_current()
+Out[33]: (0, 0, -2.6600000000000003e-13, 0, 8001.9423828125)
+
+In [34]: pa.get_current()
+Out[34]: (0, 4, -1.7900000000000002e-13, 0, 8001.962890625)
+
+In [35]: pa.get_current()
+Out[35]: (0, 2, -2.57e-13, 0, 8001.9921875)
+
+In [36]: pa.get_current()
+Out[36]: (0, 3, -3.5800000000000004e-13, 0, 8001.9921875)
+
+In [37]: pa.get_current()
+Out[37]: (0, 1, -3.05e-13, 0, 8002.001953125)
+
+In [38]: pa.get_current()
+Out[38]: (0, 0, -2.6200000000000004e-13, 0, 8002.0400390625)
+
+In [39]: pa.get_current()
+Out[39]: (0, 4, -1.8400000000000002e-13, 0, 8002.060546875)
+
+In [40]: pa.get_current()
+Out[40]: (0, 2, -2.5200000000000004e-13, 0, 8002.08984375)
+
+In [41]: pa.get_current()
+Out[41]: (0, 3, -3.6700000000000005e-13, 0, 8002.08984375)
+
+In [42]: pa.get_automatic_current()
+Out[42]: (-13, False)
+
+In [44]: pa.get_module_current(MOD_ADDR)
+Out[44]: (-13, 0.0, 0)
+
+In [45]: pa.get_current()
+Out[45]: (0, 1, -3.05e-13, 0, 8002.0986328125)
+
+In [46]: pa.get_current()
+Out[46]: (0, 0, -2.57e-13, 0, 8002.1474609375)
+
+In [47]: pa.get_current()
+Out[47]: (0, 4, -2.0700000000000003e-13, 0, 8002.158203125)
+
+In [48]: pa.get_current()
+Out[48]: (0, 2, -2.5e-13, 0, 8002.1875)
+
+In [49]: pa.get_current()
+Out[49]: (0, 3, -3.6700000000000005e-13, 0, 8002.1875)
+
+In [50]: pa.get_current()
+Out[50]: (0, 1, -2.82e-13, 0, 8002.1962890625)
+
+In [51]: pa.get_current()
+Out[51]: (0, 0, -2.59e-13, 0, 8002.2451171875)
+
+In [52]: pa.get_current()
+Out[52]: (0, 4, -1.88e-13, 0, 8002.255859375)
+
+In [53]: pa.get_current()
+Out[53]: (0, 3, -3.8300000000000003e-13, 0, 8002.28515625)
+
+In [54]: pa.get_current()
+Out[54]: (0, 2, -2.5e-13, 0, 8002.294921875)
+
+In [55]: pa.get_current()
+Out[55]: (0, 1, -2.8e-13, 0, 8002.3046875)
+
+In [56]: pa.get_current()
+Out[56]: (0, 0, -2.59e-13, 0, 8002.3427734375)
+
+In [57]: pa.get_current()
+Out[57]: (0, 4, -1.6800000000000002e-13, 0, 8002.36328125)
+
+In [58]: pa.get_current()
+Out[58]: (0, 3, -3.6900000000000004e-13, 0, 8002.3828125)
+
+In [59]: pa.get_current()
+Out[59]: (0, 2, -2.3900000000000004e-13, 0, 8002.392578125)
+
+In [60]: pa.get_current()
+Out[60]: (0, 1, -2.85e-13, 0, 8002.4013671875)
+
+In [61]: pa.get_automatic_current()
+Out[61]: (0, True)
+
+In [62]: pa.set_automatic_current(False)
+Out[62]: 0
+
+In [63]: pa.get_module_current(MOD_ADDR)
+Out[63]: (0, -2.57e-13, 0)
+
+In [64]: pa.get_status()
+Out[64]: {'device_id': 'test_pa', 'com': 8, 'baudrate': 230400, 'connected': True, 'hk_running': False, 'hk_interval': 5.0, 'external_thread': False, 'external_lock': False}
+
+In [65]: pa.get_error_message()
+Out[65]: 'No error'
+
+In [66]: pa.get_current()
+Out[66]: (0, 0, -2.85e-13, 0, 8002.4404296875)
+
+In [67]: pa.get_automatic_current()
+Out[67]: (0, False)
+
+In [68]: pa.get_automatic_current()
+Out[68]: (0, False)
+
+In [69]: pa.set_automatic_current(True)
+Out[69]: 0
+
+In [70]: pa.get_current()
+Out[70]: (0, 4, -2e-13, 0, 8002.4609375)
+
+In [71]: pa.get_current()
+Out[71]: (0, 2, -2.36e-13, 0, 8002.490234375)
+
+In [72]: pa.get_current()
+Out[72]: (0, 3, -3.6000000000000003e-13, 0, 8002.490234375)
+
+In [73]: pa.get_current()
+Out[73]: (0, 1, -2.71e-13, 0, 8002.5)
+
+In [74]: pa.get_current()
+Out[74]: (0, 0, -2.6600000000000003e-13, 0, 8002.5380859375)
+
+In [75]: pa.get_current()
+Out[75]: (0, 4, -1.88e-13, 0, 8002.55859375)
+
+In [76]: pa.get_current()
+Out[76]: (0, 2, -2.36e-13, 0, 8002.587890625)
+
+In [77]: pa.get_current()
+Out[77]: (0, 3, -3.6000000000000003e-13, 0, 8002.587890625)
+
+In [78]: pa.get_current()
+Out[78]: (0, 1, -2.8e-13, 0, 8002.5966796875)
+
+In [79]: pa.get_current()
+Out[79]: (0, 0, -2.7500000000000004e-13, 0, 8002.6357421875)
+
+In [80]: pa.get_current()
+Out[80]: (0, 4, -1.58e-13, 0, 8002.65625)
+
+In [81]: pa.set_automatic_current(False)
+Out[81]: 0
+
+In [82]: pa.get_enable()
+Out[82]: (0, True)
+
+In [83]: pa.set_enable(False)
+Out[83]: 0
+
+In [84]: pa.disconnect()
+Out[84]: True
+

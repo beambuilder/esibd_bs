@@ -80,3 +80,6 @@ dmypy.json
 src/devices/cgc/MEMORY.md
 src/devices/cgc/code-review-findings.md
 src/devices/cgc/pA/pA_reference.md
+
+# Jupyter
+.ipynb_checkpoints/
