@@ -39,13 +39,39 @@ class TestSQLiteSink:
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )
         }
-        assert {"samples", "events"} <= tables
+        assert {"samples", "events", "commands"} <= tables
 
         sample_cols = [row[1] for row in conn.execute("PRAGMA table_info(samples)")]
         assert sample_cols == ["ts", "device", "channel", "value", "sim"]
         event_cols = [row[1] for row in conn.execute("PRAGMA table_info(events)")]
         assert event_cols == ["ts", "source", "level", "message"]
+        command_cols = [row[1] for row in conn.execute("PRAGMA table_info(commands)")]
+        assert command_cols == ["ts", "device", "action", "value", "ok", "source", "sim"]
         conn.close()
+
+    def test_commands_table_added_to_existing_db(self, db_path):
+        """Pre-audit-trail telemetry.db (no commands table) upgrades in place
+        on the next sink open — no migration step."""
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            "CREATE TABLE samples (ts REAL NOT NULL, device TEXT NOT NULL, "
+            "channel TEXT NOT NULL, value REAL NOT NULL, "
+            "sim INTEGER NOT NULL DEFAULT 0)"
+        )
+        conn.execute(
+            "CREATE TABLE events (ts REAL NOT NULL, source TEXT NOT NULL, "
+            "level TEXT NOT NULL, message TEXT NOT NULL)"
+        )
+        conn.commit()
+        conn.close()
+
+        with SQLiteSink(db_path) as sink:
+            sink.write_command("HiScroll_1", "stop")
+
+        conn = sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM commands").fetchone()[0]
+        conn.close()
+        assert count == 1
 
     def test_wal_mode(self, db_path):
         with SQLiteSink(db_path):
@@ -80,6 +106,32 @@ class TestSQLiteSink:
         rows = conn.execute("SELECT source, level, message FROM events").fetchall()
         conn.close()
         assert rows == [("Chiller_A", "ERROR", "connect FAILED: timeout")]
+
+    def test_write_command(self, db_path):
+        with SQLiteSink(db_path) as sink:
+            before = time.time()
+            sink.write_command("HiScroll_1", "stop", source="pump_locker")
+            sink.write_command(
+                "Chiller_A", "setting:set_temp", value=18.0, ok=0,
+                source="chillers", ts=1234.5, sim=1,
+            )
+
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(
+            "SELECT ts, device, action, value, ok, source, sim FROM commands "
+            "ORDER BY rowid"
+        ).fetchall()
+        conn.close()
+
+        assert len(rows) == 2
+        ts0, device0, action0, value0, ok0, source0, sim0 = rows[0]
+        assert ts0 >= before
+        assert (device0, action0, value0, ok0, source0, sim0) == (
+            "HiScroll_1", "stop", None, 1, "pump_locker", 0
+        )
+        assert rows[1] == (
+            1234.5, "Chiller_A", "setting:set_temp", 18.0, 0, "chillers", 1
+        )
 
     def test_readonly_uri_reader(self, db_path):
         """Dashboard/watchdog read pattern: URI mode=ro sees committed rows."""

@@ -9,6 +9,13 @@ WAL mode) defined in ADR-0002:
     samples(ts REAL, device TEXT, channel TEXT, value REAL,
             sim INTEGER DEFAULT 0)          index (device, channel, ts)
     events(ts REAL, source TEXT, level TEXT, message TEXT)
+    commands(ts REAL, device TEXT, action TEXT, value REAL,
+             ok INTEGER, source TEXT, sim INTEGER)   index (device, ts)
+
+The ``commands`` table is the audit trail of every operation issued
+through a ctrl API (pump start/stop, settings, sensor toggles, ...).
+The alert engine uses it to tell an operator-commanded stop from a
+device that shut itself down.
 
 Writers are the control processes owning the hardware; readers (dashboard,
 watchdog) open the file read-only (URI ``mode=ro``). Simulated samples
@@ -39,6 +46,16 @@ CREATE TABLE IF NOT EXISTS events (
     message TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events (ts);
+CREATE TABLE IF NOT EXISTS commands (
+    ts      REAL    NOT NULL,
+    device  TEXT    NOT NULL,
+    action  TEXT    NOT NULL,
+    value   REAL,
+    ok      INTEGER NOT NULL DEFAULT 1,
+    source  TEXT    NOT NULL DEFAULT '',
+    sim     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_commands_device_ts ON commands (device, ts);
 """
 
 
@@ -138,6 +155,34 @@ class SQLiteSink:
                 "INSERT INTO events (ts, source, level, message) "
                 "VALUES (?, ?, ?, ?)",
                 (ts, source, level, message),
+            )
+            self._conn.commit()
+
+    def write_command(
+        self,
+        device_id: str,
+        action: str,
+        value: Optional[float] = None,
+        ok: int = 1,
+        source: str = "",
+        ts: Optional[float] = None,
+        sim: int = 0,
+    ) -> None:
+        """Insert one command-audit row (an operation issued via a ctrl API).
+
+        Deliberately NOT part of the ``TelemetrySink`` protocol — devices
+        never call this; only the process serving the ctrl API does, and
+        wrapper sinks (throttles) must keep satisfying the protocol as-is.
+        """
+        if ts is None:
+            ts = time.time()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO commands (ts, device, action, value, ok, source, sim) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (ts, device_id, action,
+                 None if value is None else float(value),
+                 int(ok), source, int(sim)),
             )
             self._conn.commit()
 
