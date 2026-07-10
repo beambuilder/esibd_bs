@@ -313,6 +313,92 @@ class TestTPG366SensorControl:
             for _, level, message in events
         )
 
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_overpressure_auto_off_guarded_channels(self, factory, monkeypatch, sink):
+        """Overpressure guard (user, 2026-07-10): the delicate Transfer/Depo
+        sensors (CH5/CH6) must be auto-DISABLED when their own reading rises
+        above the threshold. Unguarded channels stay on no matter the
+        pressure; the triggering value is still logged (it is a real
+        measurement)."""
+
+        def patched(self, channel):
+            return 2e-3 if channel in (1, 5) else 4.2e-8  # CH1+CH5 above 1e-4
+
+        monkeypatch.setattr(TPG366, "read_pressure_value", patched)
+
+        device = factory(sink=sink, test_mode=True, auto_off_channels=[5, 6])
+        device.connect()
+        for channel in range(1, 7):
+            device.sensor_on(channel)
+        device.hk_monitor()
+
+        assert device.get_sensor_on(5) is False  # guarded + above -> off
+        assert device.get_sensor_on(6) is True   # guarded + below -> untouched
+        assert device.get_sensor_on(1) is True   # above but unguarded -> untouched
+
+        rows = _read_samples(sink)
+        press_by_channel = {row[1]: row[2] for row in rows if row[1].endswith("_Press")}
+        assert press_by_channel.get("Sensor_CH5_Press") == 2e-3
+        ch5_on_values = [row[2] for row in rows if row[1] == "Sensor_CH5_On"]
+        assert ch5_on_values[-1] == 0  # guard logs the flip in the same cycle
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_overpressure_sentinel_triggers_auto_off(self, factory, monkeypatch, sink):
+        """The all-nines over-range sentinel is by definition above any
+        threshold — a guarded channel answering it gets auto-disabled even
+        though the value itself is never logged."""
+        monkeypatch.setattr(TPG366, "read_pressure_value", lambda self, channel: 9.999e79)
+
+        device = factory(sink=sink, test_mode=True, auto_off_channels=[5])
+        device.connect()
+        for channel in range(1, 7):
+            device.sensor_on(channel)
+        device.hk_monitor()
+
+        assert device.get_sensor_on(5) is False
+        assert device.get_sensor_on(6) is True
+        rows = _read_samples(sink)
+        assert not any(row[1].endswith("_Press") for row in rows)
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_overpressure_guard_never_turns_on(self, factory, sink):
+        """The guard is one-directional: an off guarded channel stays off
+        across hk cycles regardless of pressure — re-activation is manual
+        only (sim pressure for CH5/CH6 is far below 1e-4)."""
+        device = factory(sink=sink, test_mode=True, auto_off_channels=[5, 6])
+        device.connect()
+        device.hk_monitor()  # sim default: CH5/CH6 off
+        device.hk_monitor()
+
+        assert device.get_sensor_on(5) is False
+        assert device.get_sensor_on(6) is False
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_overpressure_guard_applies_in_state_read_fallback(self, factory, monkeypatch, sink):
+        """When get_sensor_on() fails and hk_monitor falls back to the raw
+        pressure read, the guard still fires — protection must not lapse on
+        a state-read hiccup (off to an already-off sensor is harmless)."""
+
+        def raising_get_sensor_on(self, channel):
+            if channel == 5:
+                raise TimeoutError("no response from CH5")
+            return self._sim_sensor_on[channel]
+
+        monkeypatch.setattr(TPG366, "get_sensor_on", raising_get_sensor_on)
+        monkeypatch.setattr(TPG366, "read_pressure_value", lambda self, channel: 2e-3)
+
+        device = factory(sink=sink, test_mode=True, auto_off_channels=[5])
+        device.connect()
+        device._sim_sensor_on[5] = True
+        device.hk_monitor()
+
+        assert device._sim_sensor_on[5] is False
+
+    @pytest.mark.parametrize("factory", TPG_FACTORIES)
+    def test_auto_off_channels_validated_at_construction(self, factory):
+        with pytest.raises(ValueError):
+            factory(test_mode=True, auto_off_channels=[5, 7])
+
 
 class TestNeverAutoSimulate:
     """A failed real connect must stay a loud error — never fake data."""

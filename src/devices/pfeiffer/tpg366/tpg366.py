@@ -39,6 +39,8 @@ class TPG366(PfeifferBaseDevice):
             hk_thread: Optional[threading.Thread] = None,
             thread_lock: Optional[threading.Lock] = None,
             hk_interval: float = 30.0,
+            auto_off_channels: Optional[list] = None,
+            auto_off_above_hpa: float = 1e-4,
             **kwargs,
     ):
         """
@@ -54,6 +56,12 @@ class TPG366(PfeifferBaseDevice):
             hk_thread: Optional housekeeping thread. If None, creates one automatically
             thread_lock: Optional thread lock. If None, creates one automatically
             hk_interval: Housekeeping monitoring interval in seconds (default: 30.0)
+            auto_off_channels: Channels whose sensor is automatically turned
+                OFF when its own reading rises above auto_off_above_hpa
+                (delicate gauges that must not run at high pressure).
+                Re-activation is always manual. Default: none.
+            auto_off_above_hpa: Overpressure threshold for auto_off_channels
+                in hPa (default: 1e-4)
             **kwargs: Additional connection parameters
         """
         super().__init__(
@@ -68,6 +76,16 @@ class TPG366(PfeifferBaseDevice):
             hk_interval=hk_interval,
             **kwargs
         )
+
+        # Overpressure guard: sensors listed here are turned OFF by
+        # hk_monitor() when their own reading exceeds the threshold
+        # (delicate gauges — Transfer/Depo — must not run above ~1e-4 hPa).
+        # Turning ON is never automatic (see the sensor on/off section).
+        self.auto_off_channels = {int(c) for c in (auto_off_channels or [])}
+        bad = self.auto_off_channels - set(range(1, 7))
+        if bad:
+            raise ValueError(f"auto_off_channels must be within 1-6, got {sorted(bad)}")
+        self.auto_off_above_hpa = float(auto_off_above_hpa)
 
         # Simulated per-channel sensor state (test mode): CH1-3 start on,
         # CH4-6 off — mirrors the lab's typical state and shows both UI
@@ -242,9 +260,12 @@ class TPG366(PfeifferBaseDevice):
     #     Sensor On/Off Methods
     #
     #     SAFETY: gauges can be DESTROYED if activated at atmospheric
-    #     pressure. These methods must NEVER be called from an automatic
-    #     path (__init__, connect(), hk_monitor()) — they exist solely for
+    #     pressure. sensor_on() must NEVER be called from an automatic
+    #     path (__init__, connect(), hk_monitor()) — it exists solely for
     #     an explicit external caller (the service ctrl API).
+    #     sensor_off() is the opposite direction — protection — and IS
+    #     called automatically by the hk_monitor overpressure guard for
+    #     channels in auto_off_channels.
     # =============================================================================
 
     def sensor_on(self, channel: int) -> None:
@@ -459,6 +480,11 @@ class TPG366(PfeifferBaseDevice):
         cannot suppress the others. If the state read itself fails, fall
         back to the old read-and-skip-zero behavior for that channel — a
         transient state-read hiccup must not black-hole real data.
+
+        Overpressure guard: channels in auto_off_channels are turned OFF
+        when their reading exceeds auto_off_above_hpa (or is the
+        over-range sentinel — by definition above any threshold).
+        Re-activation is always manual.
         """
         for channel in range(1, 7):
             try:
@@ -469,6 +495,9 @@ class TPG366(PfeifferBaseDevice):
                     value = self.read_pressure_value(channel)
                     if value != 0.0 and not self.data_converter.is_pressure_sentinel(value):
                         self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")
+                    # On-state unknown here; an off command to an already-off
+                    # sensor is harmless, so the guard still applies.
+                    self._check_overpressure_off(channel, value)
                 except Exception as e2:
                     self.log_event("warning", f"Sensor_CH{channel}_Press read failed: {e2}")
                 continue
@@ -486,5 +515,39 @@ class TPG366(PfeifferBaseDevice):
                     pass
                 else:
                     self.log_sample(f"Sensor_CH{channel}_Press", value, "hPa", fmt=".2e")
+                self._check_overpressure_off(channel, value)
             except Exception as e:
                 self.log_event("warning", f"Sensor_CH{channel}_Press read failed: {e}")
+
+    def _check_overpressure_off(self, channel: int, value: float) -> None:
+        """
+        Overpressure guard: turn a delicate sensor OFF when its own reading
+        exceeds the threshold. The over-range sentinel counts as above any
+        threshold; 0.0 (never measured) never triggers. Turning back ON is
+        always manual (ctrl API / dashboard) — this method never calls
+        sensor_on().
+        """
+        if channel not in self.auto_off_channels or value == 0.0:
+            return
+        if value <= self.auto_off_above_hpa and not self.data_converter.is_pressure_sentinel(value):
+            return
+
+        try:
+            self.sensor_off(channel)
+        except Exception as e:
+            self.log_event(
+                "error",
+                f"Sensor_CH{channel} overpressure auto-off FAILED at "
+                f"{value:.2e} hPa: {e}",
+            )
+            return
+
+        self.log_event(
+            "warning",
+            f"Sensor_CH{channel} auto-disabled: {value:.2e} hPa above "
+            f"{self.auto_off_above_hpa:.0e} hPa limit — re-enable manually "
+            f"once the chamber is back at vacuum",
+        )
+        # Flip the telemetry state immediately so the dashboard switch goes
+        # red this cycle instead of one hk_interval later.
+        self.log_sample(f"Sensor_CH{channel}_On", 0.0)
