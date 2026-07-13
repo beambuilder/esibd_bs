@@ -61,6 +61,7 @@ class A100L(SerialDeviceBase):
         device_address: int = 0,
         baudrate: int = 9600,
         timeout: float = 2.0,
+        temp_auto_stop: bool = True,
         logger: Optional[logging.Logger] = None,
         hk_thread: Optional[threading.Thread] = None,
         thread_lock: Optional[threading.Lock] = None,
@@ -78,6 +79,11 @@ class A100L(SerialDeviceBase):
                 factory default 0 → frame address "000").
             baudrate: Communication speed (default: 9600, 8N1 fixed).
             timeout: Serial communication timeout in seconds (default: 2.0).
+            temp_auto_stop: Auto-stop guard (default True): a housekeeping
+                cycle that sees the motor-temperature warning or alarm
+                while the pump runs sends SYSOFF (once per warning
+                episode). The pump has no °C readout — the flag is all
+                there is, so the reaction is a hard stop.
             logger: Optional custom logger. If None, creates file logger in debugging/logs/
             hk_thread: Optional housekeeping thread. If None, creates one automatically
             thread_lock: Optional thread lock. If None, creates one automatically
@@ -85,6 +91,10 @@ class A100L(SerialDeviceBase):
             **kwargs: Shared SerialDeviceBase parameters.
         """
         self.device_address = int(device_address)
+        self.temp_auto_stop = bool(temp_auto_stop)
+        # One SYSOFF per warning episode: re-armed when the flags clear
+        # (or after a failed send, so the next cycle retries).
+        self._temp_stop_armed = True
         super().__init__(
             device_id=device_id,
             port=port,
@@ -241,7 +251,8 @@ class A100L(SerialDeviceBase):
     # =========================================================================
 
     def hk_monitor(self):
-        """One housekeeping cycle: run state + warning/alarm flags (STA)."""
+        """One housekeeping cycle: run state + warning/alarm flags (STA),
+        then the temperature auto-stop guard (see ``temp_auto_stop``)."""
         try:
             status = self.get_pump_status()
             self.log_sample("Pump_Running", status["running"])
@@ -251,6 +262,33 @@ class A100L(SerialDeviceBase):
             self.log_sample("Any_Alarm", status["any_alarm"])
         except Exception as e:
             self.log_event("error", f"housekeeping read failed: {e}")
+            return
+        self._temp_guard(status)
+
+    def _temp_guard(self, status: Dict[str, Any]) -> None:
+        """Send SYSOFF when the motor-temperature warning/alarm is set
+        while the pump runs — once per episode. Serial has no priority
+        over the front-panel Loc-Rem switch, so a stop can be
+        acknowledged yet ignored (mode "local"); the STA run state keeps
+        telling the truth either way."""
+        hot = status["temp_warning"] or status["temp_alarm"]
+        if not hot:
+            self._temp_stop_armed = True
+            return
+        if not (self.temp_auto_stop and status["running"]
+                and self._temp_stop_armed):
+            return
+        self._temp_stop_armed = False
+        flag = "alarm" if status["temp_alarm"] else "warning"
+        self.log_event(
+            "error",
+            f"motor temperature {flag} while running — auto-stop (SYSOFF)",
+        )
+        try:
+            self.stop_pump()
+        except Exception as e:
+            self._temp_stop_armed = True  # retry next cycle
+            self.log_event("error", f"auto-stop failed: {e}")
 
 
 #: The A 200 L runs the same firmware and protocol — alias so call sites
