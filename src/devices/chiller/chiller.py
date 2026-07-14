@@ -49,6 +49,11 @@ class Chiller(SerialDeviceBase):
 
     FAMILY = "Chiller"
 
+    #: Consecutive failed housekeeping cycles before the serial port is
+    #: closed and reopened in place (and again at every further multiple
+    #: while the failure persists).
+    AUTO_RECONNECT_AFTER = 3
+
     def __init__(
         self,
         device_id: str,
@@ -73,6 +78,7 @@ class Chiller(SerialDeviceBase):
         )
         self.current_temperature: Optional[float] = None
         self.target_temperature: Optional[float] = None
+        self._hk_fail_count = 0
         # Simulated setpoint/pump level so test mode behaves consistently
         # across calls (set → read roundtrips work without hardware).
         self._sim_set_temp = 20.0
@@ -322,12 +328,60 @@ class Chiller(SerialDeviceBase):
             self.log_sample("Dev_Stat", self.read_status())
             self.log_sample("Pump_Lvl", self.read_pump_level())
             self.log_sample("Col_Stat", self.read_cooling())
+            if self._hk_fail_count:
+                self.log_event(
+                    "info",
+                    f"housekeeping recovered after {self._hk_fail_count} failed cycle(s)",
+                )
+                self._hk_fail_count = 0
         except Exception as e:
-            self.log_event("error", f"housekeeping read failed: {e}")
+            self._hk_fail_count += 1
+            self.log_event(
+                "error",
+                f"housekeeping read failed ({self._hk_fail_count} consecutive): {e}",
+            )
+            if (
+                not self.test_mode
+                and self._hk_fail_count % self.AUTO_RECONNECT_AFTER == 0
+            ):
+                self._auto_reconnect()
+
+    def _auto_reconnect(self) -> None:
+        """
+        Close and reopen the serial port in place after consecutive
+        housekeeping failures.
+
+        The 2026-07-14 forensic run (notebook 031) showed the chillers drop
+        off the USB bus and re-enumerate; the stale handle then fails every
+        call with WinError 22 until the port is closed and reopened. Runs on
+        the housekeeping thread, so it must not call reconnect() — that
+        joins the housekeeping thread. ``is_connected`` stays True even on a
+        failed reopen so housekeeping keeps cycling and the reopen is
+        retried every ``AUTO_RECONNECT_AFTER`` failures.
+        """
+        self.log_event(
+            "warning",
+            f"auto-reconnect after {self._hk_fail_count} failed housekeeping "
+            f"cycle(s): closing and reopening {self.port}",
+        )
+        with self.thread_lock:
+            try:
+                self._close_transport()
+            except Exception as e:
+                self.log_event(
+                    "warning", f"auto-reconnect: close failed (continuing): {e}"
+                )
+            try:
+                self._open_transport()
+            except Exception as e:
+                self.log_event("error", f"auto-reconnect: reopen FAILED (will retry): {e}")
+                return
+        self.log_event("info", "auto-reconnect: port reopened")
 
     def extra_status(self) -> Dict[str, Any]:
         """Chiller-specific status entries."""
         return {
             "current_temperature": self.current_temperature,
             "target_temperature": self.target_temperature,
+            "hk_consecutive_failures": self._hk_fail_count,
         }

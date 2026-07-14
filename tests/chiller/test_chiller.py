@@ -428,6 +428,94 @@ class TestChiller:
             assert line.startswith("logger_test")
 
 
+class TestChillerAutoReconnect:
+    """Auto-reconnect after consecutive housekeeping failures (2026-07-14:
+    chillers drop off the USB bus, stale handle fails with WinError 22
+    until the port is closed and reopened — notebook 031)."""
+
+    def _failing_chiller(self):
+        chiller = Chiller("auto_reconnect_test", "COM3")
+        chiller.is_connected = True
+        chiller.serial_connection = Mock()
+        return chiller
+
+    def test_no_reconnect_before_threshold(self):
+        chiller = self._failing_chiller()
+        with patch.object(chiller, 'read_temp', side_effect=Exception("WinError 22")), \
+             patch.object(chiller, '_auto_reconnect') as mock_rc:
+            for _ in range(Chiller.AUTO_RECONNECT_AFTER - 1):
+                chiller.hk_monitor()
+            mock_rc.assert_not_called()
+        assert chiller._hk_fail_count == Chiller.AUTO_RECONNECT_AFTER - 1
+
+    def test_reconnect_at_threshold_and_every_multiple(self):
+        chiller = self._failing_chiller()
+        with patch.object(chiller, 'read_temp', side_effect=Exception("WinError 22")), \
+             patch.object(chiller, '_auto_reconnect') as mock_rc:
+            for _ in range(2 * Chiller.AUTO_RECONNECT_AFTER):
+                chiller.hk_monitor()
+            assert mock_rc.call_count == 2
+
+    def test_successful_cycle_resets_counter(self):
+        chiller = self._failing_chiller()
+        with patch.object(chiller, 'read_temp', side_effect=Exception("boom")):
+            chiller.hk_monitor()
+            chiller.hk_monitor()
+        assert chiller._hk_fail_count == 2
+
+        with patch.object(chiller, 'read_temp', return_value=20.0), \
+             patch.object(chiller, 'read_set_temp', return_value=20.0), \
+             patch.object(chiller, 'read_running', return_value="DEVICE RUNNING"), \
+             patch.object(chiller, 'read_status', return_value="OK"), \
+             patch.object(chiller, 'read_pump_level', return_value=3), \
+             patch.object(chiller, 'read_cooling', return_value="AUTO"):
+            chiller.hk_monitor()
+        assert chiller._hk_fail_count == 0
+
+    @patch('devices.serial_device.serial.Serial')
+    def test_auto_reconnect_reopens_port(self, mock_serial):
+        chiller = self._failing_chiller()
+        chiller._hk_fail_count = Chiller.AUTO_RECONNECT_AFTER
+        old_connection = chiller.serial_connection
+        new_instance = Mock()
+        mock_serial.return_value = new_instance
+
+        chiller._auto_reconnect()
+
+        old_connection.close.assert_called_once()
+        assert chiller.serial_connection is new_instance
+        assert chiller.is_connected == True
+
+    @patch('devices.serial_device.serial.Serial')
+    def test_auto_reconnect_reopen_failure_keeps_cycling(self, mock_serial):
+        chiller = self._failing_chiller()
+        chiller._hk_fail_count = Chiller.AUTO_RECONNECT_AFTER
+        mock_serial.side_effect = Exception("port busy")
+
+        chiller._auto_reconnect()
+
+        # is_connected stays True so housekeeping keeps running and the
+        # reopen is retried on later failures (the supervisor does not
+        # reconnect after the initial connect).
+        assert chiller.is_connected == True
+
+    def test_no_reconnect_in_test_mode(self):
+        chiller = Chiller("auto_reconnect_sim_test", "COM3", test_mode=True)
+        chiller.is_connected = True
+        with patch.object(chiller, 'read_temp', side_effect=Exception("boom")), \
+             patch.object(chiller, '_auto_reconnect') as mock_rc:
+            for _ in range(2 * Chiller.AUTO_RECONNECT_AFTER):
+                chiller.hk_monitor()
+            mock_rc.assert_not_called()
+
+    def test_status_exposes_failure_counter(self):
+        chiller = self._failing_chiller()
+        assert chiller.get_status()["hk_consecutive_failures"] == 0
+        with patch.object(chiller, 'read_temp', side_effect=Exception("boom")):
+            chiller.hk_monitor()
+        assert chiller.get_status()["hk_consecutive_failures"] == 1
+
+
 class TestChillerCommands:
     """Test ChillerCommands constants."""
     
