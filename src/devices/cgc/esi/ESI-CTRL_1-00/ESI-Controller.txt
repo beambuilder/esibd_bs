@@ -1,0 +1,97 @@
+ESI-Controller ver. 1-00, compilation date: Jul 13 2026
+ (C) by CGC Instruments, www.cgc-instruments.com
+Usage: ESI-Controller COM-Number [Switches]
+  Switch: { -option, /option }
+  Options:
+      N/n: interactive mode
+          (starts automatically when all commands have been processed)
+    Heat-controller management:
+      H/h: get all product data,           ht:    get target heater temperature
+      HTv: set target heater temperature to v
+        (use a negative value to turn off temperature control)
+      ho:    get heater voltage,           hp:    get heater power
+      HVv: set heater voltage limit to v,  hv:    get heater voltage limit
+      HAa: set heater current limit to a,  ha:    get heater current limit
+      HWw: set heater power limit to w,    hw:    get heater power limit
+      HK/hk: get housekeeping data,        HM/hm: get monitoring data
+      HI/hi: get interlock state,          HL,hl: get hardware limits
+      HS f/hs f: save housekeeping and monitoring data to file f
+    HV-supply management (a = module address = slot number = 1..3):
+      VKa/vka: get housekeeping data,      VOa/voa: get output data
+      VVa v: set target output voltage to v
+      VGanh/VGa: set/get measurement ranges, nh=2 bool arguments [n,y]
+             n = negative output voltage, h = high current range
+      vva:   get target output voltage,    VDa/vda: get output data
+      VTa/vta: tune voltage
+    Plugin module management (a=address=0-3, base=_, all=*):
+      m: list detected modules,            M: list & check module state
+      MSa/msa: get state
+      MAa b:   set activation state,       maa:     get activation state
+      MIa/mia: get product identification, MNa/mna: get product number
+      MMa/mma: get manufacturing date,     MHa/mha: get hardware version
+      MDa/mda: get firmware date,          MFa/mfa: get firmware version
+      MEa/mea: get device type,            MTa/mta: get hardware type
+      MUa/mua: get uptime,                 MOa/moa: get operation time
+      MKa/mka: get housekeeping data,      MCa/mca: get CPU data
+      MLa/mla: get LED data
+      M#a/m#a: restart the module(s),      MGa/mga: rescan module address
+      mza: get module buffer status,       MZa: purge module communication
+      MP/mp: update detected module list,  MR/mr: rescan all modules
+    Device settings:
+      UY/UN: enable/disable device,        u: get device enable state
+      S/s: get device status,              SD/sd: get device state
+      SV/sv: get voltage state,            ST/st: get temperature state
+      SF/sf: get fan state,                SI/si: get interlock state
+      SE u/se: set/get interlock enable mask
+      SS u/ss: set/get function of slide switch 'Fan'
+      SN/sn: get device input levels,      SP/sp: get power monitor state
+    Base-device management:
+      B/b: get all product data
+      BS/bs: get state
+      BA b:  set activation state,       ba:    get activation state
+      BI/bi: get product identification, BN/bn: get product number
+      BM/bm: get manufacturing date,     BH/bh: get hardware version
+      BD/bd: get firmware date,          BF/bf: get firmware version
+      BE/be: get device type,            BT/bt: get hardware type
+      BU/bu: get uptime,                 BO/bo: get operation time
+      BK/bk: get housekeeping data,      BC/bc: get CPU data
+      B#/b#: restart the module(s),      BG/bg: rescan module address
+      bz: get module buffer status,      BZ: purge module communication
+    Controller management:
+      P/p: get all product data
+      PI/pi: get product identification,   PN/pn: get product number
+      PM/pm: get manufacturing date,       PH/ph: get hardware version
+      PD/pd: get firmware date,            PF/pf: get firmware version
+      PE/pe: get device type,              PT/pt: get hardware type
+      PU/pu: get uptime,                   PK/pk: get housekeeping data
+      PB/pb: get fan data,                 PL/pl: get LED data
+      PC/pc: get CPU data,                 P#/p#: restart the device
+    Configuration management:
+      XI/xi: list deleted/active configurations
+      XS/XL   FileName: save/load all configurations to/from FileName
+      xs/xl   FileName: save/load current configuration to/from FileName
+      XSu/XLu FileName: save/load configuration #u to/from FileName
+      XCu/xcu:          save/load current configuration to/from NVM set #u
+      XNu name/xnu:     set/get name of configuration #u
+      XR/xr:            reset current configuration
+      XDu/xdu: delete configuration #u,      XD/xd: delete all configurations
+      XUu/xuu: undelete configuration #u,    XU/xu: undelete all configurations
+      XWu/xwu: wipe out configuration #u,    XW/xw: wipe out all configurations
+        (wiping out cannot be undoed, thus requires confirmation)
+    Memory management:
+      Y/y FileName: restore/backup memory data
+    Testing and debugging:
+      R/r FileName: create test protocol
+      @n:   test communication by transmitting of up to n characters
+              (allowed value: 0..256, default=0)
+      &m n: test module #m communication by transmitting of up to n characters
+      G/g:  debug mode, G: additional I/O debug into Debug.txt
+    General control:
+        z: get device buffer status,       Z: purge communication
+       $u: set data rate to u baud (default: 230400 baud)
+      Q/q: quiet mode,                     T/t: terminate the program
+      ?: get this help
+  Notes:
+    1. Use capitals for continuous mode, if available
+    2. Integer numbers can also be entered in hexadecimal or binary formats
+       by appending 'h' or 'b' specifying the respective radix

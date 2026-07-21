@@ -1,4 +1,11 @@
-"""ESI controller base device class for CGC ESI-CTRL."""
+"""ESI controller base device class for CGC ESI-CTRL (firmware/DLL 1-00).
+
+Mirrors ``ESI-CTRL_1-00/COM-ESI-CTRL.h``. Notable changes vs the 0-00 DLL:
+device-level activation state is gone (main state now reports ON vs
+STANDBY), ``GetBaseHousekeeping`` gained a leading ``Valid`` flag,
+``GetCompleteState`` lost its trailing heat-controller interlock argument,
+and a full configuration-management section (NVM slots) was added.
+"""
 
 import ctypes
 import json
@@ -35,9 +42,6 @@ class ESIBase:
     ERR_NOT_CONNECTED = -100
     ERR_NOT_READY = -101
     ERR_READY = -102
-    ERR_BUFF_FULL = -200
-    NO_DATA = 1
-    AUTO_MEAS_CUR = 2
 
     # Expected device / module type IDs
     DEVICE_TYPE = 0x8ED6
@@ -60,6 +64,7 @@ class ESIBase:
     # Controller main state values
     MAIN_STATE = {
         0x0000: 'STATE_ON',
+        0x0001: 'STATE_STBY',
         0x0010: 'STATE_ERROR',
         0x0011: 'STATE_ERR_MODULE',
         0x0012: 'STATE_ERR_VSUP',
@@ -89,7 +94,14 @@ class ESIBase:
     # Fan state bit flags
     FAN_STATE = {
         (1 << 0): 'FS_FAN_OK',
+        (1 << 1): 'FS_FAN_SW_CURR',
+        (1 << 2): 'FS_FAN_SW_LAST',
+        (1 << 3): 'FS_FAN_ENB',
     }
+
+    # Fan slide-switch override bits (Get/SetFanSwitchOverride)
+    FS_OVERRIDE = 1 << 0  # override the slide switch 'Fan'
+    FS_ON = 1 << 1        # software state while overridden
 
     # Temperature state bit flags
     TEMPERATURE_STATE = {
@@ -121,8 +133,16 @@ class ESIBase:
     FAN_RDY = 1 << 2
     FAN_OFL = 1 << 3
 
-    # Module state bits
-    MS_ACTIVE = 1 << 0xF
+    # Module state bits (header 1-00; the header's MS_ACTIVE composite
+    # references an undefined MS_VOLT_ACT — do not rely on it)
+    MS_CTRL_ACT = 1 << 0x8  # temperature/voltage control active
+    MS_MOD_ACT = 1 << 0xE   # module is active
+    MS_DEV_ACT = 1 << 0xF   # device is active
+
+    # Configuration management
+    CONFIG_DATA_SIZE = 53
+    CONFIG_NAME_SIZE = 202
+    MAX_CONFIG = 1023
 
     # String sizes
     DATA_STRING_SIZE = 12
@@ -145,7 +165,7 @@ class ESIBase:
 
         # Load DLL
         self.esi_dll_path = os.path.join(
-            self.class_dir, r"ESI-CTRL_0-00\x64\COM-ESI-CTRL.dll"
+            self.class_dir, r"ESI-CTRL_1-00\x64\COM-ESI-CTRL.dll"
         )
         self.esi_dll = ctypes.WinDLL(self.esi_dll_path)
 
@@ -189,7 +209,7 @@ class ESIBase:
         return status, baud_ref.value
 
     def purge(self):
-        """Clear data buffers for the communication port."""
+        """Restore the communication after a communication error."""
         return self.esi_dll.COM_ESI_CTRL_Purge()
 
     def get_buffer_state(self):
@@ -203,18 +223,6 @@ class ESIBase:
         empty = ctypes.c_bool()
         status = self.esi_dll.COM_ESI_CTRL_DevicePurge(ctypes.byref(empty))
         return status, empty.value
-
-    def get_auto_mask(self):
-        """Get mask of the last automatic notification data."""
-        mask = ctypes.c_uint()
-        status = self.esi_dll.COM_ESI_CTRL_GetAutoMask(ctypes.byref(mask))
-        return status, mask.value
-
-    def check_auto_input(self):
-        """Check for new automatic notification data."""
-        mask = ctypes.c_uint()
-        status = self.esi_dll.COM_ESI_CTRL_CheckAutoInput(ctypes.byref(mask))
-        return status, mask.value
 
     # =========================================================================
     #     General
@@ -322,18 +330,6 @@ class ESIBase:
     #     ESI controller
     # =========================================================================
 
-    def set_activation_state(self, activation_state):
-        """Set device activation state."""
-        return self.esi_dll.COM_ESI_CTRL_SetActivationState(
-            ctypes.c_bool(activation_state)
-        )
-
-    def get_activation_state(self):
-        """Get device activation state."""
-        st = ctypes.c_bool()
-        status = self.esi_dll.COM_ESI_CTRL_GetActivationState(ctypes.byref(st))
-        return status, st.value
-
     def get_data_ready_flags(self):
         """Get data-ready flags."""
         flags = ctypes.c_ubyte()
@@ -357,11 +353,11 @@ class ESIBase:
         return status, hex(sv), active
 
     def set_enable(self, enable):
-        """Enable/disable modules."""
+        """Enable/disable the device."""
         return self.esi_dll.COM_ESI_CTRL_SetEnable(ctypes.c_bool(enable))
 
     def get_enable(self):
-        """Get module enable state."""
+        """Get device enable state."""
         en = ctypes.c_bool()
         status = self.esi_dll.COM_ESI_CTRL_GetEnable(ctypes.byref(en))
         return status, en.value
@@ -381,6 +377,18 @@ class ESIBase:
         sv = fs.value
         active = [n for f, n in self.FAN_STATE.items() if sv & f]
         return status, hex(sv), active
+
+    def get_fan_switch_override(self):
+        """Get function of the slide switch 'Fan'. Returns (status, bits)."""
+        ov = ctypes.c_ubyte()
+        status = self.esi_dll.COM_ESI_CTRL_GetFanSwitchOverride(ctypes.byref(ov))
+        return status, ov.value
+
+    def set_fan_switch_override(self, override_bits):
+        """Set function of the slide switch 'Fan' (FS_OVERRIDE | FS_ON)."""
+        return self.esi_dll.COM_ESI_CTRL_SetFanSwitchOverride(
+            ctypes.c_ubyte(override_bits)
+        )
 
     def get_temperature_state(self):
         """Get temperature state."""
@@ -519,7 +527,7 @@ class ESIBase:
         return status, flags.value
 
     def get_module_state(self, address):
-        """Get module state word."""
+        """Get module state word (MS_CTRL_ACT / MS_MOD_ACT / MS_DEV_ACT bits)."""
         ms = ctypes.c_uint16()
         status = self.esi_dll.COM_ESI_CTRL_GetModuleState(
             ctypes.c_uint(address), ctypes.byref(ms)
@@ -527,13 +535,13 @@ class ESIBase:
         return status, ms.value
 
     def set_module_activation_state(self, address, activation_state):
-        """Set module activation state."""
+        """Set module activation state (not available for the base device)."""
         return self.esi_dll.COM_ESI_CTRL_SetModuleActivationState(
             ctypes.c_uint(address), ctypes.c_bool(activation_state)
         )
 
     def get_module_activation_state(self, address):
-        """Get module activation state."""
+        """Get module activation state (not available for the base device)."""
         st = ctypes.c_bool()
         status = self.esi_dll.COM_ESI_CTRL_GetModuleActivationState(
             ctypes.c_uint(address), ctypes.byref(st)
@@ -541,13 +549,18 @@ class ESIBase:
         return status, st.value
 
     def get_base_housekeeping(self):
-        """Get base-module housekeeping. Returns (status, volt_3v3, temp_cpu)."""
+        """Get base-module housekeeping.
+
+        Returns (status, valid, volt_3v3, temp_cpu). The 1-00 DLL added the
+        leading ``Valid`` flag.
+        """
+        valid = ctypes.c_bool()
         v3 = ctypes.c_double()
         tcpu = ctypes.c_double()
         status = self.esi_dll.COM_ESI_CTRL_GetBaseHousekeeping(
-            ctypes.byref(v3), ctypes.byref(tcpu)
+            ctypes.byref(valid), ctypes.byref(v3), ctypes.byref(tcpu)
         )
-        return status, v3.value, tcpu.value
+        return status, valid.value, v3.value, tcpu.value
 
     def get_heat_ctrl_housekeeping(self):
         """Get heat-controller housekeeping.
@@ -600,8 +613,19 @@ class ESIBase:
 
     # -- HV supply control --
 
+    def get_hv_supply_meas_ranges(self, address):
+        """Get HV-PSU measurement ranges. Returns (status, volt_neg, curr_high)."""
+        volt_neg = ctypes.c_bool()
+        curr_high = ctypes.c_bool()
+        status = self.esi_dll.COM_ESI_CTRL_GetHVsupplyMeasRanges(
+            ctypes.c_uint(address),
+            ctypes.byref(volt_neg), ctypes.byref(curr_high),
+        )
+        return status, volt_neg.value, curr_high.value
+
     def set_hv_supply_meas_ranges(self, address, volt_neg, curr_high):
-        """Set HV-PSU measurement channels."""
+        """Set HV-PSU measurement ranges (volt_neg: regulate the negative
+        output; curr_high: ~1.7 mA range instead of ~170 uA)."""
         return self.esi_dll.COM_ESI_CTRL_SetHVsupplyMeasRanges(
             ctypes.c_uint(address),
             ctypes.c_bool(volt_neg), ctypes.c_bool(curr_high),
@@ -728,6 +752,10 @@ class ESIBase:
         return status, t.value
 
     def set_heat_ctrl_heater_temperature(self, heater_temp):
+        """Set target heater temperature (negative value turns control off).
+
+        Returns (status, set_value).
+        """
         t = ctypes.c_double(heater_temp)
         status = self.esi_dll.COM_ESI_CTRL_SetHeatCtrlHeaterTemperature(ctypes.byref(t))
         return status, t.value
@@ -745,18 +773,18 @@ class ESIBase:
     def get_heat_ctrl_monitoring(self):
         """Get heat-controller monitoring data.
 
-        Returns (status, valid, volt_out, volt_mon, curr_mon, temp_mon).
+        Returns (status, valid, volt_out, volt_heat, curr_out, temp_heat).
         """
         valid = ctypes.c_bool()
         vout = ctypes.c_double()
-        vmon = ctypes.c_double()
-        imon = ctypes.c_double()
-        tmon = ctypes.c_double()
+        vheat = ctypes.c_double()
+        iout = ctypes.c_double()
+        theat = ctypes.c_double()
         status = self.esi_dll.COM_ESI_CTRL_GetHeatCtrlMonitoring(
             ctypes.byref(valid), ctypes.byref(vout),
-            ctypes.byref(vmon), ctypes.byref(imon), ctypes.byref(tmon),
+            ctypes.byref(vheat), ctypes.byref(iout), ctypes.byref(theat),
         )
-        return status, valid.value, vout.value, vmon.value, imon.value, tmon.value
+        return status, valid.value, vout.value, vheat.value, iout.value, theat.value
 
     def get_heat_ctrl_ilock_state(self):
         ils = ctypes.c_ubyte()
@@ -772,7 +800,8 @@ class ESIBase:
 
         Returns (status, data_flags, device_state, voltage_state,
         temperature_state, fan_state, interlock_state, state,
-        module_data_flags_list, module_state_list, heat_ctrl_interlock_state).
+        module_data_flags_list, module_state_list). The 1-00 DLL dropped
+        the trailing heat-controller interlock argument.
         """
         data_flags = ctypes.c_ubyte()
         dev_state = ctypes.c_ubyte()
@@ -783,18 +812,120 @@ class ESIBase:
         state = ctypes.c_uint16()
         mod_data_flags = (ctypes.c_ubyte * (self.MODULE_NUM + 1))()
         mod_state = (ctypes.c_uint16 * (self.MODULE_NUM + 1))()
-        heat_ilock = ctypes.c_ubyte()
         status = self.esi_dll.COM_ESI_CTRL_GetCompleteState(
             ctypes.byref(data_flags), ctypes.byref(dev_state),
             ctypes.byref(volt_state), ctypes.byref(temp_state),
             ctypes.byref(fan_state), ctypes.byref(ilock_state),
             ctypes.byref(state), mod_data_flags, mod_state,
-            ctypes.byref(heat_ilock),
         )
         return (
             status, data_flags.value, dev_state.value, volt_state.value,
             temp_state.value, fan_state.value, ilock_state.value,
-            state.value, list(mod_data_flags), list(mod_state), heat_ilock.value,
+            state.value, list(mod_data_flags), list(mod_state),
+        )
+
+    # =========================================================================
+    #     Configuration management (new in 1-00)
+    # =========================================================================
+
+    def get_config_values(self):
+        """Get configuration parameters.
+
+        Returns (status, max_config_number, config_data_size, config_name_size).
+        """
+        max_no = ctypes.c_uint()
+        data_size = ctypes.c_uint()
+        name_size = ctypes.c_uint()
+        status = self.esi_dll.COM_ESI_CTRL_GetConfigValues(
+            ctypes.byref(max_no), ctypes.byref(data_size), ctypes.byref(name_size)
+        )
+        return status, max_no.value, data_size.value, name_size.value
+
+    def get_current_config(self):
+        """Get current configuration. Returns (status, config_bytes)."""
+        buf = (ctypes.c_ubyte * self.CONFIG_DATA_SIZE)()
+        status = self.esi_dll.COM_ESI_CTRL_GetCurrentConfig(buf)
+        return status, bytes(buf)
+
+    def set_current_config(self, config_bytes):
+        """Set current configuration from a CONFIG_DATA_SIZE byte blob."""
+        if len(config_bytes) != self.CONFIG_DATA_SIZE:
+            return self.ERR_ARGUMENT
+        buf = (ctypes.c_ubyte * self.CONFIG_DATA_SIZE)(*config_bytes)
+        return self.esi_dll.COM_ESI_CTRL_SetCurrentConfig(buf)
+
+    def get_config_list(self):
+        """Get configuration list.
+
+        Returns (status, active_list, valid_list) — two MAX_CONFIG-long
+        bool lists.
+        """
+        active = (ctypes.c_bool * self.MAX_CONFIG)()
+        valid = (ctypes.c_bool * self.MAX_CONFIG)()
+        status = self.esi_dll.COM_ESI_CTRL_GetConfigList(active, valid)
+        return status, list(active), list(valid)
+
+    def save_current_config(self, config_number):
+        """Save current configuration to NVM slot config_number."""
+        return self.esi_dll.COM_ESI_CTRL_SaveCurrentConfig(
+            ctypes.c_uint16(config_number)
+        )
+
+    def load_current_config(self, config_number):
+        """Load current configuration from NVM slot config_number."""
+        return self.esi_dll.COM_ESI_CTRL_LoadCurrentConfig(
+            ctypes.c_uint16(config_number)
+        )
+
+    def get_config_name(self, config_number):
+        """Get configuration name. Returns (status, name)."""
+        buf = ctypes.create_string_buffer(self.CONFIG_NAME_SIZE)
+        status = self.esi_dll.COM_ESI_CTRL_GetConfigName(
+            ctypes.c_uint16(config_number), buf
+        )
+        return status, buf.value.decode(errors="replace")
+
+    def set_config_name(self, config_number, name):
+        """Set configuration name."""
+        buf = ctypes.create_string_buffer(
+            name.encode(errors="replace"), self.CONFIG_NAME_SIZE
+        )
+        return self.esi_dll.COM_ESI_CTRL_SetConfigName(
+            ctypes.c_uint16(config_number), buf
+        )
+
+    def get_config_data(self, config_number):
+        """Get configuration data. Returns (status, config_bytes)."""
+        buf = (ctypes.c_ubyte * self.CONFIG_DATA_SIZE)()
+        status = self.esi_dll.COM_ESI_CTRL_GetConfigData(
+            ctypes.c_uint16(config_number), buf
+        )
+        return status, bytes(buf)
+
+    def set_config_data(self, config_number, config_bytes):
+        """Set configuration data from a CONFIG_DATA_SIZE byte blob."""
+        if len(config_bytes) != self.CONFIG_DATA_SIZE:
+            return self.ERR_ARGUMENT
+        buf = (ctypes.c_ubyte * self.CONFIG_DATA_SIZE)(*config_bytes)
+        return self.esi_dll.COM_ESI_CTRL_SetConfigData(
+            ctypes.c_uint16(config_number), buf
+        )
+
+    def get_config_flags(self, config_number):
+        """Get configuration flags. Returns (status, active, valid)."""
+        active = ctypes.c_bool()
+        valid = ctypes.c_bool()
+        status = self.esi_dll.COM_ESI_CTRL_GetConfigFlags(
+            ctypes.c_uint16(config_number),
+            ctypes.byref(active), ctypes.byref(valid),
+        )
+        return status, active.value, valid.value
+
+    def set_config_flags(self, config_number, active, valid):
+        """Set configuration flags."""
+        return self.esi_dll.COM_ESI_CTRL_SetConfigFlags(
+            ctypes.c_uint16(config_number),
+            ctypes.c_bool(active), ctypes.c_bool(valid),
         )
 
     # =========================================================================

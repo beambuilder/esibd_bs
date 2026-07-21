@@ -1,9 +1,11 @@
 """
-ESI lab-layer tests (P6.5-ESI slice): ESI on CGCDevice against a fake
-WinDLL — ctor/status contract, nb-024 bring-up order, the process-wide
-SINGLE-INSTANCE guard (the ESI-CTRL DLL takes no port argument),
-reconnect re-running the bring-up, canonical hk samples, and the
-test-mode simulator (no DLL load, stateful HV target/readback).
+ESI lab-layer tests (P6.5-ESI slice, reworked for DLL 1-00 in P9): ESI on
+CGCDevice against a fake WinDLL — ctor/status contract, bring-up order,
+the process-wide SINGLE-INSTANCE guard (the ESI-CTRL DLL takes no port
+argument), reconnect re-running the bring-up, canonical hk samples
+(Activated now derived from main state ON/STANDBY), and the test-mode
+simulator (no DLL load, config-driven activation, stateful HV
+target/readback, heater).
 """
 import ctypes
 import sqlite3
@@ -19,7 +21,7 @@ from conftest import capture_logger
 from devices import SQLiteSink
 from devices.cgc import CGCStatusError
 from devices.cgc.esi import ESI
-from devices.cgc.esi.esi import SIM_MODULES
+from devices.cgc.esi.esi import SIM_MODULES, SIM_CONFIG_NAMES
 
 
 @pytest.fixture
@@ -47,6 +49,12 @@ def test_ctor_and_status_contract(dll_factory):
     assert status["baudrate"] == 230400
     assert status["test_mode"] is False
     assert "timeout" not in status  # DLL transport has no serial timeout
+
+
+def test_loads_the_1_00_dll(dll_factory):
+    logger, _ = capture_logger()
+    ESI("ESI", 14, logger=logger)
+    assert r"ESI-CTRL_1-00\x64" in dll_factory.paths[-1]
 
 
 def test_bringup_order_open_comspeed_enable(dll_factory):
@@ -109,6 +117,19 @@ def test_reconnect_reruns_full_bringup(dll_factory):
     assert names.index("COM_ESI_CTRL_Close") < names.index("COM_ESI_CTRL_Open", 1)
 
 
+# --- removed 0-00 API stays removed ----------------------------------------------
+
+def test_device_activation_state_api_is_gone():
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, test_mode=True)
+    # 1-00 dropped the device-level activation state; ON/STANDBY on the
+    # main state replaces it. The old methods must not linger.
+    assert not hasattr(esi, "set_activation_state")
+    assert not hasattr(esi, "get_activation_state")
+    assert not hasattr(esi, "get_auto_mask")
+    assert not hasattr(esi, "check_auto_input")
+
+
 # --- single-instance guard -------------------------------------------------------
 
 def test_second_instance_cannot_connect_while_first_holds_the_dll(dll_factory):
@@ -138,7 +159,7 @@ def test_holder_reconnect_does_not_trip_its_own_guard(dll_factory):
 
 # --- housekeeping (canonical samples from a scripted fake DLL) --------------------
 
-def _install_hk_handlers(dll):
+def _install_hk_handlers(dll, main_state=0x0000):
     def housekeeping(v24, v5, v3, tcpu, tpsu):
         v24._obj.value = 24.1
         v5._obj.value = 5.02
@@ -150,6 +171,7 @@ def _install_hk_handlers(dll):
     def presence(valid, max_mod, arr):
         valid._obj.value = True
         max_mod._obj.value = 3
+        arr[0] = 1  # heat controller (no V/I readback)
         for addr in (2, 3):
             arr[addr] = 1  # MODULE_PRESENT
         arr[4] = 1  # base module
@@ -169,12 +191,22 @@ def _install_hk_handlers(dll):
         en._obj.value = True
         return 0
 
+    def state(st):
+        st._obj.value = main_state
+        return 0
+
+    def heater_monitoring(valid, vout, vheat, iout, theat):
+        valid._obj.value = True
+        theat._obj.value = 42.0
+        return 0
+
     dll.handlers["COM_ESI_CTRL_GetHousekeeping"] = housekeeping
     dll.handlers["COM_ESI_CTRL_GetModulePresence"] = presence
     dll.handlers["COM_ESI_CTRL_GetHVsupplyOutputVoltage"] = hv_voltage
     dll.handlers["COM_ESI_CTRL_GetHVsupplyOutputCurrent"] = hv_current
     dll.handlers["COM_ESI_CTRL_GetEnable"] = enabled
-    dll.handlers["COM_ESI_CTRL_GetActivationState"] = enabled
+    dll.handlers["COM_ESI_CTRL_GetState"] = state
+    dll.handlers["COM_ESI_CTRL_GetHeatCtrlMonitoring"] = heater_monitoring
 
 
 def test_hk_monitor_writes_canonical_samples(dll_factory, sink, tmp_path):
@@ -189,14 +221,30 @@ def test_hk_monitor_writes_canonical_samples(dll_factory, sink, tmp_path):
     assert by_channel["Temp_CPU"] == 41.5
     assert by_channel["Temp_PSU"] == 36.2
     assert by_channel["Enabled"] == 1
-    assert by_channel["Activated"] == 1
+    assert by_channel["Activated"] == 1  # main state 0 = STATE_ON
+    assert by_channel["Temp_Heater"] == 42.0
+    # the heat controller on address 0 is not an HV module
     assert by_channel["Modules_Present"] == 2
     assert by_channel["HV2_Voltage"] == 302.0
     assert by_channel["HV3_Voltage"] == 303.0
     assert by_channel["HV2_Current"] == 2.5e-10
+    assert "HV0_Voltage" not in by_channel
     # strings (Main_State etc.) never reach the numeric samples table
     assert "Main_State" not in by_channel
     assert all(sim == 0 for *_, sim in rows)
+
+
+def test_hk_activated_follows_standby_state(dll_factory, sink, tmp_path):
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, sink=sink)
+    _install_hk_handlers(dll_factory.last, main_state=0x0001)  # STATE_STBY
+    assert esi.connect() is True
+    esi.hk_monitor()
+    by_channel = {
+        channel: value
+        for _, channel, value, _ in _samples(tmp_path / "telemetry.db")
+    }
+    assert by_channel["Activated"] == 0
 
 
 def test_check_raises_cgc_status_error(dll_factory):
@@ -227,18 +275,61 @@ def test_sim_construct_connect_reconnect_without_dll(forbid_windll):
     assert esi.reconnect() is True
 
 
+def test_sim_config_workflow_drives_activation(forbid_windll):
+    """1-00 workflow: select a config (heater temp + enables), then adjust
+    voltages. The sim mirrors the shipped COM-ESI-CTRL-2xHVPS.cfg slots."""
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, test_mode=True)
+    esi.connect()
+    # fresh device sits in standby
+    status, _, name = esi.get_main_state()
+    assert (status, name) == (esi.NO_ERR, "STATE_STBY")
+    # heat config -> device ON, heater target set, modules enabled
+    assert esi.load_current_config(10) == esi.NO_ERR
+    status, _, name = esi.get_main_state()
+    assert name == "STATE_ON"
+    status, target = esi.get_heat_ctrl_heater_temperature()
+    assert (status, target) == (esi.NO_ERR, 30.0)
+    status, valid, *_, temp = esi.get_heat_ctrl_monitoring()
+    assert status == esi.NO_ERR and valid
+    assert abs(temp - 30.0) <= 0.5
+    for addr in SIM_MODULES:
+        assert esi.get_module_activation_state(addr) == (esi.NO_ERR, True)
+    # "Standby" keeps modules enabled but the device off
+    assert esi.load_current_config(2) == esi.NO_ERR
+    status, _, name = esi.get_main_state()
+    assert name == "STATE_STBY"
+    assert esi.get_module_activation_state(SIM_MODULES[0]) == (esi.NO_ERR, True)
+    # "Off" disables everything
+    assert esi.load_current_config(1) == esi.NO_ERR
+    assert esi.get_module_activation_state(SIM_MODULES[0]) == (esi.NO_ERR, False)
+    # unknown slot -> argument error, state untouched
+    assert esi.load_current_config(999) == esi.ERR_ARGUMENT
+    # config catalogue
+    assert esi.get_config_name(2) == (esi.NO_ERR, "Standby")
+    assert esi.get_config_name(25) == (esi.NO_ERR, "Heat 175deg")
+    status, active_slots, valid_slots = esi.list_configs()
+    assert status == esi.NO_ERR
+    assert active_slots == sorted(SIM_CONFIG_NAMES)
+    assert valid_slots == active_slots
+    assert esi.save_current_config(30) == esi.NO_ERR
+
+
 def test_sim_hv_target_and_readback_roundtrip(forbid_windll):
     logger, _ = capture_logger()
     esi = ESI("ESI", 14, logger=logger, test_mode=True)
     esi.connect()
     address = SIM_MODULES[0]
-    # inactive module reads back 0 V regardless of target
+    # standby device reads back 0 V regardless of target
     assert esi.set_hv_supply_target_output_voltage(address, 300.0) == esi.NO_ERR
     status, valid, volts = esi.get_hv_supply_output_voltage(address)
     assert (status, valid, volts) == (esi.NO_ERR, True, 0.0)
-    # activated (device + module) -> readback tracks the target
-    assert esi.set_activation_state(True) == esi.NO_ERR
-    assert esi.set_module_activation_state(address, True) == esi.NO_ERR
+    # config load activates the device (and zeroes the targets, as every
+    # shipped config carries 0 V) -> readback tracks a fresh target
+    assert esi.load_current_config(10) == esi.NO_ERR
+    status, t = esi.get_hv_supply_target_output_voltage(address)
+    assert (status, t) == (esi.NO_ERR, 0.0)
+    assert esi.set_hv_supply_target_output_voltage(address, 300.0) == esi.NO_ERR
     status, valid, volts = esi.get_hv_supply_output_voltage(address)
     assert status == esi.NO_ERR and valid
     assert abs(volts - 300.0) <= 0.5
@@ -253,6 +344,30 @@ def test_sim_hv_target_and_readback_roundtrip(forbid_windll):
     assert (status, valid) == (esi.ERR_ARGUMENT, False)
 
 
+def test_sim_meas_ranges_roundtrip(forbid_windll):
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, test_mode=True)
+    esi.connect()
+    address = SIM_MODULES[0]
+    assert esi.get_hv_supply_meas_ranges(address) == (esi.NO_ERR, False, False)
+    assert esi.set_hv_supply_meas_ranges(address, True, True) == esi.NO_ERR
+    assert esi.get_hv_supply_meas_ranges(address) == (esi.NO_ERR, True, True)
+    assert esi.set_hv_supply_meas_ranges(0, True, False) == esi.ERR_ARGUMENT
+
+
+def test_sim_heater_target_set_get(forbid_windll):
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, test_mode=True)
+    esi.connect()
+    assert esi.set_heat_ctrl_heater_temperature(55.0) == (esi.NO_ERR, 55.0)
+    assert esi.get_heat_ctrl_heater_temperature() == (esi.NO_ERR, 55.0)
+    # negative target = temperature control off
+    assert esi.set_heat_ctrl_heater_temperature(-1.0) == (esi.NO_ERR, -1.0)
+    status, valid, *_, temp = esi.get_heat_ctrl_monitoring()
+    assert status == esi.NO_ERR and valid
+    assert temp < 30.0  # ambient, not a heating setpoint
+
+
 def test_sim_hk_channels(forbid_windll, sink, tmp_path):
     logger, _ = capture_logger()
     esi = ESI("ESI", 14, logger=logger, sink=sink, test_mode=True)
@@ -261,12 +376,11 @@ def test_sim_hk_channels(forbid_windll, sink, tmp_path):
     rows = _samples(tmp_path / "telemetry.db")
     channels = {channel for _, channel, _, _ in rows}
     assert {"Volt_24V", "Volt_5V0", "Volt_3V3", "Temp_CPU", "Temp_PSU",
-            "CPU_Load", "Fan_RPM", "Enabled", "Activated",
+            "CPU_Load", "Fan_RPM", "Enabled", "Activated", "Temp_Heater",
             "Modules_Present"} <= channels
-    # both lab HV modules report while activated
-    esi.set_activation_state(True)
+    # both lab HV modules report while a heat config keeps the device ON
+    esi.load_current_config(12)
     for addr in SIM_MODULES:
-        esi.set_module_activation_state(addr, True)
         esi.set_hv_supply_target_output_voltage(addr, 100.0 * addr)
     esi.hk_monitor()
     channels = {channel for _, channel, _, _ in _samples(tmp_path / "telemetry.db")}

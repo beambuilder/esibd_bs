@@ -1,0 +1,17 @@
+F3:Set COM1, default data rate (230400 Baud)
+	set COMPORT=1
+	set COMRATE=
+	set COMPORT
+F4:Set COM1, data rate  57600 Baud
+	set COMPORT=1
+	set COMRATE=57600
+	set COMPORT
+	set COMRATE
+F5:Set COM4, default data rate (230400 Baud)
+	set COMPORT=4
+	set COMRATE=
+	set COMPORT
+F6:Set COM6, default data rate (230400 Baud)
+	set COMPORT=6
+	set COMRATE=
+	set COMPORT
