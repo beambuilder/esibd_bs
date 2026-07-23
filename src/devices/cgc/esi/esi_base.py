@@ -5,11 +5,26 @@ device-level activation state is gone (main state now reports ON vs
 STANDBY), ``GetBaseHousekeeping`` gained a leading ``Valid`` flag,
 ``GetCompleteState`` lost its trailing heat-controller interlock argument,
 and a full configuration-management section (NVM slots) was added.
+
+The working DLL is the 32-bit Borland build directly in ``ESI-CTRL_1-00/``
+(the ``x64/`` build is broken — manufacturer statement 2026-07-23). A
+64-bit process cannot load it, so ``self.esi_dll`` is an
+``esi_bridge.ESIDllBridge`` proxy talking to a frozen 32-bit server
+process (msl-loadlib) instead of a ``ctypes.WinDLL`` handle; the call
+sites below are unchanged.
 """
 
 import ctypes
 import json
 import os
+
+
+def _open_bridge(dll_path):
+    """Start the 32-bit DLL bridge (lazy import keeps msl-loadlib out of
+    test-mode and unit-test paths; tests monkeypatch this seam)."""
+    from .esi_bridge import ESIDllBridge
+
+    return ESIDllBridge(dll_path)
 
 
 class ESIBase:
@@ -163,11 +178,12 @@ class ESIBase:
         """
         self.class_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # Load DLL
+        # Load DLL — 32-bit Borland build via the msl-loadlib bridge
+        # (the x64 build is broken; see module docstring).
         self.esi_dll_path = os.path.join(
-            self.class_dir, r"ESI-CTRL_1-00\x64\COM-ESI-CTRL.dll"
+            self.class_dir, r"ESI-CTRL_1-00\COM-ESI-CTRL.dll"
         )
-        self.esi_dll = ctypes.WinDLL(self.esi_dll_path)
+        self.esi_dll = _open_bridge(self.esi_dll_path)
 
         # Error messages
         self.err_path = os.path.join(

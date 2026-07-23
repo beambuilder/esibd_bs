@@ -54,7 +54,9 @@ def test_ctor_and_status_contract(dll_factory):
 def test_loads_the_1_00_dll(dll_factory):
     logger, _ = capture_logger()
     ESI("ESI", 14, logger=logger)
-    assert r"ESI-CTRL_1-00\x64" in dll_factory.paths[-1]
+    # the 32-bit build directly in ESI-CTRL_1-00/ (x64 build is broken)
+    assert dll_factory.paths[-1].endswith(r"ESI-CTRL_1-00\COM-ESI-CTRL.dll")
+    assert "x64" not in dll_factory.paths[-1]
 
 
 def test_bringup_order_open_comspeed_enable(dll_factory):
@@ -264,6 +266,9 @@ def forbid_windll(monkeypatch):
         raise AssertionError(f"test_mode must not load the vendor DLL ({path})")
 
     monkeypatch.setattr(ctypes, "WinDLL", boom)
+    from devices.cgc.esi import esi_base
+
+    monkeypatch.setattr(esi_base, "_open_bridge", boom)
 
 
 def test_sim_construct_connect_reconnect_without_dll(forbid_windll):
@@ -277,7 +282,8 @@ def test_sim_construct_connect_reconnect_without_dll(forbid_windll):
 
 def test_sim_config_workflow_drives_activation(forbid_windll):
     """1-00 workflow: select a config (heater temp + enables), then adjust
-    voltages. The sim mirrors the shipped COM-ESI-CTRL-2xHVPS.cfg slots."""
+    voltages. The sim mirrors the device NVM (0-based DLL slots:
+    cfg-file [ConfigurationN] = slot N-1)."""
     logger, _ = capture_logger()
     esi = ESI("ESI", 14, logger=logger, test_mode=True)
     esi.connect()
@@ -285,7 +291,7 @@ def test_sim_config_workflow_drives_activation(forbid_windll):
     status, _, name = esi.get_main_state()
     assert (status, name) == (esi.NO_ERR, "STATE_STBY")
     # heat config -> device ON, heater target set, modules enabled
-    assert esi.load_current_config(10) == esi.NO_ERR
+    assert esi.load_current_config(9) == esi.NO_ERR
     status, _, name = esi.get_main_state()
     assert name == "STATE_ON"
     status, target = esi.get_heat_ctrl_heater_temperature()
@@ -296,23 +302,62 @@ def test_sim_config_workflow_drives_activation(forbid_windll):
     for addr in SIM_MODULES:
         assert esi.get_module_activation_state(addr) == (esi.NO_ERR, True)
     # "Standby" keeps modules enabled but the device off
-    assert esi.load_current_config(2) == esi.NO_ERR
+    assert esi.load_current_config(1) == esi.NO_ERR
     status, _, name = esi.get_main_state()
     assert name == "STATE_STBY"
     assert esi.get_module_activation_state(SIM_MODULES[0]) == (esi.NO_ERR, True)
     # "Off" disables everything
-    assert esi.load_current_config(1) == esi.NO_ERR
+    assert esi.load_current_config(0) == esi.NO_ERR
     assert esi.get_module_activation_state(SIM_MODULES[0]) == (esi.NO_ERR, False)
     # unknown slot -> argument error, state untouched
     assert esi.load_current_config(999) == esi.ERR_ARGUMENT
     # config catalogue
-    assert esi.get_config_name(2) == (esi.NO_ERR, "Standby")
-    assert esi.get_config_name(25) == (esi.NO_ERR, "Heat 175deg")
+    assert esi.get_config_name(1) == (esi.NO_ERR, "Standby")
+    assert esi.get_config_name(24) == (esi.NO_ERR, "Heat 175deg")
     status, active_slots, valid_slots = esi.list_configs()
     assert status == esi.NO_ERR
     assert active_slots == sorted(SIM_CONFIG_NAMES)
     assert valid_slots == active_slots
     assert esi.save_current_config(30) == esi.NO_ERR
+
+
+def test_sim_working_config_applies_immediately(forbid_windll):
+    """User workflow 2026-07-23: a working config (DLL slot 11 'Heat
+    50deg', HV presets 60/65 V) heats + applies HV directly on load — no
+    extra enable — and temperature/voltages are tweakable afterwards."""
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, test_mode=True)
+    esi.connect()
+    assert esi.load_current_config(11) == esi.NO_ERR
+    # ON immediately, heater at 50, HV presets applied
+    _, _, name = esi.get_main_state()
+    assert name == "STATE_ON"
+    assert esi.get_heat_ctrl_heater_temperature() == (esi.NO_ERR, 50.0)
+    status, valid, volts = esi.get_hv_supply_output_voltage(2)
+    assert status == esi.NO_ERR and valid and abs(volts - 60.0) <= 0.5
+    status, valid, volts = esi.get_hv_supply_output_voltage(3)
+    assert status == esi.NO_ERR and valid and abs(volts - 65.0) <= 0.5
+    # tweak temperature and one HV target on top of the config
+    assert esi.set_heat_ctrl_heater_temperature(55.0) == (esi.NO_ERR, 55.0)
+    assert esi.set_hv_supply_target_output_voltage(3, 70.0) == esi.NO_ERR
+    status, valid, volts = esi.get_hv_supply_output_voltage(3)
+    assert status == esi.NO_ERR and valid and abs(volts - 70.0) <= 0.5
+
+
+def test_sim_save_and_name_config(forbid_windll):
+    """PSU/SW-style config persistence: save current settings to a slot,
+    name it, find it in the catalogue."""
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, test_mode=True)
+    esi.connect()
+    assert esi.save_current_config(40) == esi.NO_ERR
+    assert esi.set_config_name(40, "My working point") == esi.NO_ERR
+    assert esi.get_config_name(40) == (esi.NO_ERR, "My working point")
+    status, active_slots, _ = esi.list_configs()
+    assert status == esi.NO_ERR and 40 in active_slots
+    # a second instance starts from the shipped catalogue (no bleed)
+    other = ESI("ESI_b", 15, logger=logger, test_mode=True)
+    assert other.get_config_name(40) == (other.NO_ERR, "")
 
 
 def test_sim_hv_target_and_readback_roundtrip(forbid_windll):
@@ -324,9 +369,9 @@ def test_sim_hv_target_and_readback_roundtrip(forbid_windll):
     assert esi.set_hv_supply_target_output_voltage(address, 300.0) == esi.NO_ERR
     status, valid, volts = esi.get_hv_supply_output_voltage(address)
     assert (status, valid, volts) == (esi.NO_ERR, True, 0.0)
-    # config load activates the device (and zeroes the targets, as every
-    # shipped config carries 0 V) -> readback tracks a fresh target
-    assert esi.load_current_config(10) == esi.NO_ERR
+    # config load activates the device (slot 9 "Heat 30deg" carries no
+    # HV presets, so targets land at 0 V) -> readback tracks a fresh target
+    assert esi.load_current_config(9) == esi.NO_ERR
     status, t = esi.get_hv_supply_target_output_voltage(address)
     assert (status, t) == (esi.NO_ERR, 0.0)
     assert esi.set_hv_supply_target_output_voltage(address, 300.0) == esi.NO_ERR

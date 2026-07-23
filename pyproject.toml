@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "pyserial>=3.5",
+    "msl-loadlib>=1.0",  # 32-bit bridge for the ESI-CTRL 1-00 DLL (x64 build broken)
 ]
 
 [project.optional-dependencies]

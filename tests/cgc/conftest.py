@@ -62,6 +62,11 @@ class DLLFactory:
 def dll_factory(monkeypatch):
     factory = DLLFactory()
     monkeypatch.setattr(ctypes, "WinDLL", factory)
+    # ESI 1-00 loads its 32-bit DLL through the msl-loadlib bridge seam
+    # instead of ctypes.WinDLL; the fake stands in for both.
+    from devices.cgc.esi import esi_base
+
+    monkeypatch.setattr(esi_base, "_open_bridge", factory)
     return factory
 
 

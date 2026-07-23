@@ -5,13 +5,29 @@ ESI controller (electrospray HV supply + heater) on the shared CGC lab layer.
 ``CGCDevice`` (canonical log line, telemetry sink, housekeeping worker +
 poke, responding/reconnect, explicit test mode).
 
-Firmware 1-00 workflow (lead-engineer email 2026-07-21): select one of
-the NVM configurations (sets heater temperature, interlock mask, module
-enables — device memory ships ``COM-ESI-CTRL-2xHVPS.cfg``: 1=Off,
-2=Standby, 10-25=Heat 30-175 degC, 100+=HV presets), then adjust the HV
-target voltages. Device-level activation state is GONE in 1-00 — the
-main state now reports ON vs STANDBY and the hk channel ``Activated``
-derives from it (name kept so the Explorer sink piggyback survives).
+Firmware 1-00 workflow (lead-engineer email 2026-07-21, user-verified
+2026-07-23): select one of the NVM configurations (sets heater
+temperature + limits, interlock mask, module enables and HV target
+voltages — DLL slots are 0-based, cfg-file ``[ConfigurationN]`` = slot
+N-1: 0=Off, 1=Standby, 9-24=Heat 30-175 degC, 99+=HV presets), then
+tweak the
+heater temperature and HV target voltages live. **A working config takes
+effect immediately on load — heating starts and HV is applied with no
+further enable step.** Device-level activation state is GONE in 1-00 —
+the main state now reports ON vs STANDBY and the hk channel
+``Activated`` derives from it (name kept so the Explorer sink piggyback
+survives).
+
+Config-file gotchas (user, 2026-07-23): ``HVPSxMaxVoltStep`` must be
+nonzero (good value 10 V) — at 0 no voltage gets applied at all;
+``InterlockEnable`` must be exactly ``Y,N,N,Y`` for the lab setup
+(Front, Rear, ESI-Ilock1, ESI-Ilock2). Both are config-blob fields with
+no dedicated DLL setter besides the interlock mask.
+
+The working DLL is the 32-bit build in ``ESI-CTRL_1-00/`` (x64 build
+broken, manufacturer 2026-07-23); ``ESIBase`` reaches it through a
+32-bit bridge process (``esi_bridge``/``esi_server32``) — first connect
+in a process takes a few extra seconds for server startup.
 
 The controller carries up to 4 modules: heat controller HTCTRL-24-10 on
 address 0, HV supplies on addresses 1..3 (lab: 2x HVPS-3kB on addresses
@@ -39,16 +55,25 @@ from .esi_base import ESIBase
 #: slots, 2 = inlet, 3 = emitter; user-confirmed on firmware 1-00).
 SIM_MODULES = (2, 3)
 
-#: NVM config slots simulated in test mode, mirroring the shipped
-#: COM-ESI-CTRL-2xHVPS.cfg: 1=Off, 2=Standby (device disabled, HV modules
-#: enabled), 10..25 = heat setpoints (DeviceEnable=Y).
-SIM_CONFIG_NAMES = {1: "Off", 2: "Standby"}
+#: NVM config slots simulated in test mode, mirroring the device NVM.
+#: DLL slot numbering is 0-based (hardware observation 2026-07-23):
+#: cfg-file section [ConfigurationN] = DLL slot N-1. 0=Off, 1=Standby
+#: (device disabled, HV modules enabled), 9..24 = heat setpoints
+#: (DeviceEnable=Y).
+SIM_CONFIG_NAMES = {0: "Off", 1: "Standby"}
 SIM_CONFIG_HEAT = {}
-for _slot, _temp in zip(range(10, 25), range(30, 180, 10)):
+for _slot, _temp in zip(range(9, 24), range(30, 180, 10)):
     SIM_CONFIG_NAMES[_slot] = f"Heat {_temp}deg"
     SIM_CONFIG_HEAT[_slot] = float(_temp)
-SIM_CONFIG_NAMES[25] = "Heat 175deg"
-SIM_CONFIG_HEAT[25] = 175.0
+SIM_CONFIG_NAMES[24] = "Heat 175deg"
+SIM_CONFIG_HEAT[24] = 175.0
+
+#: Per-config HV target presets simulated in test mode
+#: (address -> volts). Mirrors the user-edited cfg where working heat
+#: configs carry preset HV voltages (slot 11 "Heat 50deg" = file
+#: [Configuration12]: HVPS2Voltage=60, HVPS3Voltage=65; HVPS key N
+#: assumed to drive address N — HVPS1 slot is unpopulated in the lab).
+SIM_CONFIG_HV = {11: {2: 60.0, 3: 65.0}}
 
 
 class ESI(CGCDevice, ESIBase):
@@ -66,7 +91,7 @@ class ESI(CGCDevice, ESIBase):
     Example:
         esi = ESI("ESI", com=14, sink=sink)
         esi.connect()            # open + comspeed + enable (single-instance guard)
-        esi.load_current_config(10)   # "Heat 30deg": heater on, HV modules enabled
+        esi.load_current_config(9)    # "Heat 30deg": heater on, HV modules enabled
         esi.set_hv_supply_target_output_voltage(2, 300.0)
         status, valid, volts = esi.get_hv_supply_output_voltage(2)
         esi.disconnect()
@@ -123,6 +148,7 @@ class ESI(CGCDevice, ESIBase):
         self._sim_meas_ranges = {addr: (False, False) for addr in SIM_MODULES}
         self._sim_config = None
         self._sim_heater_target = 0.0
+        self._sim_config_names = dict(SIM_CONFIG_NAMES)
         if not test_mode:
             ESIBase.__init__(self, com=com, log=None, idn=device_id)
 
@@ -388,7 +414,7 @@ class ESI(CGCDevice, ESIBase):
 
     def get_config_name(self, config_number):
         if self.test_mode:
-            return self.NO_ERR, SIM_CONFIG_NAMES.get(config_number, "")
+            return self.NO_ERR, self._sim_config_names.get(config_number, "")
         return ESIBase.get_config_name(self, config_number)
 
     def list_configs(self):
@@ -396,7 +422,7 @@ class ESI(CGCDevice, ESIBase):
         valid_slots) as sorted slot-number lists (unlike the raw
         ``get_config_list``, which returns two MAX_CONFIG bool lists)."""
         if self.test_mode:
-            slots = sorted(SIM_CONFIG_NAMES)
+            slots = sorted(self._sim_config_names)
             return self.NO_ERR, slots, slots
         status, active, valid = ESIBase.get_config_list(self)
         active_slots = [n for n, a in enumerate(active) if a]
@@ -420,11 +446,14 @@ class ESI(CGCDevice, ESIBase):
 
     def load_current_config(self, config_number):
         """Load configuration from NVM slot (the 1-00 operator workflow:
-        select a config — heater temperature, interlocks, module enables —
-        then adjust HV voltages). Returns the status."""
+        select a config — heater temperature, interlocks, module enables,
+        HV targets — then tweak heater temperature and HV voltages). A
+        working config takes effect immediately: heating starts and HV is
+        applied, no further enable step (user-verified 2026-07-23).
+        Returns the status."""
         self.log_event("info", f"loading NVM config {config_number}")
         if self.test_mode:
-            if config_number not in SIM_CONFIG_NAMES:
+            if config_number not in self._sim_config_names:
                 self.log_event(
                     "error",
                     f"failed to load NVM config {config_number}: "
@@ -432,15 +461,16 @@ class ESI(CGCDevice, ESIBase):
                 )
                 return self.ERR_ARGUMENT
             self._sim_config = config_number
-            # Mirrors the shipped cfg: slot 1 "Off" disables everything,
-            # slot 2 "Standby" keeps the device off with HV modules
-            # enabled, heat slots activate the device. Loaded targets are
-            # 0 V in every shipped config.
+            # Mirrors the lab cfg: slot 0 "Off" disables everything,
+            # slot 1 "Standby" keeps the device off with HV modules
+            # enabled, heat slots activate the device and may carry
+            # preset HV targets (SIM_CONFIG_HV).
             self._sim_activated = config_number in SIM_CONFIG_HEAT
-            module_on = config_number != 1
+            module_on = config_number != 0
+            hv_presets = SIM_CONFIG_HV.get(config_number, {})
             for addr in SIM_MODULES:
                 self._sim_module_active[addr] = module_on
-                self._sim_hv_target[addr] = 0.0
+                self._sim_hv_target[addr] = hv_presets.get(addr, 0.0)
             self._sim_heater_target = SIM_CONFIG_HEAT.get(config_number, 0.0)
             return self.NO_ERR
         status = ESIBase.load_current_config(self, config_number)
@@ -452,15 +482,36 @@ class ESI(CGCDevice, ESIBase):
         return status
 
     def save_current_config(self, config_number):
-        """Save the current configuration to an NVM slot. Returns the status."""
+        """Save the current device settings to an NVM slot (PSU/SW-style
+        config persistence; name the slot via ``set_config_name``).
+        Returns the status."""
         self.log_event("info", f"saving current config to NVM slot {config_number}")
         if self.test_mode:
+            self._sim_config_names.setdefault(
+                config_number, f"Saved config {config_number}"
+            )
             return self.NO_ERR
         status = ESIBase.save_current_config(self, config_number)
         if status != self.NO_ERR:
             self.log_event(
                 "error",
                 f"failed to save NVM config {config_number}: status {status}",
+            )
+        return status
+
+    def set_config_name(self, config_number, name):
+        """Set the name of an NVM config slot. Returns the status."""
+        self.log_event(
+            "info", f"naming NVM config slot {config_number} '{name}'"
+        )
+        if self.test_mode:
+            self._sim_config_names[config_number] = str(name)
+            return self.NO_ERR
+        status = ESIBase.set_config_name(self, config_number, name)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error",
+                f"failed to name NVM config {config_number}: status {status}",
             )
         return status
 
