@@ -1,0 +1,257 @@
+timestamp,config,hvps_mask,heat_mask,result
+2026-07-24T11:47:36,10,NNNN,NNNN,n
+2026-07-24T11:47:57,11,YNNN,NNNN,n
+2026-07-24T11:48:02,12,NYNN,NNNN,n
+2026-07-24T11:48:06,13,YYNN,NNNN,n
+2026-07-24T11:48:19,14,NNYN,NNNN,o: HV stay off
+2026-07-24T11:48:26,15,YNYN,NNNN,o: HV stay
+2026-07-24T11:48:49,16,NYYN,NNNN,o: HV stay off
+2026-07-24T11:48:54,17,YYYN,NNNN,o: HV stay off
+2026-07-24T11:49:00,18,NNNY,NNNN,n
+2026-07-24T11:49:05,19,YNNY,NNNN,n
+2026-07-24T11:49:10,20,NYNY,NNNN,n
+2026-07-24T11:49:15,21,YYNY,NNNN,n
+2026-07-24T11:49:23,22,NNYY,NNNN,o: HV stay off
+2026-07-24T11:49:28,23,YNYY,NNNN,o: HV stay off
+2026-07-24T11:49:53,24,NYYY,NNNN,o: HV stay off
+2026-07-24T11:49:58,25,YYYY,NNNN,o: HV stay off
+2026-07-24T11:50:10,26,NNNN,YNNN,n
+2026-07-24T11:50:17,27,YNNN,YNNN,n
+2026-07-24T11:50:24,28,NYNN,YNNN,n
+2026-07-24T11:50:29,29,YYNN,YNNN,n
+2026-07-24T11:50:38,30,NNYN,YNNN,o: HV stay off
+2026-07-24T11:50:45,31,YNYN,YNNN,o: HV stay off
+2026-07-24T11:50:49,32,NYYN,YNNN,o: HV stay off
+2026-07-24T11:50:54,33,YYYN,YNNN,o: HV stay off
+2026-07-24T11:51:03,34,NNNY,YNNN,n
+2026-07-24T11:51:09,35,YNNY,YNNN,n
+2026-07-24T11:52:13,36,NYNY,YNNN,n
+2026-07-24T11:52:20,37,YYNY,YNNN,n
+2026-07-24T11:52:26,38,NNYY,YNNN,o: HV stay off
+2026-07-24T11:52:30,39,YNYY,YNNN,o: HV stay off
+2026-07-24T11:52:34,40,NYYY,YNNN,o: HV stay off
+2026-07-24T11:52:41,41,YYYY,YNNN,o: HV stay off
+2026-07-24T11:52:47,42,NNNN,NYNN,n
+2026-07-24T11:52:54,43,YNNN,NYNN,n
+2026-07-24T11:53:00,44,NYNN,NYNN,n
+2026-07-24T11:53:14,45,YYNN,NYNN,n
+2026-07-24T11:53:19,46,NNYN,NYNN,o: HV stay off
+2026-07-24T11:53:23,47,YNYN,NYNN,o: HV stay off
+2026-07-24T11:53:26,48,NYYN,NYNN,o: HV stay off
+2026-07-24T11:53:30,49,YYYN,NYNN,o: HV stay off
+2026-07-24T11:53:40,50,NNNY,NYNN,n
+2026-07-24T11:53:49,51,YNNY,NYNN,n
+2026-07-24T11:53:57,52,NYNY,NYNN,n
+2026-07-24T11:54:04,53,YYNY,NYNN,n
+2026-07-24T11:54:08,54,NNYY,NYNN,o: HV stay off
+2026-07-24T11:54:13,55,YNYY,NYNN,o: HV stay off
+2026-07-24T11:54:16,56,NYYY,NYNN,o: HV stay off
+2026-07-24T11:54:19,57,YYYY,NYNN,o: HV stay off
+2026-07-24T11:54:25,58,NNNN,YYNN,n
+2026-07-24T11:54:30,59,YNNN,YYNN,n
+2026-07-24T11:54:36,60,NYNN,YYNN,n
+2026-07-24T11:54:42,61,YYNN,YYNN,n
+2026-07-24T11:54:49,62,NNYN,YYNN,o: HV stay off
+2026-07-24T11:54:53,63,YNYN,YYNN,o: HV stay off
+2026-07-24T11:54:56,64,NYYN,YYNN,o: HV stay off
+2026-07-24T11:54:59,65,YYYN,YYNN,o: HV stay off
+2026-07-24T11:55:07,66,NNNY,YYNN,n
+2026-07-24T11:55:14,67,YNNY,YYNN,n
+2026-07-24T11:55:20,68,NYNY,YYNN,n
+2026-07-24T11:55:25,69,YYNY,YYNN,n
+2026-07-24T11:55:30,70,NNYY,YYNN,o: HV stay off
+2026-07-24T11:55:34,71,YNYY,YYNN,o: HV stay off
+2026-07-24T11:55:39,72,NYYY,YYNN,o: HV stay off
+2026-07-24T11:55:44,73,YYYY,YYNN,o: HV stay off
+2026-07-24T11:56:16,74,NNNN,NNYN,o: nothing tripped; heater off; HV on
+2026-07-24T11:56:52,75,YNNN,NNYN,o: nothing tripped; heater off; HV on
+2026-07-24T11:56:58,76,NYNN,NNYN,o: nothing tripped; heater off; HV on
+2026-07-24T11:57:05,77,YYNN,NNYN,o: nothing tripped; heater off; HV on
+2026-07-24T11:57:19,78,NNYN,NNYN,o: nothing works
+2026-07-24T11:57:24,79,YNYN,NNYN,o: nothing works
+2026-07-24T11:57:29,80,NYYN,NNYN,o: nothing works
+2026-07-24T11:57:35,81,YYYN,NNYN,o: nothing works
+2026-07-24T11:58:02,82,NNNY,NNYN,o: tripped but heater always off
+2026-07-24T11:58:20,83,YNNY,NNYN,o: tripped but heater always off
+2026-07-24T11:58:37,84,NYNY,NNYN,o: tripped but heater always off
+2026-07-24T11:58:43,85,YYNY,NNYN,o: tripped but heater always off
+2026-07-24T11:58:51,86,NNYY,NNYN,o: all off
+2026-07-24T11:58:55,87,YNYY,NNYN,o: all off
+2026-07-24T11:59:00,88,NYYY,NNYN,o: all off
+2026-07-24T11:59:04,89,YYYY,NNYN,o: all off
+2026-07-24T11:59:26,90,NNNN,YNYN,o: nothing tripped; heater always off
+2026-07-24T11:59:37,91,YNNN,YNYN,o: nothing tripped; heater always off
+2026-07-24T11:59:44,92,NYNN,YNYN,o: nothing tripped; heater always off
+2026-07-24T11:59:55,93,YYNN,YNYN,o: nothing tripped; heater always off
+2026-07-24T12:00:01,94,NNYN,YNYN,o: all off
+2026-07-24T12:00:05,95,YNYN,YNYN,o: all off
+2026-07-24T12:00:09,96,NYYN,YNYN,o: all off
+2026-07-24T12:00:15,97,YYYN,YNYN,o: all off
+2026-07-24T12:00:37,98,NNNY,YNYN,o: tripped but heater always off
+2026-07-24T12:00:47,99,YNNY,YNYN,o: tripped but heater always off
+2026-07-24T12:00:56,100,NYNY,YNYN,o: tripped but heater always off
+2026-07-24T12:01:02,101,YYNY,YNYN,o: tripped but heater always off
+2026-07-24T12:01:07,102,NNYY,YNYN,o: all off
+2026-07-24T12:01:11,103,YNYY,YNYN,o: all off
+2026-07-24T12:01:15,104,NYYY,YNYN,o: all off
+2026-07-24T12:01:19,105,YYYY,YNYN,o: all off
+2026-07-24T12:01:41,106,NNNN,NYYN,o: nothing tripped; heater always off
+2026-07-24T12:01:51,107,YNNN,NYYN,o: nothing tripped; heater always off
+2026-07-24T12:01:59,108,NYNN,NYYN,o: nothing tripped; heater always off
+2026-07-24T12:02:13,109,YYNN,NYYN,o: nothing tripped; heater always off
+2026-07-24T12:02:31,110,NNYN,NYYN,o: all off
+2026-07-24T12:02:35,111,YNYN,NYYN,o: all off
+2026-07-24T12:02:41,112,NYYN,NYYN,o: all off
+2026-07-24T12:02:46,113,YYYN,NYYN,o: all off
+2026-07-24T12:03:09,114,NNNY,NYYN,o: tripped but heater always off
+2026-07-24T12:03:15,115,YNNY,NYYN,o: tripped but heater always off
+2026-07-24T12:03:23,116,NYNY,NYYN,o: tripped but heater always off
+2026-07-24T12:03:31,117,YYNY,NYYN,o: tripped but heater always off
+2026-07-24T12:03:37,118,NNYY,NYYN,o: all off
+2026-07-24T12:03:42,119,YNYY,NYYN,o: all off
+2026-07-24T12:03:46,120,NYYY,NYYN,o: all off
+2026-07-24T12:03:50,121,YYYY,NYYN,o: all off
+2026-07-24T12:04:18,122,NNNN,YYYN,o: nothing tripped; heater always off
+2026-07-24T12:04:24,123,YNNN,YYYN,o: nothing tripped; heater always off
+2026-07-24T12:04:31,124,NYNN,YYYN,o: nothing tripped; heater always off
+2026-07-24T12:04:40,125,YYNN,YYYN,o: nothing tripped; heater always off
+2026-07-24T12:04:44,126,NNYN,YYYN,o: all off
+2026-07-24T12:04:56,127,YNYN,YYYN,o: all off
+2026-07-24T12:05:30,128,NYYN,YYYN,o: all off
+2026-07-24T12:05:34,129,YYYN,YYYN,o: all off
+2026-07-24T12:05:49,130,NNNY,YYYN,o: tripped; heater always off
+2026-07-24T12:05:56,131,YNNY,YYYN,o: tripped; heater always off
+2026-07-24T12:06:02,132,NYNY,YYYN,o: tripped; heater always off
+2026-07-24T12:06:09,133,YYNY,YYYN,o: tripped; heater always off
+2026-07-24T12:06:13,134,NNYY,YYYN,o: all off
+2026-07-24T12:06:17,135,YNYY,YYYN,o: all off
+2026-07-24T12:06:21,136,NYYY,YYYN,o: all off
+2026-07-24T12:06:26,137,YYYY,YYYN,o: all off
+2026-07-24T12:11:48,138,NNNN,NNNY,o: all work; nothing tripped
+2026-07-24T12:11:55,139,YNNN,NNNY,o: all work; nothing tripped
+2026-07-24T12:12:17,140,NYNN,NNNY,o: all work; nothing tripped
+2026-07-24T12:12:26,141,YYNN,NNNY,o: all work; nothing tripped
+2026-07-24T12:12:48,142,NNYN,NNNY,o: tripped; heater works; HV doesnt work
+2026-07-24T12:12:55,143,YNYN,NNNY,o: tripped; heater works; HV doesnt work
+2026-07-24T12:13:02,144,NYYN,NNNY,o: tripped; heater works; HV doesnt work
+2026-07-24T12:13:08,145,YYYN,NNNY,o: tripped; heater works; HV doesnt work
+2026-07-24T12:13:35,146,NNNY,NNNY,o: tripped; all turn off
+2026-07-24T12:13:41,147,YNNY,NNNY,o: tripped; all turn off
+2026-07-24T12:13:48,148,NYNY,NNNY,o: tripped; all turn off
+2026-07-24T12:13:55,149,YYNY,NNNY,o: tripped; all turn off
+2026-07-24T12:14:27,150,NNYY,NNNY,o: tripped; heater works; HV always off
+2026-07-24T12:14:35,151,YNYY,NNNY,o: tripped; heater works; HV always off
+2026-07-24T12:15:38,152,NYYY,NNNY,o: tripped; heater works; HV always off
+2026-07-24T12:15:45,153,YYYY,NNNY,o: tripped; heater works; HV always off
+2026-07-24T12:16:04,154,NNNN,YNNY,o: nothing tripped; all work
+2026-07-24T12:16:09,155,YNNN,YNNY,o: nothing tripped; all work
+2026-07-24T12:16:14,156,NYNN,YNNY,o: nothing tripped; all work
+2026-07-24T12:16:20,157,YYNN,YNNY,o: nothing tripped; all work
+2026-07-24T12:16:40,158,NNYN,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:16:46,159,YNYN,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:16:57,160,NYYN,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:17:04,161,YYYN,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:17:27,162,NNNY,YNNY,o: tripped; all go off
+2026-07-24T12:17:40,163,YNNY,YNNY,o: tripped; all go off
+2026-07-24T12:17:45,164,NYNY,YNNY,o: tripped; all go off
+2026-07-24T12:17:51,165,YYNY,YNNY,o: tripped; all go off
+2026-07-24T12:18:09,166,NNYY,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:18:17,167,YNYY,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:18:27,168,NYYY,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:18:34,169,YYYY,YNNY,o: tripped; heater works; HV always off
+2026-07-24T12:18:48,170,NNNN,NYNY,n
+2026-07-24T12:18:53,171,YNNN,NYNY,n
+2026-07-24T12:18:57,172,NYNN,NYNY,n
+2026-07-24T12:19:01,173,YYNN,NYNY,n
+2026-07-24T12:19:16,174,NNYN,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:19:21,175,YNYN,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:19:27,176,NYYN,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:19:33,177,YYYN,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:19:49,178,NNNY,NYNY,o: tripped; all go off
+2026-07-24T12:19:55,179,YNNY,NYNY,o: tripped; all go off
+2026-07-24T12:20:01,180,NYNY,NYNY,o: tripped; all go off
+2026-07-24T12:20:08,181,YYNY,NYNY,o: tripped; all go off
+2026-07-24T12:20:27,182,NNYY,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:20:44,183,YNYY,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:20:49,184,NYYY,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:20:54,185,YYYY,NYNY,o: tripped; heater works; HV always off
+2026-07-24T12:20:58,186,NNNN,YYNY,n
+2026-07-24T12:21:03,187,YNNN,YYNY,n
+2026-07-24T12:21:07,188,NYNN,YYNY,n
+2026-07-24T12:21:10,189,YYNN,YYNY,n
+2026-07-24T12:21:17,190,NNYN,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:21:30,191,YNYN,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:21:36,192,NYYN,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:21:43,193,YYYN,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:22:07,194,NNNY,YYNY,o: tripped; all go off
+2026-07-24T12:22:13,195,YNNY,YYNY,o: tripped; all go off
+2026-07-24T12:22:18,196,NYNY,YYNY,o: tripped; all go off
+2026-07-24T12:22:24,197,YYNY,YYNY,o: tripped; all go off
+2026-07-24T12:22:44,198,NNYY,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:22:50,199,YNYY,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:22:57,200,NYYY,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:23:02,201,YYYY,YYNY,o: tripped; heater works; HV always off
+2026-07-24T12:23:27,202,NNNN,NNYY,o: nothing tripped; heater alwas off; HV always on
+2026-07-24T12:23:34,203,YNNN,NNYY,o: nothing tripped; heater alwas off; HV always on
+2026-07-24T12:23:40,204,NYNN,NNYY,o: nothing tripped; heater alwas off; HV always on
+2026-07-24T12:23:45,205,YYNN,NNYY,o: nothing tripped; heater alwas off; HV always on
+2026-07-24T12:24:02,206,NNYN,NNYY,o: nothing works
+2026-07-24T12:24:10,207,YNYN,NNYY,o: nothing works
+2026-07-24T12:24:15,208,NYYN,NNYY,o: nothing works
+2026-07-24T12:24:20,209,YYYN,NNYY,o: nothing works
+2026-07-24T12:25:04,210,NNNY,NNYY,o: tripped; heater always off
+2026-07-24T12:25:20,211,YNNY,NNYY,o: tripped; heater always off
+2026-07-24T12:25:28,212,NYNY,NNYY,o: tripped; heater always off
+2026-07-24T12:25:35,213,YYNY,NNYY,o: tripped; heater always off
+2026-07-24T12:25:42,214,NNYY,NNYY,o: nothing works
+2026-07-24T12:25:46,215,YNYY,NNYY,o: nothing works
+2026-07-24T12:25:51,216,NYYY,NNYY,o: nothing works
+2026-07-24T12:26:01,217,YYYY,NNYY,o: nothing works
+2026-07-24T12:26:23,218,NNNN,YNYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:26:30,219,YNNN,YNYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:26:38,220,NYNN,YNYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:26:49,221,YYNN,YNYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:26:54,222,NNYN,YNYY,o: nothing works
+2026-07-24T12:26:59,223,YNYN,YNYY,o: nothing works
+2026-07-24T12:27:03,224,NYYN,YNYY,o: nothing works
+2026-07-24T12:27:08,225,YYYN,YNYY,o: nothing works
+2026-07-24T12:27:23,226,NNNY,YNYY,o: tripped; heater always off
+2026-07-24T12:27:30,227,YNNY,YNYY,o: tripped; heater always off
+2026-07-24T12:27:35,228,NYNY,YNYY,o: tripped; heater always off
+2026-07-24T12:27:54,229,YYNY,YNYY,o: tripped; heater always off
+2026-07-24T12:28:08,230,NNYY,YNYY,o: nothing works
+2026-07-24T12:28:14,231,YNYY,YNYY,o: nothing works
+2026-07-24T12:28:19,232,NYYY,YNYY,o: nothing works
+2026-07-24T12:28:23,233,YYYY,YNYY,o: nothing works
+2026-07-24T12:28:53,234,NNNN,NYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:29:01,235,YNNN,NYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:29:10,236,NYNN,NYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:29:16,237,YYNN,NYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:29:21,238,NNYN,NYYY,o: nothing works
+2026-07-24T12:29:25,239,YNYN,NYYY,o: nothing works
+2026-07-24T12:29:30,240,NYYN,NYYY,o: nothing works
+2026-07-24T12:29:34,241,YYYN,NYYY,o: nothing works
+2026-07-24T12:29:54,242,NNNY,NYYY,o: tripped; heater always off
+2026-07-24T12:30:00,243,YNNY,NYYY,o: tripped; heater always off
+2026-07-24T12:30:05,244,NYNY,NYYY,o: tripped; heater always off
+2026-07-24T12:30:14,245,YYNY,NYYY,o: tripped; heater always off
+2026-07-24T12:30:19,246,NNYY,NYYY,o: nothing works
+2026-07-24T12:30:24,247,YNYY,NYYY,o: nothing works
+2026-07-24T12:30:27,248,NYYY,NYYY,o: nothing works
+2026-07-24T12:30:32,249,YYYY,NYYY,o: nothing works
+2026-07-24T12:30:52,250,NNNN,YYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:30:59,251,YNNN,YYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:31:06,252,NYNN,YYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:31:13,253,YYNN,YYYY,o: nothing tripped; heater always off; HV always on
+2026-07-24T12:31:18,254,NNYN,YYYY,o: nothing works
+2026-07-24T12:31:22,255,YNYN,YYYY,o: nothing works
+2026-07-24T12:31:25,256,NYYN,YYYY,o: nothing works
+2026-07-24T12:31:34,257,YYYN,YYYY,o: nothing works
+2026-07-24T12:31:52,258,NNNY,YYYY,o: tripped; heater always off
+2026-07-24T12:32:00,259,YNNY,YYYY,o: tripped; heater always off
+2026-07-24T12:32:06,260,NYNY,YYYY,o: tripped; heater always off
+2026-07-24T12:32:12,261,YYNY,YYYY,o: tripped; heater always off
+2026-07-24T12:32:22,262,NNYY,YYYY,o: nothing works
+2026-07-24T12:32:28,263,YNYY,YYYY,o: nothing works
+2026-07-24T12:32:33,264,NYYY,YYYY,o: nothing works
+2026-07-24T12:32:37,265,YYYY,YYYY,o: nothing works

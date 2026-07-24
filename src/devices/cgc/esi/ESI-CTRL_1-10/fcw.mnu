@@ -1,0 +1,402 @@
+O:Data overview
+	ESI-Controller %COMPORT% -$%COMRATE% -N -t
+
+P:Controller management
+{
+P:Get all product data
+	ESI-Controller %COMPORT% -$%COMRATE% -P -t
+I:Get product identification
+	ESI-Controller %COMPORT% -$%COMRATE% -PI -t
+N:Get product number
+	ESI-Controller %COMPORT% -$%COMRATE% -PN -t
+M:Get manufacturing date
+	ESI-Controller %COMPORT% -$%COMRATE% -PM -t
+H:Get hardware version
+	ESI-Controller %COMPORT% -$%COMRATE% -PH -t
+D:Get firmware date
+	ESI-Controller %COMPORT% -$%COMRATE% -PD -t
+F:Get firmware version
+	ESI-Controller %COMPORT% -$%COMRATE% -PF -t
+E:Get device type
+	ESI-Controller %COMPORT% -$%COMRATE% -PE -t
+T:Get hardware type
+	ESI-Controller %COMPORT% -$%COMRATE% -PT -t
+U:Get uptime
+	ESI-Controller %COMPORT% -$%COMRATE% -PU -t
+K:Get housekeeping data
+	ESI-Controller %COMPORT% -$%COMRATE% -PK -t
+C:Get CPU data
+	ESI-Controller %COMPORT% -$%COMRATE% -PC -t
+L:Get LED data
+	ESI-Controller %COMPORT% -$%COMRATE% -PL -t
+B:Get fan data
+	ESI-Controller %COMPORT% -$%COMRATE% -PB -t
+O:Get device state
+	ESI-Controller %COMPORT% -$%COMRATE% -sd -si -sv -sf -st -sn -sp -se -ss -t
+J:Get interlock enable masks
+	ESI-Controller %COMPORT% -$%COMRATE% -se -sg -t
+J:Set HV-PSU interlock enable mask
+	ESI-Controller %COMPORT% -$%COMRATE% -SE !i"HV-PSU interlock enable mask (0-15 = 0h-Fh, default = 4)" -t
+J:Set heat-controller interlock enable mask
+	ESI-Controller %COMPORT% -$%COMRATE% -SG !i"heat-controller interlock enable mask (0-15 = 0h-Fh, default = 4)" -t
+S:Get interlock enable mask
+	ESI-Controller %COMPORT% -$%COMRATE% -se -t
+S:Set interlock enable mask
+	ESI-Controller %COMPORT% -$%COMRATE% -SE !i"Interlock enable mask (0-15 = 0h-Fh, default = 4)" -t
+R:Restart the device
+	ESI-Controller %COMPORT% -$%COMRATE% -P# -t
+}
+
+M:Plugin module management
+{
+-:List detected modules
+	ESI-Controller %COMPORT% -$%COMRATE% -m -t
++:List & check module state
+	ESI-Controller %COMPORT% -$%COMRATE% -M -t
+*:Get all parameters of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -mi* -mn* -mm* -mh* -md* -mf* -me* -mt* -mu* -mo* -mk* -mc* -ms* -ma* -ml* -t
+*:Get all parameters of all modules - first half
+	ESI-Controller %COMPORT% -$%COMRATE% -mi* -mn* -mm* -mh* -md* -mf* -me* -t
+*:Get all parameters of all modules - second half
+	ESI-Controller %COMPORT% -$%COMRATE% -mt* -mu* -mo* -mk* -mc* -ms* -ma* -ml* -t
+A:Get all module parameters
+	set COMPARAM=!i"Module address (0-3, base device=_, all=*)"
+	ESI-Controller %COMPORT% -$%COMRATE% -mi%COMPARAM% -mn%COMPARAM% -mm%COMPARAM% -mh%COMPARAM% -md%COMPARAM% -mf%COMPARAM% -me%COMPARAM% -mt%COMPARAM% -mu%COMPARAM% -mo%COMPARAM% -mk%COMPARAM% -mc%COMPARAM% -ms%COMPARAM% -ma%COMPARAM% -t
+	set COMPARAM=
+B:Get all parameters of base device
+	ESI-Controller %COMPORT% -$%COMRATE% -mi_ -mn_ -mm_ -mh_ -md_ -mf_ -me_ -mt_ -mu_ -mo_ -mk_ -mc_ -ms_ -t
+0:Get all parameters of heater controller
+	ESI-Controller %COMPORT% -$%COMRATE% -mi0 -mn0 -mm0 -mh0 -md0 -mf0 -me0 -mt0 -mu0 -mo0 -mk0 -mc0 -ms0 -ma0 -t
+1:Get all parameters of HVPS #1
+	ESI-Controller %COMPORT% -$%COMRATE% -mi1 -mn1 -mm1 -mh1 -md1 -mf1 -me1 -mt1 -mu1 -mo1 -mk1 -mc1 -ms1 -ma1 -t
+2:Get all parameters of HVPS #2
+	ESI-Controller %COMPORT% -$%COMRATE% -mi2 -mn2 -mm2 -mh2 -md2 -mf2 -me2 -mt2 -mu2 -mo2 -mk2 -mc2 -ms2 -ma2 -t
+3:Get all parameters of HVPS #3
+	ESI-Controller %COMPORT% -$%COMRATE% -mi3 -mn3 -mm3 -mh3 -md3 -mf3 -me3 -mt3 -mu3 -mo3 -mk3 -mc3 -ms3 -ma3 -t
+L:Get state of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -ms* -t
+A:Get activation state of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -ma* -t
+A:Activate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA!i"Module address (0-3, base device=_, all=*)" Y -t
+A:Deactivate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA!i"Module address (0-3, base device=_, all=*)" N -t
+I:Get product identification of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MI* -t
+N:Get product number of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MN* -t
+M:Get manufacturing date of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MM* -t
+H:Get hardware version of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MH* -t
+D:Get firmware date of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MD* -t
+F:Get firmware version of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MF* -t
+E:Get device type of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -ME* -t
+T:Get hardware type of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MT* -t
+U:Get uptime of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MU* -t
+O:Get operation time of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MO* -t
+K:Get housekeeping data of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MK* -t
+C:Get CPU data of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MC* -t
+#:Restart the module
+	ESI-Controller %COMPORT% -$%COMRATE% -M#!i"Module address (0-3, base device=_, all=*)" -t
+S:Rescan address of all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MG* -t
+Y:Get module buffer status
+	ESI-Controller %COMPORT% -$%COMRATE% -Mz!i"Module address (0-3, base device=_)" -t
+Z:Purge module communication
+	ESI-Controller %COMPORT% -$%COMRATE% -MZ!i"Module address (0-3, base device=_)" -t
+P:Update detected module list
+	ESI-Controller %COMPORT% -$%COMRATE% -MP -t
+R: rescan all modules
+	ESI-Controller %COMPORT% -$%COMRATE% -MR -t
+}
+
+B:Base device
+{
+B:Get all parameters
+	ESI-Controller %COMPORT% -$%COMRATE% -B -t
+K:Get housekeeping data
+	ESI-Controller %COMPORT% -$%COMRATE% -MK_ -t
+S:Get state
+	ESI-Controller %COMPORT% -$%COMRATE% -MS_ -t
+#:Restart the module
+	ESI-Controller %COMPORT% -$%COMRATE% -M#_ -t
+Y:Get buffer status
+	ESI-Controller %COMPORT% -$%COMRATE% -Mz_ -t
+Z:Purge communication
+	ESI-Controller %COMPORT% -$%COMRATE% -MZ_ -t
+}
+
+H:Module "Heater Control"
+{
+H:Get all parameters
+	ESI-Controller %COMPORT% -$%COMRATE% -h -t
+T:Set target heater temperature
+	ESI-Controller %COMPORT% -$%COMRATE% -HT!i"Target heater temperature in degC (0-175, negative for turning off)" -t
+L:Get hardware limits
+	ESI-Controller %COMPORT% -$%COMRATE% -hl -t
+V:Set heater voltage limit
+	ESI-Controller %COMPORT% -$%COMRATE% -HV!i"Heater voltage limit in V (0-22 V)" -t
+V:Get heater voltage limit
+	ESI-Controller %COMPORT% -$%COMRATE% -hv -t
+A:Set heater current limit
+	ESI-Controller %COMPORT% -$%COMRATE% -HA!i"Heater current limit in A (0-12 A)" -t
+A:Get heater current limit
+	ESI-Controller %COMPORT% -$%COMRATE% -ha -t
+W:Set heater power limit
+	ESI-Controller %COMPORT% -$%COMRATE% -HW!i"Heater power limit in W (0-200 W)" -t
+W:Get heater power limit
+	ESI-Controller %COMPORT% -$%COMRATE% -hw -t
+O:Get heater voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -ho -t
+P:Get heater power
+	ESI-Controller %COMPORT% -$%COMRATE% -hp -t
+M:Get monitoring data
+	ESI-Controller %COMPORT% -$%COMRATE% -HM -t
+I:Get interlock state
+	ESI-Controller %COMPORT% -$%COMRATE% -HI -t
+1:Activate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA0 Y -t
+0:Deactivate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA0 N -t
+#:Restart the module
+	ESI-Controller %COMPORT% -$%COMRATE% -M#0 -t
+Y:Get buffer status
+	ESI-Controller %COMPORT% -$%COMRATE% -Mz0 -t
+Z:Purge communication
+	ESI-Controller %COMPORT% -$%COMRATE% -MZ0 -t
+S:Save housekeeping and monitoring data
+	ESI-Controller %COMPORT% -$%COMRATE% -HS !i"Filename for housekeeping and monitoring data" -t
+}
+
+1:Module "HVPS 1"
+{
+H:Get all parameters
+	ESI-Controller %COMPORT% -$%COMRATE% -mi1 -mn1 -mm1 -mh1 -md1 -mf1 -me1 -mt1 -mu1 -mo1 -mk1 -mc1 -ms1 -ml1 -ma1 -vv1 -vd1 -t
+1:Activate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA1 Y -t
+0:Deactivate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA1 N -t
+V:Set target output voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -VV1 !i"HVPS 1 target output voltage in V (0-3000 V, negative for turning off)" -t
+G:Get measurement ranges
+	ESI-Controller %COMPORT% -$%COMRATE% -VG1 -t
+S:Set measurement ranges
+	ESI-Controller %COMPORT% -$%COMRATE% -VG1!i"HVPS 1 negative output voltage (Y/N)"!i"HVPS 1 high current range (Y/N)" -t
+O:Get output data
+	ESI-Controller %COMPORT% -$%COMRATE% -VD1 -t
+#:Restart the module
+	ESI-Controller %COMPORT% -$%COMRATE% -M#1 -t
+Y:Get buffer status
+	ESI-Controller %COMPORT% -$%COMRATE% -Mz1 -t
+Z:Purge communication
+	ESI-Controller %COMPORT% -$%COMRATE% -MZ1 -t
+T:Tune voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -VT1 -t
+}
+
+2:Module "HVPS 2"
+{
+H:Get all parameters
+	ESI-Controller %COMPORT% -$%COMRATE% -mi2 -mn2 -mm2 -mh2 -md2 -mf2 -me2 -mt2 -mu2 -mo2 -mk2 -mc2 -ms2 -ml2 -ma2 -vv2 -vd2 -t
+1:Activate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA2 Y -t
+0:Deactivate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA2 N -t
+V:Set target output voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -VV2 !i"HVPS 2 target output voltage in V (0-3000 V, negative for turning off)" -t
+G:Get measurement ranges
+	ESI-Controller %COMPORT% -$%COMRATE% -VG2 -t
+S:Set measurement ranges
+	ESI-Controller %COMPORT% -$%COMRATE% -VG2!i"HVPS 2 negative output voltage (Y/N)"!i"HVPS 2 high current range (Y/N)" -t
+O:Get output data
+	ESI-Controller %COMPORT% -$%COMRATE% -VD2 -t
+#:Restart the module
+	ESI-Controller %COMPORT% -$%COMRATE% -M#2 -t
+Y:Get buffer status
+	ESI-Controller %COMPORT% -$%COMRATE% -Mz2 -t
+Z:Purge communication
+	ESI-Controller %COMPORT% -$%COMRATE% -MZ2 -t
+T:Tune voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -VT2 -t
+}
+
+3:Module "HVPS 3"
+{
+H:Get all parameters
+	ESI-Controller %COMPORT% -$%COMRATE% -mi3 -mn3 -mm3 -mh3 -md3 -mf3 -me3 -mt3 -mu3 -mo3 -mk3 -mc3 -ms3 -ml3 -ma3 -vv3 -vd3 -t
+1:Activate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA3 Y -t
+0:Deactivate the module
+	ESI-Controller %COMPORT% -$%COMRATE% -MA3 N -t
+V:Set target output voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -VV3 !i"HVPS 3 target output voltage in V (0-3000 V, negative for turning off)" -t
+G:Get measurement ranges
+	ESI-Controller %COMPORT% -$%COMRATE% -VG3 -t
+S:Set measurement ranges
+	ESI-Controller %COMPORT% -$%COMRATE% -VG3!i"HVPS 3 negative output voltage (Y/N)"!i"HVPS 3 high current range (Y/N)" -t
+O:Get output data
+	ESI-Controller %COMPORT% -$%COMRATE% -VD3 -t
+#:Restart the module
+	ESI-Controller %COMPORT% -$%COMRATE% -M#3 -t
+Y:Get buffer status
+	ESI-Controller %COMPORT% -$%COMRATE% -Mz3 -t
+Z:Purge communication
+	ESI-Controller %COMPORT% -$%COMRATE% -MZ3 -t
+T:Tune voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -VT3 -t
+}
+
+D:Device settings
+{
+A:Get complete device status
+	ESI-Controller %COMPORT% -$%COMRATE% -u -sd -si -sv -st -sf -t
+E:Get device enable state
+	ESI-Controller %COMPORT% -$%COMRATE% -u -t
+1:Enable device
+	ESI-Controller %COMPORT% -$%COMRATE% -UY -t
+0:Disable device
+	ESI-Controller %COMPORT% -$%COMRATE% -UN -t
+S:Get device status
+	ESI-Controller %COMPORT% -$%COMRATE% -S -t
+D:Get device state
+	ESI-Controller %COMPORT% -$%COMRATE% -SD -t
+I:Get interlock state
+	ESI-Controller %COMPORT% -$%COMRATE% -SI -t
+V:Get voltage state
+	ESI-Controller %COMPORT% -$%COMRATE% -SV -t
+T:Get temperature state
+	ESI-Controller %COMPORT% -$%COMRATE% -ST -t
+F:Get fan state
+	ESI-Controller %COMPORT% -$%COMRATE% -SF -t
+N:Get device input levels
+	ESI-Controller %COMPORT% -$%COMRATE% -SI -t
+P:Get power monitor state
+	ESI-Controller %COMPORT% -$%COMRATE% -SP -t
+}
+
+C:Configuration management:
+{
++:List active configurations
+	ESI-Controller %COMPORT% -$%COMRATE% -xi -t
+-:List deleted configurations
+	ESI-Controller %COMPORT% -$%COMRATE% -XI -t
+L:Load current configuration from NVM
+	ESI-Controller %COMPORT% -$%COMRATE% -xc!i"Configuration number to be loaded (1-1000)" -t
+S:Save current configuration to NVM
+	ESI-Controller %COMPORT% -$%COMRATE% -XC!i"Configuration number to be saved (1-1000)" -t
+A:Save all configurations
+	ESI-Controller %COMPORT% -$%COMRATE% -XS !i"Configuration file name" -t
+B:Load all configurations from current file
+	ESI-Controller %COMPORT% -$%COMRATE% -XL ! -t
+C:Save current configuration
+	ESI-Controller %COMPORT% -$%COMRATE% -xs !i"Configuration file name" -t
+H:Load current configuration from current file
+	ESI-Controller %COMPORT% -$%COMRATE% -xl ! -t
+F:Load specified configuration from current file
+	ESI-Controller %COMPORT% -$%COMRATE% -XL!i"Configuration number to be loaded (1-1000)" ! -t
+G:Save specified configuration 
+	ESI-Controller %COMPORT% -$%COMRATE% -XS!i"Configuration number to be saved (1-1000)" !i"Configuration file name" -t
+N:Get configuration name
+	ESI-Controller %COMPORT% -$%COMRATE% -xn!i"Configuration number (1-1000)" -t
+M:Set configuration name
+	ESI-Controller %COMPORT% -$%COMRATE% -XN!i"Configuration number to be renamed (1-1000)" !i"Configuration name" -t
+#:Reset current configuration
+	ESI-Controller %COMPORT% -$%COMRATE% -XR -t
+D:Delete specified configuration
+	ESI-Controller %COMPORT% -$%COMRATE% -XD!i"Configuration number to be deleted (1-1000)" -t
+E:Delete all configurations
+	ESI-Controller %COMPORT% -$%COMRATE% -XD -t
+U:Undelete specified configuration
+	ESI-Controller %COMPORT% -$%COMRATE% -XU!i"Configuration number to be undeleted (1-1000)" -t
+U:Undelete all configurations
+	ESI-Controller %COMPORT% -$%COMRATE% -XU -t
+W:Wipe out specified configuration
+	ESI-Controller %COMPORT% -$%COMRATE% -XW!i"Configuration number to be wiped out (1-1000)" -t
+P:Wipe out all configurations
+	ESI-Controller %COMPORT% -$%COMRATE% -XW -t
+}
+
+N:NVM management
+{
+B:Backup memory data
+	ESI-Controller %COMPORT% -$%COMRATE% -y !i"Backup file name" -t
+R:Restore memory data from current file
+	ESI-Controller %COMPORT% -$%COMRATE% -Y ! -t
+}
+
+X:Testing
+{
+X:Create test protocol
+	ESI-Controller %COMPORT% -$%COMRATE% -r !i"Filename for the test protocol" -t
+C:Test communication
+	ESI-Controller %COMPORT% -$%COMRATE% -@!i"Character number" -t
+0:Test communication with 0 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -@ -t
+0:Test communication with 10 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -@10 -t
+0:Test communication with 256 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -@256 -t
+M:Test module communication
+	ESI-Controller %COMPORT% -$%COMRATE% -&!i"Module address (0-3, base device=_, all=*)" !i"Character number" -t
+B:Test base-device communication with 0 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&_ 0 -t
+B:Test base-device communication with 10 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&_ 10 -t
+B:Test base-device communication with 256 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&_ 256 -t
+H:Test heater-controller communication with 0 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&0 0 -t
+H:Test heater-controller communication with 10 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&0 10 -t
+H:Test heater-controller communication with 256 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&0 256 -t
+1:Test HVPS 1 communication with 0 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&1 0 -t
+1:Test HVPS 1 communication with 10 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&1 10 -t
+1:Test HVPS 1 communication with 256 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&1 256 -t
+2:Test HVPS 2 communication with 0 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&2 0 -t
+2:Test HVPS 2 communication with 10 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&2 10 -t
+2:Test HVPS 2 communication with 256 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&2 256 -t
+3:Test HVPS 3 communication with 0 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&3 0 -t
+3:Test HVPS 3 communication with 10 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&3 10 -t
+3:Test HVPS 3 communication with 256 characters
+	ESI-Controller %COMPORT% -$%COMRATE% -&3 256 -t
+}
+
+F1:Set COM-port number
+	set COMPORT=!i"COM-port number"
+	set COMPORT
+
+F2:Set COM-port data rate
+{
+-:Set COM-port data rate (default = 230400 Baud -> press Enter only)
+	set COMRATE=!i"COM data rate"
+	set COMRATE
+1:Set COM-port data rate to 115200 Baud
+	set COMRATE=115200
+	set COMRATE
+5:Set COM-port data rate to 57600 Baud
+	set COMRATE=57600
+	set COMRATE
+}
+
+!include local.mnu
+
+F10:Clear screen
+	cls
