@@ -1,0 +1,460 @@
+Test protocol created on Tue, 09/22/2026, 13:48:20
+
+DLL version:	1-10
+
+Used communication port:	COM14
+Data transfer rate:	230400 baud
+
+Product identification:	ESI Controller
+Product number:	124701
+Firmware version:	1-10
+Firmware date:	Sep  7 2026
+Device type:	8ED6h	ESI-CTRL
+Hardware type:	00422040h	ESI-CTRL
+		NVM size:	256KB
+		RS232:	Yes
+		USB:	No
+		LED internal:	No
+		LED external:	Yes
+		Maximum fan number:	2
+Hardware version:	1-00
+Product manufacturing date:	CW22 2025
+
+Device enabled:	No
+Overall state:	0001h	Stand-by
+LED data of the base device:	Color:	Yellow
+	Red:	On
+	Green:	On
+	Blue:	Off
+Device state:	00h
+	Interlock:	OK
+	Supply voltages:	OK
+	Temperature:	OK
+	Fan:	OK
+	Module configuration:	OK
+
+Interlock state:	Controller:	Interlock front current:	OK
+		Interlock front last:	OK
+		Interlock rear current:	OK
+		Interlock rear last:	OK
+	Heat controller:	Interlock#1 current:	Fail
+		Interlock#1 last:	Fail
+		Interlock#2 current:	Fail
+		Interlock#2 last:	Fail
+	Resulting values:	Front:	OK
+		Rear:	OK
+		HTCTR#1:	Fail
+		HTCTR#2:	Fail
+HV-PSU interlock enable mask:	00h
+	Interlock enable front:	Off
+	Interlock enable rear:	Off
+	Interlock enable HTCTR#1:	Off
+	Interlock enable HTCTR#2:	Off
+Heat-controller interlock enable mask:	00h
+	Interlock enable front:	Off
+	Interlock enable rear:	Off
+	Interlock enable HTCTR#1:	Off
+	Interlock enable HTCTR#2:	Off
+
+Voltage state:	37h
+	+3V3:	OK
+	+5V0:	OK
+	+24V:	OK
+	PSU:	OK
+	Line:	OK
+Power monitor state:	AC input:	OK
+	DC output:	OK
+
+Temperature state:	00h
+	CPU:	OK
+	PSU:	OK
+
+Fan state:	0Fh
+	State:	OK
+	Switch Fan current:	On
+	Switch Fan last:	On
+	Fan enabled:	Yes
+Function of the slide switch 'Fan':	00h
+	Switch override:	Off
+	Software control:	Off
+
+Device input levels:	Interlock front state:	On
+	Interlock rear level:	On
+	Fan enabled:	On
+
+Device uptime:	22:42.00 sec.
+Total uptime:	1618:24:56.79 sec.
+Operation time:	0.00 sec.
+Total operation time:	302:40:28.40 sec.
+
+Module state:	OK
+Scanned module data:
+	Slot #0:	present
+		P/N scanned:	124702
+		P/N saved:	124702
+		P/N state:	OK
+		HW type scanned:	060A0180h
+		HW type saved:	060A0180h
+		HW type state:	OK
+	Slot #1:	n/a
+		P/N scanned:	0
+		P/N saved:	0
+		P/N state:	OK
+		HW type scanned:	00000000h
+		HW type saved:	00000000h
+		HW type state:	OK
+	Slot #2:	present
+		P/N scanned:	124703
+		P/N saved:	124703
+		P/N state:	OK
+		HW type scanned:	05148BB8h
+		HW type saved:	05148BB8h
+		HW type state:	OK
+	Slot #3:	present
+		P/N scanned:	124704
+		P/N saved:	124704
+		P/N state:	OK
+		HW type scanned:	05148BB8h
+		HW type saved:	05148BB8h
+		HW type state:	OK
+	Base unit:	present
+		P/N scanned:	124607
+		P/N saved:	124607
+		P/N state:	OK
+		HW type scanned:	0130FA18h
+		HW type saved:	0130FA18h
+		HW type state:	OK
+
+Slot #00:	Heat Controller
+	Product identification:	Heater Controller 24V, 10A
+	Product number:	124702
+	Firmware version:	1-00
+	Firmware date:	May 16 2026
+	Device type:	DB1Ch	HTCTRL
+	Hardware type:	060A0180h	HEAT-CTRL-2410
+		Supply voltage:	24.0V
+		Maximum supply current:	10.0A
+		Channel number:	1
+		Interlock number:	2
+	Hardware version:	1-00
+	Product manufacturing date:	CW22 2025
+	Activation state:	Off
+	LED data:	Color:	Yellow
+		Red:	On
+		Green:	On
+		Blue:	Off
+	Module state:	8100h
+		Device active:	Yes
+		Module active:	No
+		Control active:	Yes
+	Hardware limits:	Maximum heater voltage:	22.000V
+		Maximum heater current:	12.000A
+		Maximum heater power:	180.000W
+		Maximum heater temperature:	175.000°C
+	Output voltage control:	Off
+	Target heater power:	0.000W
+	Target heater temperature:	0.000°C
+	Uptime:	22:44.01 sec.
+	Total uptime:	816:10:56.25 sec.
+	Operation time:	0.00 sec.
+	Total operation time:	593:19:53.52 sec.
+
+Slot #01:	N/A
+
+Slot #02:	HV Supply
+	Product identification:	HV-PSU Controller 3kV
+	Product number:	124703
+	Firmware version:	1-01
+	Firmware date:	Sep  9 2026
+	Device type:	0A0Dh	HVPS
+	Hardware type:	05148BB8h	HVPS-3000B
+		Voltage range:	3000V
+		Bipolar outputs:	1
+		Positive outputs:	0
+		Negative outputs:	0
+		Current ranges:	2
+		Current minimum range:	1E-4A
+		Current maximum range:	1E-3A
+	Hardware version:	1-00
+	FPGA version:	1-00
+	Product manufacturing date:	CW13 2026
+	Activation state:	Off
+	LED data:	Color:	Yellow
+		Red:	On
+		Green:	On
+		Blue:	Off
+	Module state:	8000h
+		Device active:	Yes
+		Module active:	No
+		Control active:	No
+	Measurement channels:	Voltage:	Positive
+		Current range:	Low
+	Target output voltage:	0.000V
+	Uptime:	22:43.63 sec.
+	Total uptime:	502:42:48.16 sec.
+	Operation time:	0.00 sec.
+	Total operation time:	303:11:53.56 sec.
+
+Slot #03:	HV Supply
+	Product identification:	HV-PSU Controller 3kV
+	Product number:	124704
+	Firmware version:	1-01
+	Firmware date:	Sep  9 2026
+	Device type:	0A0Dh	HVPS
+	Hardware type:	05148BB8h	HVPS-3000B
+		Voltage range:	3000V
+		Bipolar outputs:	1
+		Positive outputs:	0
+		Negative outputs:	0
+		Current ranges:	2
+		Current minimum range:	1E-4A
+		Current maximum range:	1E-3A
+	Hardware version:	1-00
+	FPGA version:	1-00
+	Product manufacturing date:	CW13 2026
+	Activation state:	Off
+	LED data:	Color:	Yellow
+		Red:	On
+		Green:	On
+		Blue:	Off
+	Module state:	8000h
+		Device active:	Yes
+		Module active:	No
+		Control active:	No
+	Measurement channels:	Voltage:	Positive
+		Current range:	Low
+	Target output voltage:	0.000V
+	Uptime:	22:43.32 sec.
+	Total uptime:	351:06:21.02 sec.
+	Operation time:	0.00 sec.
+	Total operation time:	148:02:50.67 sec.
+
+Base unit:	ESI Controller
+	Product identification:	Chassis for Digitally-Controlled ESI Source
+	Product number:	124607
+	Firmware version:	1-02
+	Firmware date:	May 16 2026
+	Device type:	1C34h	ESICT-BASE
+	Hardware type:	0130FA18h	ESICT-250W-3, 24V
+		Maximum power:	250W
+		Supply voltage:	24V
+		Slot number:	3
+		Fan number:	1
+	Hardware version:	1-00
+	Product manufacturing date:	CW02 2026
+	Module state:	8000h
+		Device active:	Yes
+	Uptime:	22:39.09 sec.
+	Total uptime:	785:30:52.22 sec.
+	Operation time:	22:38.48 sec.
+	Total operation time:	317:12:56.75 sec.
+
+Configuration properties:	Size of configuration data:	53 bytes
+	Size of configuration name:	202 bytes
+	Maximum number of configurations:	1023
+	Number of active configurations:	44
+	Number of deleted configurations:	219
+
+Current configuration data has been retrieved
+
+Device uptime:	22:42.27 sec.
+
+Device is disabled
+Enabling the device...
+Device has been enabled
+Disabling the device...
+Device has been disabled
+
+Communication response time:	15.23ms ± 0.46ms (14..17ms)
+Communication transfer time for 64-byte blocks:	6.84ms ± 0.38ms (6..8ms)
+
+CPU data:	Load:	17.79% ± 0.27% (+0.31%, -0.39%)
+	Frequency:	15.659MHz ± 17kHz (+20kHz, -16kHz)
+
+Device housekeeping:	Period:	394ms
+	3V3:	3.304V ± 0.46mV (+0.7mV, -0.3mV)
+	5V0:	5.010V ± 0.43mV (+0.8mV, -0.3mV)
+	24V:	24.111V ± 0.79mV (+1.7mV, -1.3mV)
+	CPU:	24.46°C ± 0.03°C (+0.04°C, -0.07°C)
+	Main PSU:	24.95°C ± 0.01°C (+0.01°C, -0.01°C)
+
+Fan data:	Period:	1001ms
+	State:	OK
+	Speed set:	0.0rpm ± 0.0rpm (+0.0rpm, -0.0rpm)
+	Speed measured:	0.0rpm ± 0.0rpm (+0.0rpm, -0.0rpm)
+	PWM control:	0.00% ± 0.00% (+0.00%, -0.00%)
+
+Slot #00:	Heat Controller
+	CPU data:	Load:	10.97% ± 0.21% (+0.33%, -0.37%)
+	Housekeeping:	Period:	507ms
+		3V3:	3.301V ± 0.00mV (+-0.0mV, -0.0mV)
+		5V0:	4.992V ± 0.60mV (+1.2mV, -0.8mV)
+		24V:	24.045V ± 0.48mV (+1.1mV, -0.9mV)
+		CPU:	23.82°C ± 0.01°C (+0.04°C, -0.02°C)
+		Heater PSU:	22.56°C ± 0.00°C (+0.00°C, -0.01°C)
+	Module has been disabled
+	Monitoring:	Period:	178ms
+		Output Voltage:	0.406V ± 0.05mV (+0.1mV, -0.1mV)
+		Heater Voltage:	0.006V ± 0.05mV (+0.1mV, -0.1mV)
+		Output Current:	0.003A ± 2.25mA (+11.1mA, -1.0mA)
+		Heater Temperature:	26.644°C ± 0.000°C (+0.000°C, -0.001°C)
+
+Slot #02:	HV Supply
+	CPU data:	Load:	18.39% ± 0.57% (+1.21%, -1.19%)
+	Housekeeping:	Period:	913ms
+		3V3:	3.297V ± 0.54mV (+0.5mV, -0.5mV)
+		5V0:	4.986V ± 0.50mV (+0.6mV, -0.4mV)
+		+24V:	24.035V ± 0.58mV (+0.6mV, -1.4mV)
+		-22V:	-21.536V ± 3.34mV (+4.4mV, -3.7mV)
+		+18V:	17.942V ± 0.73mV (+1.1mV, -0.9mV)
+		-18V:	-17.751V ± 2.75mV (+3.4mV, -3.5mV)
+		1V5:	1.505V ± 0.46mV (+0.3mV, -0.7mV)
+		A-Gnd:	+0.025V ± 0.00mV (+0.0mV, -0.0mV)
+		CPU:	25.28°C ± 0.01°C (+0.03°C, -0.02°C)
+	Module has been disabled
+	Output Data:	Current (low range):	+162pA ± 39pA (+109pA, -79pA)
+		Period:	100ms
+		Current (high range):	-63pA ± 236pA (+695pA, -569pA)
+		Period:	100ms
+		Voltage (positive):	-0.033V ± 0.30mV (+0.9mV, -0.1mV)
+		Period:	638ms
+		Voltage (negative):	-0.077V ± 0.46mV (+0.3mV, -0.7mV)
+		Period:	638ms
+
+Slot #03:	HV Supply
+	CPU data:	Load:	15.54% ± 1.16% (+0.86%, -3.24%)
+	Housekeeping:	Period:	913ms
+		3V3:	3.297V ± 0.00mV (+-0.0mV, -0.0mV)
+		5V0:	4.987V ± 0.50mV (+0.6mV, -0.4mV)
+		+24V:	24.032V ± 0.50mV (+1.0mV, -1.0mV)
+		-22V:	-21.574V ± 0.68mV (+1.2mV, -0.8mV)
+		+18V:	17.943V ± 0.70mV (+1.2mV, -0.8mV)
+		-18V:	-17.876V ± 0.57mV (+0.6mV, -1.3mV)
+		1V5:	1.496V ± 0.00mV (+0.0mV, --0.0mV)
+		A-Gnd:	+0.019V ± 0.00mV (+-0.0mV, -0.0mV)
+		CPU:	24.86°C ± 0.01°C (+0.02°C, -0.03°C)
+	Module has been disabled
+	Output Data:	Current (low range):	-79pA ± 29pA (+79pA, -67pA)
+		Period:	99ms
+		Current (high range):	-36pA ± 189pA (+457pA, -385pA)
+		Period:	99ms
+		Voltage (positive):	-0.034V ± 0.43mV (+0.8mV, -0.2mV)
+		Period:	638ms
+		Voltage (negative):	-0.072V ± 0.22mV (+0.1mV, -0.9mV)
+		Period:	638ms
+
+Base unit:	ESI Controller
+	CPU data:	Load:	6.13% ± 0.29% (+0.57%, -0.53%)
+	Housekeeping:	Period:	642ms
+		3V3:	3.300V ± 0.53mV (+0.7mV, -0.4mV)
+		CPU:	25.54°C ± 0.02°C (+0.04°C, -0.03°C)
+
+Enabling the device...
+Device has been enabled
+
+Slot #00:	Heat Controller
+	Target heater temperature set:	175.000°C
+	Power limit set:	180.000W
+	Current limit set:	12.000A
+	Voltage limit set:	2.200V
+	Module has been enabled
+	Monitoring period:	180ms
+	Output Voltage:	2.234V ± 1.4mV (+4.9mV, -2.2mV)
+	Heater Voltage:	2.198V ± 0.7mV (+1.9mV, -2.0mV)
+	Output Current:	0.661A ± 8mA (+30mA, -13mA)
+	Heater Power:	1.452W ± 17mW (+66mW, -29mW)
+	Heater Temperature:	26.662..26.716°C (diff. 0.054°C)
+
+	Voltage limit set:	22.000V
+	Current limit set:	1.200A
+	Monitoring period:	185ms
+	Output Voltage:	3.965V ± 6.4mV (+19.9mV, -11.7mV)
+	Heater Voltage:	3.902V ± 5.6mV (+14.5mV, -11.5mV)
+	Output Current:	1.201A ± 6mA (+11mA, -17mA)
+	Heater Power:	4.687W ± 25mW (+59mW, -79mW)
+	Heater Temperature:	26.779..26.965°C (diff. 0.186°C)
+
+	Current limit set:	12.000A
+	Power limit set:	18.000W
+	Monitoring period:	181ms
+	Output Voltage:	7.457V ± 18.9mV (+58.1mV, -25.0mV)
+	Heater Voltage:	7.329V ± 17.5mV (+39.1mV, -23.0mV)
+	Output Current:	2.460A ± 8mA (+17mA, -20mA)
+	Heater Power:	18.032W ± 47mW (+103mW, -129mW)
+	Heater Temperature:	27.189..27.879°C (diff. 0.690°C)
+
+	Power limit set:	180.000W
+	Monitoring period:	178ms
+	Output Voltage:	17.876V ± 171.6mV (+416.4mV, -225.7mV)
+	Heater Voltage:	17.319V ± 169.9mV (+438.4mV, -219.1mV)
+	Output Current:	10.461A ± 59mA (+92mA, -107mA)
+	Heater Power:	181.171W ± 808mW (+2772mW, -721mW)
+	Heater Temperature:	29.581..36.456°C (diff. 6.875°C)
+	Module has been disabled
+
+Slot #02:	HV Supply
+Invalid output voltage step detected, setting to 10V...
+Output voltage step set to 10.000V
+	Module has been enabled
+	Output Data (positive):
+	Target voltage set	Target voltage get	Measured voltage	Period	Measured current	Period
+	300V	300.000V	300.000V ± 0.80mV (+1.0mV, -0.9mV)	638ms	+156pA ± 36pA (+73pA, -93pA)	125ms
+	600V	600.000V	600.000V ± 26.80mV (+37.5mV, -66.5mV)	638ms	+167pA ± 34pA (+83pA, -104pA)	126ms
+	900V	900.000V	900.000V ± 35.01mV (+71.8mV, -55.2mV)	638ms	+162pA ± 35pA (+88pA, -79pA)	126ms
+	1200V	1200.000V	1200.004V ± 5.43mV (+9.4mV, -14.6mV)	638ms	+162pA ± 35pA (+88pA, -99pA)	126ms
+	1500V	1500.000V	1500.009V ± 63.30mV (+82.2mV, -203.8mV)	638ms	+164pA ± 34pA (+65pA, -81pA)	126ms
+	1800V	1800.000V	1800.006V ± 8.01mV (+13.0mV, -13.0mV)	638ms	+197pA ± 33pA (+95pA, -72pA)	126ms
+	2100V	2100.000V	2100.019V ± 43.45mV (+115.2mV, -60.8mV)	638ms	+187pA ± 32pA (+63pA, -104pA)	126ms
+	2400V	2400.000V	2400.000V ± 17.00mV (+28.0mV, -39.0mV)	638ms	+198pA ± 33pA (+73pA, -73pA)	126ms
+	2700V	2700.000V	2700.008V ± 31.60mV (+72.0mV, -56.0mV)	638ms	+199pA ± 31pA (+72pA, -95pA)	126ms
+	3000V	3000.000V	3000.015V ± 44.66mV (+85.7mV, -98.3mV)	638ms	+202pA ± 38pA (+111pA, -119pA)	126ms
+
+Slot #03:	HV Supply
+Invalid output voltage step detected, setting to 10V...
+Output voltage step set to 10.000V
+	Module has been enabled
+	Output Data (positive):
+	Target voltage set	Target voltage get	Measured voltage	Period	Measured current	Period
+	300V	300.000V	300.000V ± 0.97mV (+1.0mV, -2.9mV)	638ms	-85pA ± 30pA (+64pA, -82pA)	129ms
+	600V	600.000V	600.000V ± 27.97mV (+62.4mV, -49.6mV)	638ms	-83pA ± 29pA (+62pA, -84pA)	125ms
+	900V	900.000V	900.002V ± 8.73mV (+20.8mV, -25.2mV)	638ms	-89pA ± 32pA (+68pA, -99pA)	125ms
+	1200V	1200.000V	1200.003V ± 21.10mV (+37.5mV, -54.5mV)	638ms	-95pA ± 34pA (+74pA, -72pA)	125ms
+	1500V	1500.000V	1500.021V ± 56.20mV (+84.7mV, -202.4mV)	638ms	-96pA ± 38pA (+117pA, -92pA)	126ms
+	1800V	1800.000V	1800.020V ± 111.16mV (+289.6mV, -205.3mV)	638ms	-99pA ± 29pA (+57pA, -89pA)	126ms
+	2100V	2100.000V	2099.997V ± 13.94mV (+32.1mV, -33.9mV)	638ms	-103pA ± 28pA (+61pA, -85pA)	126ms
+	2400V	2400.000V	2400.001V ± 65.25mV (+98.3mV, -125.8mV)	638ms	-103pA ± 37pA (+82pA, -85pA)	126ms
+	2700V	2700.000V	2699.982V ± 22.37mV (+54.7mV, -30.3mV)	638ms	-102pA ± 34pA (+102pA, -87pA)	126ms
+	3000V	3000.000V	2999.984V ± 34.69mV (+59.9mV, -83.1mV)	638ms	-100pA ± 29pA (+79pA, -67pA)	126ms
+
+Slot #02:	HV Supply
+	Output Data (negative):
+	Target voltage set	Target voltage get	Measured voltage	Period	Measured current	Period
+	300V	300.000V	-300.000V ± 0.63mV (+1.0mV, -1.0mV)	638ms	+146pA ± 28pA (+63pA, -83pA)	127ms
+	600V	600.000V	-600.002V ± 17.01mV (+48.8mV, -25.2mV)	638ms	+153pA ± 30pA (+76pA, -70pA)	126ms
+	900V	900.000V	-899.998V ± 48.26mV (+88.9mV, -69.1mV)	638ms	+154pA ± 48pA (+117pA, -133pA)	126ms
+	1200V	1200.000V	-1200.000V ± 9.51mV (+32.2mV, -13.8mV)	638ms	+148pA ± 35pA (+102pA, -106pA)	127ms
+	1500V	1500.000V	-1500.001V ± 9.40mV (+25.8mV, -17.2mV)	638ms	+153pA ± 32pA (+76pA, -90pA)	126ms
+	1800V	1800.000V	-1800.032V ± 23.85mV (+39.9mV, -58.1mV)	638ms	+163pA ± 34pA (+87pA, -59pA)	126ms
+	2100V	2100.000V	-2100.051V ± 56.36mV (+114.9mV, -124.1mV)	638ms	+159pA ± 30pA (+70pA, -96pA)	126ms
+	2400V	2400.000V	-2400.015V ± 27.81mV (+51.8mV, -65.2mV)	638ms	+167pA ± 30pA (+62pA, -84pA)	126ms
+	2700V	2700.000V	-2700.003V ± 13.22mV (+15.7mV, -41.3mV)	638ms	+163pA ± 35pA (+87pA, -100pA)	125ms
+	3000V	3000.000V	-3000.003V ± 22.35mV (+44.8mV, -34.2mV)	638ms	+161pA ± 26pA (+68pA, -57pA)	126ms
+
+Slot #03:	HV Supply
+	Output Data (negative):
+	Target voltage set	Target voltage get	Measured voltage	Period	Measured current	Period
+	300V	300.000V	-300.001V ± 2.18mV (+4.5mV, -3.5mV)	638ms	-87pA ± 35pA (+129pA, -80pA)	124ms
+	600V	600.000V	-600.000V ± 5.03mV (+16.1mV, -12.9mV)	638ms	-92pA ± 32pA (+71pA, -75pA)	126ms
+	900V	900.000V	-900.001V ± 29.12mV (+59.2mV, -58.8mV)	638ms	-94pA ± 45pA (+94pA, -135pA)	126ms
+	1200V	1200.000V	-1199.999V ± 29.89mV (+61.0mV, -43.0mV)	638ms	-107pA ± 55pA (+149pA, -122pA)	126ms
+	1500V	1500.000V	-1500.010V ± 15.07mV (+26.4mV, -36.6mV)	638ms	-102pA ± 33pA (+81pA, -86pA)	126ms
+	1800V	1800.000V	-1800.016V ± 20.45mV (+34.9mV, -48.1mV)	637ms	-99pA ± 31pA (+78pA, -68pA)	126ms
+	2100V	2100.000V	-2100.006V ± 25.91mV (+53.5mV, -52.5mV)	638ms	-93pA ± 34pA (+93pA, -74pA)	126ms
+	2400V	2400.000V	-2400.077V ± 150.64mV (+239.6mV, -476.4mV)	637ms	-111pA ± 27pA (+69pA, -77pA)	126ms
+	2700V	2700.000V	-2700.068V ± 40.64mV (+77.2mV, -70.8mV)	638ms	-95pA ± 31pA (+74pA, -93pA)	126ms
+	3000V	3000.000V	-2999.983V ± 20.85mV (+59.6mV, -29.4mV)	638ms	-112pA ± 28pA (+91pA, -55pA)	126ms
+
+Current configuration data has been restored
+Device uptime:	52:15.40 sec.
+
+Test protocol successfully completed within 1773.4s (29:33.4s)

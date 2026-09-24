@@ -1,22 +1,40 @@
-"""ESI controller base device class for CGC ESI-CTRL (firmware/DLL 1-00).
+"""ESI controller base device class for CGC ESI-CTRL (firmware/DLL 1-10).
 
-Mirrors ``ESI-CTRL_1-00/COM-ESI-CTRL.h``. Notable changes vs the 0-00 DLL:
-device-level activation state is gone (main state now reports ON vs
-STANDBY), ``GetBaseHousekeeping`` gained a leading ``Valid`` flag,
-``GetCompleteState`` lost its trailing heat-controller interlock argument,
-and a full configuration-management section (NVM slots) was added.
+Mirrors ``ESI-CTRL_1-10/COM-ESI-CTRL.h`` (package rebuilt by CGC
+2026-09-22 after the controller repair; controller firmware 1-10,
+HV modules 1-01). Changes vs the 1-00 DLL this class was written against:
 
-The working DLL is the 32-bit Borland build directly in ``ESI-CTRL_1-00/``
-(the ``x64/`` build is broken — manufacturer statement 2026-07-23). A
-64-bit process cannot load it, so ``self.esi_dll`` is an
-``esi_bridge.ESIDllBridge`` proxy talking to a frozen 32-bit server
-process (msl-loadlib) instead of a ``ctypes.WinDLL`` handle; the call
-sites below are unchanged.
+- ``Get/SetInterlockEnable`` is **split** into
+  ``Get/SetHVsupplyInterlockEnable`` and ``Get/SetHeatCtrlInterlockEnable``
+  (one mask per subsystem, per config slot) — the 1-00 symbols are gone.
+- ``Get/SetHVsupplyOutputVoltageStep`` is **new**: the config field
+  ``HVPSxMaxVoltStep`` finally has a DLL setter (0 = no voltage is applied
+  at all, so the bring-up repairs it — see ``esi.ESI._open_transport``).
+
+Everything else carried over unchanged from 1-00 (``GetBaseHousekeeping``
+keeps its leading ``Valid`` flag, ``GetCompleteState`` its 9 arguments,
+configuration management, heater, measurement ranges, fan override).
+
+The 1-10 package ships **three** builds: the debug/superset Borland DLL in
+``ESI-CTRL_1-10/`` and two redistributables with undecorated exports,
+``x64/`` and ``x86/``. Default is the **x64** build loaded straight with
+``ctypes.CDLL`` — unlike 1-00 (whose x64 build CGC declared broken, hence
+the msl-loadlib bridge of [[0008-esi-32bit-dll-bridge]]). The bridge is
+kept as a fallback: set ``ESIBase.DLL_FLAVOR = "x86"`` (or the environment
+variable ``ESIBD_ESI_DLL_FLAVOR=x86``) to route calls through the frozen
+32-bit server process again. Call sites are identical either way.
 """
 
 import ctypes
 import json
 import os
+
+
+def _open_dll(dll_path):
+    """Load the 64-bit DLL directly (x64 uses one calling convention and
+    undecorated export names, so ``CDLL`` is enough). Tests patch this
+    seam; test mode never reaches it."""
+    return ctypes.CDLL(dll_path)
 
 
 def _open_bridge(dll_path):
@@ -159,6 +177,17 @@ class ESIBase:
     CONFIG_NAME_SIZE = 202
     MAX_CONFIG = 1023
 
+    # Vendor package + DLL build to load. "x64" = direct ctypes load
+    # (default), "x86" = 32-bit redistributable through the msl-loadlib
+    # bridge (fallback; see module docstring).
+    DLL_PACKAGE = "ESI-CTRL_1-10"
+    DLL_FLAVOR = os.environ.get("ESIBD_ESI_DLL_FLAVOR", "x64")
+
+    # Default HV-PSU output voltage step in V. A step of 0 means no
+    # voltage is ever applied (config-blob trap, hardware-observed
+    # 2026-07-23); the vendor tool repairs it with exactly this value.
+    DEFAULT_VOLTAGE_STEP = 10.0
+
     # String sizes
     DATA_STRING_SIZE = 12
     PRODUCT_ID_SIZE = 81
@@ -178,12 +207,15 @@ class ESIBase:
         """
         self.class_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # Load DLL — 32-bit Borland build via the msl-loadlib bridge
-        # (the x64 build is broken; see module docstring).
+        # Load DLL — x64 build directly, x86 build through the 32-bit
+        # bridge (see module docstring).
         self.esi_dll_path = os.path.join(
-            self.class_dir, r"ESI-CTRL_1-00\COM-ESI-CTRL.dll"
+            self.class_dir, self.DLL_PACKAGE, self.DLL_FLAVOR, "COM-ESI-CTRL.dll"
         )
-        self.esi_dll = _open_bridge(self.esi_dll_path)
+        if self.DLL_FLAVOR == "x64":
+            self.esi_dll = _open_dll(self.esi_dll_path)
+        else:
+            self.esi_dll = _open_bridge(self.esi_dll_path)
 
         # Error messages
         self.err_path = os.path.join(
@@ -422,15 +454,32 @@ class ESIBase:
         active = [n for f, n in self.INTERLOCK_STATE.items() if sv & f]
         return status, hex(sv), active
 
-    def get_interlock_enable(self):
-        """Get interlock enable mask."""
+    def get_hv_interlock_enable(self):
+        """Get the HV-PSU interlock enable mask (1-10; was the single
+        ``GetInterlockEnable`` in 1-00)."""
         ie = ctypes.c_ubyte()
-        status = self.esi_dll.COM_ESI_CTRL_GetInterlockEnable(ctypes.byref(ie))
+        status = self.esi_dll.COM_ESI_CTRL_GetHVsupplyInterlockEnable(
+            ctypes.byref(ie)
+        )
         return status, ie.value
 
-    def set_interlock_enable(self, interlock_enable):
-        """Set interlock enable mask."""
-        return self.esi_dll.COM_ESI_CTRL_SetInterlockEnable(
+    def set_hv_interlock_enable(self, interlock_enable):
+        """Set the HV-PSU interlock enable mask. Bits: see INTERLOCK_STATE."""
+        return self.esi_dll.COM_ESI_CTRL_SetHVsupplyInterlockEnable(
+            ctypes.c_ubyte(interlock_enable)
+        )
+
+    def get_heat_interlock_enable(self):
+        """Get the heat-controller interlock enable mask (new in 1-10)."""
+        ie = ctypes.c_ubyte()
+        status = self.esi_dll.COM_ESI_CTRL_GetHeatCtrlInterlockEnable(
+            ctypes.byref(ie)
+        )
+        return status, ie.value
+
+    def set_heat_interlock_enable(self, interlock_enable):
+        """Set the heat-controller interlock enable mask."""
+        return self.esi_dll.COM_ESI_CTRL_SetHeatCtrlInterlockEnable(
             ctypes.c_ubyte(interlock_enable)
         )
 
@@ -686,6 +735,24 @@ class ESIBase:
         """Set HV-PSU target output voltage."""
         return self.esi_dll.COM_ESI_CTRL_SetHVsupplyTargetOutputVoltage(
             ctypes.c_uint(address), ctypes.c_double(voltage)
+        )
+
+    def get_hv_supply_voltage_step(self, address):
+        """Get HV-PSU output voltage step in V (new in 1-10).
+
+        The step is the config field ``HVPSxMaxVoltStep``; 0 means no
+        voltage is applied at all.
+        """
+        step = ctypes.c_double()
+        status = self.esi_dll.COM_ESI_CTRL_GetHVsupplyOutputVoltageStep(
+            ctypes.c_uint(address), ctypes.byref(step)
+        )
+        return status, step.value
+
+    def set_hv_supply_voltage_step(self, address, voltage_step):
+        """Set HV-PSU output voltage step in V (new in 1-10)."""
+        return self.esi_dll.COM_ESI_CTRL_SetHVsupplyOutputVoltageStep(
+            ctypes.c_uint(address), ctypes.c_double(voltage_step)
         )
 
     def get_hv_supply_params_pwm(self, address):

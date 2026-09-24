@@ -1,4 +1,4 @@
-ESI-Controller ver. 1-10, compilation date: Jul 24 2026
+ESI-Controller ver. 1-10, compilation date: Sep 18 2026
  (C) by CGC Instruments, www.cgc-instruments.com
 Usage: ESI-Controller COM-Number [Switches]
   Switch: { -option, /option }
@@ -9,7 +9,8 @@ Usage: ESI-Controller COM-Number [Switches]
       H/h: get all product data,           ht:    get target heater temperature
       HTv: set target heater temperature to v
         (use a negative value to turn off temperature control)
-      ho:    get heater voltage,           hp:    get heater power
+      HOv: set heater voltage to v,        ho:    get heater voltage
+      HPw: set heater power to w,          hp:    get heater power
       HVv: set heater voltage limit to v,  hv:    get heater voltage limit
       HAa: set heater current limit to a,  ha:    get heater current limit
       HWw: set heater power limit to w,    hw:    get heater power limit
@@ -19,10 +20,16 @@ Usage: ESI-Controller COM-Number [Switches]
     HV-supply management (a = module address = slot number = 1..3):
       VKa/vka: get housekeeping data,      VOa/voa: get output data
       VVa v: set target output voltage to v
+      VLa v: set output voltage step to v
       VGanh/VGa: set/get measurement ranges, nh=2 bool arguments [n,y]
              n = negative output voltage, h = high current range
-      vva:   get target output voltage,    VDa/vda: get output data
-      VTa/vta: tune voltage
+      vva:     get target output voltage,  vla:     get output voltage step
+      VDa/vda: get output data,            VTa/vta: tune voltage
+      VPa/vpa: display operating parameters
+      VS m s/vs m s: save operating parameters while sacnning the PWM
+        (m is the maximum voltage in V and s the PWM width step in ns)
+      VRa/vra: read all registers
+      VWa/vwa r d: write data d to register r
     Plugin module management (a=address=0-3, base=_, all=*):
       m: list detected modules,            M: list & check module state
       MSa/msa: get state
@@ -81,6 +88,7 @@ Usage: ESI-Controller COM-Number [Switches]
         (wiping out cannot be undoed, thus requires confirmation)
     Memory management:
       Y/y FileName: restore/backup memory data
+      YM,ym: clear/test non-volatile memory data
     Testing and debugging:
       R/r FileName: create test protocol
       @n:   test communication by transmitting of up to n characters

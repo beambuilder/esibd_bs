@@ -1,11 +1,11 @@
 """
 ESI controller (electrospray HV supply + heater) on the shared CGC lab layer.
 
-``ESI`` combines the pure ctypes wrapper (``ESIBase``, DLL 1-00) with
+``ESI`` combines the pure ctypes wrapper (``ESIBase``, DLL 1-10) with
 ``CGCDevice`` (canonical log line, telemetry sink, housekeeping worker +
 poke, responding/reconnect, explicit test mode).
 
-Firmware 1-00 workflow (lead-engineer email 2026-07-21, user-verified
+Firmware 1-10 workflow — unchanged from 1-00 (lead-engineer email 2026-07-21, user-verified
 2026-07-23): select one of the NVM configurations (sets heater
 temperature + limits, interlock mask, module enables and HV target
 voltages — DLL slots are 0-based, cfg-file ``[ConfigurationN]`` = slot
@@ -13,21 +13,24 @@ N-1: 0=Off, 1=Standby, 9-24=Heat 30-175 degC, 99+=HV presets), then
 tweak the
 heater temperature and HV target voltages live. **A working config takes
 effect immediately on load — heating starts and HV is applied with no
-further enable step.** Device-level activation state is GONE in 1-00 —
+further enable step.** Device-level activation state is GONE since 1-00 —
 the main state now reports ON vs STANDBY and the hk channel
 ``Activated`` derives from it (name kept so the Explorer sink piggyback
 survives).
 
-Config-file gotchas (user, 2026-07-23): ``HVPSxMaxVoltStep`` must be
-nonzero (good value 10 V) — at 0 no voltage gets applied at all;
-``InterlockEnable`` must be exactly ``Y,N,N,Y`` for the lab setup
-(Front, Rear, ESI-Ilock1, ESI-Ilock2). Both are config-blob fields with
-no dedicated DLL setter besides the interlock mask.
+Config-file gotchas: ``HVPSxMaxVoltStep`` must be nonzero (good value
+10 V) — at 0 no voltage gets applied at all (user, 2026-07-23). Since
+DLL 1-10 that field has a setter, so the bring-up repairs a zero step
+itself (``_repair_voltage_steps``). The interlock mask is **split** in
+1-10: ``HvPsInterlockEnable`` and ``HeatControlInterlockEnable``, each
+4 bools (Front, Rear, ESI-Ilock1, ESI-Ilock2), settable per config slot
+and via ``set_hv_interlock_enable`` / ``set_heat_interlock_enable``.
 
-The working DLL is the 32-bit build in ``ESI-CTRL_1-00/`` (x64 build
-broken, manufacturer 2026-07-23); ``ESIBase`` reaches it through a
-32-bit bridge process (``esi_bridge``/``esi_server32``) — first connect
-in a process takes a few extra seconds for server startup.
+The DLL is ``ESI-CTRL_1-10/x64/COM-ESI-CTRL.dll``, loaded directly
+(package rebuilt by CGC 2026-09-22 with working x64/x86 redistributables;
+the 1-00 x64 build was broken, hence the old bridge). The 32-bit bridge
+(``esi_bridge``/``esi_server32``) survives as a fallback selectable with
+``ESIBase.DLL_FLAVOR = "x86"``.
 
 The controller carries up to 4 modules: heat controller HTCTRL-24-10 on
 address 0, HV supplies on addresses 1..3 (lab: 2x HVPS-3kB on addresses
@@ -35,9 +38,9 @@ address 0, HV supplies on addresses 1..3 (lab: 2x HVPS-3kB on addresses
 shipped config presets' "HV1"/"HV2" name the supplies, not addresses).
 
 Bring-up lives in ``_open_transport()`` so ``reconnect()`` re-runs it:
-open_port -> set_comspeed -> set_enable(True). Configuration selection,
-module activation and target voltages are operator actions and never
-part of bring-up.
+open_port -> set_comspeed -> set_enable(True) -> repair any zero HV
+voltage step. Configuration selection, module activation and target
+voltages are operator actions and never part of bring-up.
 
 SINGLE-INSTANCE: unlike the other CGC DLLs the ESI-CTRL exports take no
 port argument — one ESI controller per process, enforced by a class-level
@@ -146,6 +149,9 @@ class ESI(CGCDevice, ESIBase):
         self._sim_module_active = {addr: False for addr in SIM_MODULES}
         self._sim_hv_target = {addr: 0.0 for addr in SIM_MODULES}
         self._sim_meas_ranges = {addr: (False, False) for addr in SIM_MODULES}
+        self._sim_voltage_step = {
+            addr: ESIBase.DEFAULT_VOLTAGE_STEP for addr in SIM_MODULES
+        }
         self._sim_config = None
         self._sim_heater_target = 0.0
         self._sim_config_names = dict(SIM_CONFIG_NAMES)
@@ -183,6 +189,7 @@ class ESI(CGCDevice, ESIBase):
                         "continuing at device default",
                     )
                 self._check(self.set_enable(True), "set_enable(True)")
+                self._repair_voltage_steps()
             except Exception:
                 # Leave no half-initialized open port behind.
                 try:
@@ -195,6 +202,62 @@ class ESI(CGCDevice, ESIBase):
                 if ESI._connected_instance is self:
                     ESI._connected_instance = None
             raise
+
+    def _repair_voltage_steps(self) -> None:
+        """Give every present HV module a nonzero output voltage step.
+
+        ``HVPSxMaxVoltStep`` = 0 means the module never applies any
+        voltage at all (config-blob trap, hardware-observed 2026-07-23,
+        and the vendor's own tool repairs it the same way). DLL 1-10 added
+        the setter that makes this possible from here. Never fatal — every
+        failure is logged and bring-up continues.
+        """
+        try:
+            status, _valid, _max_module, presence = self.get_module_presence()
+        except Exception as e:
+            self.log_event("warning", f"voltage-step check failed: {e}")
+            return
+        if status != self.NO_ERR:
+            self.log_event(
+                "warning",
+                f"voltage-step check skipped: module presence status {status}",
+            )
+            return
+        for addr in range(1, self.MODULE_NUM):
+            if presence[addr] != self.MODULE_PRESENT:
+                continue
+            try:
+                read_status, step = self.get_hv_supply_voltage_step(addr)
+                if read_status != self.NO_ERR:
+                    self.log_event(
+                        "warning",
+                        f"HV module {addr} voltage-step read returned "
+                        f"{read_status}",
+                    )
+                    continue
+                if step > 0:
+                    continue
+                set_status = self.set_hv_supply_voltage_step(
+                    addr, self.DEFAULT_VOLTAGE_STEP
+                )
+                if set_status == self.NO_ERR:
+                    self.log_event(
+                        "info",
+                        f"HV module {addr} voltage step was 0 V — set to "
+                        f"{self.DEFAULT_VOLTAGE_STEP:.1f} V (0 V applies no "
+                        "voltage at all)",
+                    )
+                else:
+                    self.log_event(
+                        "error",
+                        f"HV module {addr} voltage step is 0 V and could not "
+                        f"be set: status {set_status} — this module will not "
+                        "output any voltage",
+                    )
+            except Exception as e:
+                self.log_event(
+                    "warning", f"HV module {addr} voltage-step repair failed: {e}"
+                )
 
     def _close_transport(self) -> None:
         """Best-effort close, then release the single-instance slot."""
@@ -370,6 +433,15 @@ class ESI(CGCDevice, ESIBase):
             return self.NO_ERR, self._sim_hv_target.get(address, 0.0)
         return ESIBase.get_hv_supply_target_output_voltage(self, address)
 
+    def get_hv_supply_voltage_step(self, address):
+        """Returns (status, step in V). 0 V means the module applies no
+        voltage at all — the bring-up repairs that."""
+        if self.test_mode:
+            if address not in self._sim_voltage_step:
+                return self.ERR_ARGUMENT, 0.0
+            return self.NO_ERR, self._sim_voltage_step[address]
+        return ESIBase.get_hv_supply_voltage_step(self, address)
+
     def get_hv_supply_output_voltage(self, address):
         """Returns (status, valid, voltage). Simulated readback tracks the
         target (small noise) while the module is activated and the device
@@ -420,7 +492,14 @@ class ESI(CGCDevice, ESIBase):
     def list_configs(self):
         """List NVM configurations. Returns (status, active_slots,
         valid_slots) as sorted slot-number lists (unlike the raw
-        ``get_config_list``, which returns two MAX_CONFIG bool lists)."""
+        ``get_config_list``, which returns two MAX_CONFIG bool lists).
+
+        **active = the configs in use; valid = active PLUS deleted ones.**
+        The controller keeps deleted configs recoverable (vendor
+        'undelete'), so a deleted slot still reports valid and still
+        answers ``get_config_name`` — listing valid slots resurrects
+        ghosts of a previous config set (observed 2026-09-23 after the
+        repair: 44 active, 219 deleted). Show users the ACTIVE list."""
         if self.test_mode:
             slots = sorted(self._sim_config_names)
             return self.NO_ERR, slots, slots
@@ -546,6 +625,27 @@ class ESI(CGCDevice, ESIBase):
             self.log_event(
                 "error",
                 f"failed to set HV module {address} target: status {status}",
+            )
+        return status
+
+    def set_hv_supply_voltage_step(self, address, voltage_step):
+        """Set one HV module's output voltage step (``HVPSxMaxVoltStep``).
+        Returns the status."""
+        self.log_event(
+            "info",
+            f"setting HV module {address} voltage step to {voltage_step:.2f} V",
+        )
+        if self.test_mode:
+            if address not in self._sim_voltage_step:
+                return self.ERR_ARGUMENT
+            self._sim_voltage_step[address] = float(voltage_step)
+            return self.NO_ERR
+        status = ESIBase.set_hv_supply_voltage_step(self, address, voltage_step)
+        if status != self.NO_ERR:
+            self.log_event(
+                "error",
+                f"failed to set HV module {address} voltage step: "
+                f"status {status}",
             )
         return status
 

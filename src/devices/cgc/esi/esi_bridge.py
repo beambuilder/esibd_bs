@@ -1,7 +1,10 @@
 """64-bit client side of the ESI-CTRL 32-bit DLL bridge.
 
-``ESIDllBridge`` is a drop-in stand-in for the ``ctypes.WinDLL`` handle
-``ESIBase`` used against the (broken) x64 DLL: attribute access returns
+Fallback path since the 1-10 package (``ESIBase.DLL_FLAVOR = "x86"``);
+the default is the x64 DLL loaded directly with ``ctypes.CDLL``.
+
+``ESIDllBridge`` is a drop-in stand-in for a ctypes DLL handle:
+attribute access returns
 callables that accept the same ctypes arguments (``byref`` scalars,
 arrays, ``create_string_buffer`` buffers, by-value scalars) and support
 the ``restype`` assignment idiom. Calls are marshalled to a frozen
@@ -77,8 +80,9 @@ class ESIDllBridge(Client64):
     """Proxy for the 32-bit COM-ESI-CTRL DLL.
 
     Attribute access mirrors a ctypes DLL handle:
-    ``bridge.COM_ESI_CTRL_Open(ctypes.c_ubyte(14))``. The Borland
-    underscore decoration (``_COM_ESI_CTRL_*``) is applied server-side.
+    ``bridge.COM_ESI_CTRL_Open(ctypes.c_ubyte(14))``. Export decoration
+    (undecorated in the 1-10 ``x86/`` build, Borland ``_COM_ESI_CTRL_*``
+    in the older ones) is resolved server-side.
     """
 
     def __init__(self, dll_path=None):

@@ -307,6 +307,9 @@ int _export COM_ESI_CTRL_GetHVsupplyPhase         (unsigned Address, bool & Vali
 int _export COM_ESI_CTRL_GetHVsupplyTargetOutputVoltage (unsigned Address, double & Voltage); // Get HV-PSU target output voltage
 int _export COM_ESI_CTRL_SetHVsupplyTargetOutputVoltage (unsigned Address, double   Voltage); // Set HV-PSU target output voltage
 
+int _export COM_ESI_CTRL_GetHVsupplyOutputVoltageStep (unsigned Address, double & VoltageStep); // Get HV-PSU output voltage step
+int _export COM_ESI_CTRL_SetHVsupplyOutputVoltageStep (unsigned Address, double   VoltageStep); // Set HV-PSU output voltage step
+
 int _export COM_ESI_CTRL_GetHVsupplyWidthPWM  (unsigned Address, double &  WidthPWM);                                                                // Get HV-PSU PWM width
 int _export COM_ESI_CTRL_GetHVsupplyPeriodPWM (unsigned Address, double & PeriodPWM);                                                                // Get HV-PSU PWM period
 int _export COM_ESI_CTRL_GetHVsupplyParamsPWM (unsigned Address, double & Period,  double & Width, double & PhaseGet, double & PhaseSet,             // Get HV-PSU PWM parameters

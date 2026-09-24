@@ -1,12 +1,15 @@
-"""32-bit bridge server hosting the Borland COM-ESI-CTRL.dll (DLL 1-00).
+"""32-bit bridge server hosting a 32-bit COM-ESI-CTRL.dll.
 
-The manufacturer-supported DLL in ``ESI-CTRL_1-00/`` is a 32-bit Borland
-build (cdecl calling convention, underscore-prefixed exports such as
-``_COM_ESI_CTRL_Open``); the ``x64/`` build is broken (manufacturer
-statement, 2026-07-23) and 64-bit Python cannot load a 32-bit DLL
-directly (WinError 193). This module runs inside msl-loadlib's frozen
-32-bit server process and executes DLL calls on behalf of the 64-bit
-client proxy in ``esi_bridge``.
+**Fallback path since the 1-10 package (2026-09-23):** the default build
+is now ``ESI-CTRL_1-10/x64/COM-ESI-CTRL.dll``, loaded directly by
+``esi_base``. This bridge stays for the 32-bit builds — the 1-10 ``x86/``
+redistributable (undecorated exports, the default here) and the older
+Borland builds in ``ESI-CTRL_1-00/`` / ``ESI-CTRL_1-10/`` (cdecl with
+underscore-prefixed exports such as ``_COM_ESI_CTRL_Open``), which a
+64-bit process cannot load directly (WinError 193). Both decorations are
+resolved in ``call``. This module runs inside msl-loadlib's frozen 32-bit
+server process and executes DLL calls on behalf of the 64-bit client
+proxy in ``esi_bridge``.
 
 Runs in the frozen 32-bit interpreter: stdlib + msl.loadlib only — never
 import from the devices package here.
@@ -24,12 +27,15 @@ class ESIServer32(Server32):
         if not dll_path:
             dll_path = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                "ESI-CTRL_1-00", "COM-ESI-CTRL.dll",
+                "ESI-CTRL_1-10", "x86", "COM-ESI-CTRL.dll",
             )
         super().__init__(dll_path, "cdll", host, port)
 
     def call(self, name, restype_name, arg_descs):
-        """Execute export ``_<name>`` with reconstructed ctypes arguments.
+        """Execute export ``name`` with reconstructed ctypes arguments.
+
+        The export is looked up undecorated first (1-10 ``x86/`` build),
+        then with the Borland ``_`` prefix (1-00 / 1-10 debug builds).
 
         ``arg_descs`` entries (built by ``esi_bridge._BridgeFunc``):
 
@@ -41,7 +47,10 @@ class ESIServer32(Server32):
         Returns ``(retval, out_values)`` with ``out_values`` aligned to
         ``arg_descs`` (``None`` for by-value entries).
         """
-        func = getattr(self.lib, "_" + name)
+        try:
+            func = getattr(self.lib, name)
+        except AttributeError:
+            func = getattr(self.lib, "_" + name)
         func.restype = (
             getattr(ctypes, restype_name) if restype_name else ctypes.c_int
         )

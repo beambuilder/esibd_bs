@@ -51,12 +51,23 @@ def test_ctor_and_status_contract(dll_factory):
     assert "timeout" not in status  # DLL transport has no serial timeout
 
 
-def test_loads_the_1_00_dll(dll_factory):
+def test_loads_the_1_10_x64_dll(dll_factory):
     logger, _ = capture_logger()
     ESI("ESI", 14, logger=logger)
-    # the 32-bit build directly in ESI-CTRL_1-00/ (x64 build is broken)
-    assert dll_factory.paths[-1].endswith(r"ESI-CTRL_1-00\COM-ESI-CTRL.dll")
-    assert "x64" not in dll_factory.paths[-1]
+    # 1-10 ships a working x64 redistributable; it is loaded directly
+    # (the 32-bit bridge survives as the "x86" fallback flavor).
+    assert dll_factory.paths[-1].endswith(
+        r"ESI-CTRL_1-10\x64\COM-ESI-CTRL.dll"
+    )
+
+
+def test_dll_flavor_x86_uses_the_bridge_path(dll_factory, monkeypatch):
+    logger, _ = capture_logger()
+    monkeypatch.setattr(ESI, "DLL_FLAVOR", "x86")
+    ESI("ESI", 14, logger=logger)
+    assert dll_factory.paths[-1].endswith(
+        r"ESI-CTRL_1-10\x86\COM-ESI-CTRL.dll"
+    )
 
 
 def test_bringup_order_open_comspeed_enable(dll_factory):
@@ -117,6 +128,124 @@ def test_reconnect_reruns_full_bringup(dll_factory):
     assert names.count("COM_ESI_CTRL_SetEnable") == 2
     # The stale handle is closed before the reopen.
     assert names.index("COM_ESI_CTRL_Close") < names.index("COM_ESI_CTRL_Open", 1)
+
+
+# --- 1-10 API: split interlock masks + voltage step -------------------------------
+
+def _install_presence(dll, addresses=(2, 3)):
+    def presence(valid, max_mod, arr):
+        valid._obj.value = True
+        max_mod._obj.value = 3
+        arr[0] = 1  # heat controller
+        for addr in addresses:
+            arr[addr] = 1  # MODULE_PRESENT
+        arr[4] = 1  # base module
+        return 0
+
+    dll.handlers["COM_ESI_CTRL_GetModulePresence"] = presence
+
+
+def test_interlock_masks_are_split(dll_factory):
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger)
+    dll = dll_factory.last
+
+    def hv_mask(ie):
+        ie._obj.value = 0x9
+        return 0
+
+    def heat_mask(ie):
+        ie._obj.value = 0x0
+        return 0
+
+    dll.handlers["COM_ESI_CTRL_GetHVsupplyInterlockEnable"] = hv_mask
+    dll.handlers["COM_ESI_CTRL_GetHeatCtrlInterlockEnable"] = heat_mask
+    assert esi.get_hv_interlock_enable() == (0, 0x9)
+    assert esi.get_heat_interlock_enable() == (0, 0x0)
+    assert esi.set_hv_interlock_enable(0x9) == 0
+    assert esi.set_heat_interlock_enable(0x0) == 0
+    names = dll.call_names()
+    assert "COM_ESI_CTRL_SetHVsupplyInterlockEnable" in names
+    assert "COM_ESI_CTRL_SetHeatCtrlInterlockEnable" in names
+    # the 1-00 single-mask API is gone
+    assert not hasattr(esi, "get_interlock_enable")
+    assert not hasattr(esi, "set_interlock_enable")
+
+
+def test_bringup_repairs_zero_voltage_step(dll_factory):
+    logger, records = capture_logger()
+    esi = ESI("ESI", 14, logger=logger)
+    dll = dll_factory.last
+    _install_presence(dll)
+    steps = {2: 0.0, 3: 10.0}
+
+    def get_step(addr, step):
+        step._obj.value = steps[addr.value]
+        return 0
+
+    def set_step(addr, step):
+        steps[addr.value] = step.value
+        return 0
+
+    dll.handlers["COM_ESI_CTRL_GetHVsupplyOutputVoltageStep"] = get_step
+    dll.handlers["COM_ESI_CTRL_SetHVsupplyOutputVoltageStep"] = set_step
+    assert esi.connect() is True
+    # only the module that read back 0 V is repaired
+    assert steps == {2: 10.0, 3: 10.0}
+    assert sum(
+        1 for n in dll.call_names()
+        if n == "COM_ESI_CTRL_SetHVsupplyOutputVoltageStep"
+    ) == 1
+    assert any("voltage step was 0 V" in r for r in records)
+
+
+def test_bringup_survives_voltage_step_failures(dll_factory):
+    logger, records = capture_logger()
+    esi = ESI("ESI", 14, logger=logger)
+    dll = dll_factory.last
+    _install_presence(dll)
+
+    def get_step(addr, step):
+        step._obj.value = 0.0
+        return 0
+
+    dll.handlers["COM_ESI_CTRL_GetHVsupplyOutputVoltageStep"] = get_step
+    dll.handlers["COM_ESI_CTRL_SetHVsupplyOutputVoltageStep"] = lambda *a: -101
+    assert esi.connect() is True  # never fatal
+    assert any("could not" in r and "voltage step" in r for r in records)
+
+
+def test_list_configs_separates_active_from_deleted(dll_factory):
+    """valid = active + deleted (the controller keeps deleted configs
+    recoverable). Consumers must show the ACTIVE list or they resurrect
+    ghosts of a previous config set (Explorer bug, 2026-09-23)."""
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger)
+
+    def config_list(active, valid):
+        for slot in (0, 1, 9):
+            active[slot] = True
+            valid[slot] = True
+        for slot in (500, 501):  # deleted: still valid, no longer active
+            valid[slot] = True
+        return 0
+
+    dll_factory.last.handlers["COM_ESI_CTRL_GetConfigList"] = config_list
+    status, active_slots, valid_slots = esi.list_configs()
+    assert status == 0
+    assert active_slots == [0, 1, 9]
+    assert valid_slots == [0, 1, 9, 500, 501]
+
+
+def test_voltage_step_simulated_in_test_mode():
+    logger, _ = capture_logger()
+    esi = ESI("ESI", 14, logger=logger, test_mode=True)
+    for addr in SIM_MODULES:
+        assert esi.get_hv_supply_voltage_step(addr) == (0, 10.0)
+    assert esi.set_hv_supply_voltage_step(2, 5.0) == 0
+    assert esi.get_hv_supply_voltage_step(2) == (0, 5.0)
+    status, step = esi.get_hv_supply_voltage_step(99)
+    assert status == esi.ERR_ARGUMENT and step == 0.0
 
 
 # --- removed 0-00 API stays removed ----------------------------------------------

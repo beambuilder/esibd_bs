@@ -35,14 +35,10 @@ O:Get device state
 	ESI-Controller %COMPORT% -$%COMRATE% -sd -si -sv -sf -st -sn -sp -se -ss -t
 J:Get interlock enable masks
 	ESI-Controller %COMPORT% -$%COMRATE% -se -sg -t
-J:Set HV-PSU interlock enable mask
+S:Set HV-PSU interlock enable mask
 	ESI-Controller %COMPORT% -$%COMRATE% -SE !i"HV-PSU interlock enable mask (0-15 = 0h-Fh, default = 4)" -t
-J:Set heat-controller interlock enable mask
+S:Set heat-controller interlock enable mask
 	ESI-Controller %COMPORT% -$%COMRATE% -SG !i"heat-controller interlock enable mask (0-15 = 0h-Fh, default = 4)" -t
-S:Get interlock enable mask
-	ESI-Controller %COMPORT% -$%COMRATE% -se -t
-S:Set interlock enable mask
-	ESI-Controller %COMPORT% -$%COMRATE% -SE !i"Interlock enable mask (0-15 = 0h-Fh, default = 4)" -t
 R:Restart the device
 	ESI-Controller %COMPORT% -$%COMRATE% -P# -t
 }
@@ -155,8 +151,12 @@ W:Set heater power limit
 	ESI-Controller %COMPORT% -$%COMRATE% -HW!i"Heater power limit in W (0-200 W)" -t
 W:Get heater power limit
 	ESI-Controller %COMPORT% -$%COMRATE% -hw -t
+O:Set heater voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -HO!i"Output voltage in V (0-22 V or -1 for turning control off)" -t
 O:Get heater voltage
 	ESI-Controller %COMPORT% -$%COMRATE% -ho -t
+P:Set heater power
+	ESI-Controller %COMPORT% -$%COMRATE% -HP!i"Heater power in W (0-200 W or -1 for turning control off)" -t
 P:Get heater power
 	ESI-Controller %COMPORT% -$%COMRATE% -hp -t
 M:Get monitoring data
@@ -180,13 +180,19 @@ S:Save housekeeping and monitoring data
 1:Module "HVPS 1"
 {
 H:Get all parameters
-	ESI-Controller %COMPORT% -$%COMRATE% -mi1 -mn1 -mm1 -mh1 -md1 -mf1 -me1 -mt1 -mu1 -mo1 -mk1 -mc1 -ms1 -ml1 -ma1 -vv1 -vd1 -t
+	ESI-Controller %COMPORT% -$%COMRATE% -mi1 -mn1 -mm1 -mh1 -md1 -mf1 -me1 -mt1 -mu1 -mo1 -mk1 -mc1 -ms1 -ml1 -ma1 -vv1 -vl1 -vd1 -t
 1:Activate the module
 	ESI-Controller %COMPORT% -$%COMRATE% -MA1 Y -t
 0:Deactivate the module
 	ESI-Controller %COMPORT% -$%COMRATE% -MA1 N -t
 V:Set target output voltage
 	ESI-Controller %COMPORT% -$%COMRATE% -VV1 !i"HVPS 1 target output voltage in V (0-3000 V, negative for turning off)" -t
+V:Get target output voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -vv1 -t
+L:Set output voltage step
+	ESI-Controller %COMPORT% -$%COMRATE% -VL1 !i"HVPS 1 output voltage step in V" -t
+L:Get output voltage step
+	ESI-Controller %COMPORT% -$%COMRATE% -vl1 -t
 G:Get measurement ranges
 	ESI-Controller %COMPORT% -$%COMRATE% -VG1 -t
 S:Set measurement ranges
@@ -206,13 +212,19 @@ T:Tune voltage
 2:Module "HVPS 2"
 {
 H:Get all parameters
-	ESI-Controller %COMPORT% -$%COMRATE% -mi2 -mn2 -mm2 -mh2 -md2 -mf2 -me2 -mt2 -mu2 -mo2 -mk2 -mc2 -ms2 -ml2 -ma2 -vv2 -vd2 -t
+	ESI-Controller %COMPORT% -$%COMRATE% -mi2 -mn2 -mm2 -mh2 -md2 -mf2 -me2 -mt2 -mu2 -mo2 -mk2 -mc2 -ms2 -ml2 -ma2 -vv2 -vl2 -vd2 -t
 1:Activate the module
 	ESI-Controller %COMPORT% -$%COMRATE% -MA2 Y -t
 0:Deactivate the module
 	ESI-Controller %COMPORT% -$%COMRATE% -MA2 N -t
 V:Set target output voltage
 	ESI-Controller %COMPORT% -$%COMRATE% -VV2 !i"HVPS 2 target output voltage in V (0-3000 V, negative for turning off)" -t
+V:Get target output voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -vv2 -t
+L:Set output voltage step
+	ESI-Controller %COMPORT% -$%COMRATE% -VL2 !i"HVPS 2 output voltage step in V" -t
+L:Get output voltage step
+	ESI-Controller %COMPORT% -$%COMRATE% -vl2 -t
 G:Get measurement ranges
 	ESI-Controller %COMPORT% -$%COMRATE% -VG2 -t
 S:Set measurement ranges
@@ -232,13 +244,19 @@ T:Tune voltage
 3:Module "HVPS 3"
 {
 H:Get all parameters
-	ESI-Controller %COMPORT% -$%COMRATE% -mi3 -mn3 -mm3 -mh3 -md3 -mf3 -me3 -mt3 -mu3 -mo3 -mk3 -mc3 -ms3 -ml3 -ma3 -vv3 -vd3 -t
+	ESI-Controller %COMPORT% -$%COMRATE% -mi3 -mn3 -mm3 -mh3 -md3 -mf3 -me3 -mt3 -mu3 -mo3 -mk3 -mc3 -ms3 -ml3 -ma3 -vv3 -vl3 -vd3 -t
 1:Activate the module
 	ESI-Controller %COMPORT% -$%COMRATE% -MA3 Y -t
 0:Deactivate the module
 	ESI-Controller %COMPORT% -$%COMRATE% -MA3 N -t
 V:Set target output voltage
 	ESI-Controller %COMPORT% -$%COMRATE% -VV3 !i"HVPS 3 target output voltage in V (0-3000 V, negative for turning off)" -t
+V:Get target output voltage
+	ESI-Controller %COMPORT% -$%COMRATE% -vv3 -t
+L:Set output voltage step
+	ESI-Controller %COMPORT% -$%COMRATE% -VL3 !i"HVPS 3 output voltage step in V" -t
+L:Get output voltage step
+	ESI-Controller %COMPORT% -$%COMRATE% -vl3 -t
 G:Get measurement ranges
 	ESI-Controller %COMPORT% -$%COMRATE% -VG3 -t
 S:Set measurement ranges
