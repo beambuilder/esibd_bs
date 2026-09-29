@@ -88,3 +88,6 @@ src/devices/cgc/pA/pA_reference.md
 graphify-out/
 .graphify_analysis.json
 .graphify_labels.json
+
+# Local scratch
+watchdog_on_roids_.py
