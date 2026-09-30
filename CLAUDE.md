@@ -11,7 +11,7 @@ Two-repo approach:
 1. **This repo (`esibd_bs`)** — pip-installable device library. All device classes live here under `src/devices/`. Keep device classes Explorer-agnostic.
 2. **ESIBD Explorer fork** — Fork of [ioneater/ESIBD-Explorer](https://github.com/ioneater/ESIBD-Explorer). Contains:
    - **Device plugins** under `esibd/devices/` — thin wrappers that inherit from Explorer's Plugin base class and import device classes from this pip-installed package.
-   - **Monitoring dashboard** — a standalone web application (separate entry point, NOT an Explorer plugin). Must survive Explorer crashes. Reads real-time housekeeping data from a shared database (DB choice TBD).
+   - **Monitoring dashboard** — a standalone web application (separate entry point, NOT an Explorer plugin). Must survive Explorer crashes. Reads real-time housekeeping data read-only (`mode=ro`) from the shared SQLite telemetry DB (WAL) written via `src/devices/telemetry.py::SQLiteSink` — see workspace ADR-0002.
 
 ## Development Workflow
 
