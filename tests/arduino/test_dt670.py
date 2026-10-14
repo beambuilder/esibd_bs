@@ -48,9 +48,9 @@ class TestDT670Arduino:
 
     def test_initialization(self):
         dt = DT670Arduino("DT670_Depo")
-        assert dt.host == "192.168.2.2"
-        assert dt.url == "http://192.168.2.2/"
-        assert dt.port == "192.168.2.2"      # aligned log column
+        assert dt.host == "192.168.1.2"
+        assert dt.url == "http://192.168.1.2/"
+        assert dt.port == "192.168.1.2"      # aligned log column
         assert dt.http_timeout == 1.0
         assert dt.hk_interval == 2.0
         assert dt.is_connected is False
@@ -69,7 +69,7 @@ class TestDT670Arduino:
         assert dt.connect() is True
         assert dt.is_connected is True
         args, kwargs = mock_urlopen.call_args
-        assert args[0] == "http://192.168.2.2/"
+        assert args[0] == "http://192.168.1.2/"
         assert kwargs["timeout"] == 1.0
 
     @patch("devices.arduino.dt670_arduino.urllib.request.urlopen")

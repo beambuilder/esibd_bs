@@ -4,7 +4,7 @@
 // 62.5 µV/LSB, 860 SPS), averages 64 samples (~75 ms per burst), converts to
 // kelvin via the official Lake Shore Curve DT-670 breakpoint table (datasheet
 // appendix, 50–440 K span) with linear interpolation, and serves the latest
-// reading as JSON over HTTP on 192.168.2.2:80 (W5500 Ethernet Shield 2).
+// reading as JSON over HTTP on 192.168.1.2:80 (W5500 Ethernet Shield 2).
 //
 //   GET /  →  {"v":0.40123,"t_k":368.42,"t_c":95.27,"flag":"ok","age_ms":31}
 //
@@ -22,7 +22,7 @@
 #include <avr/pgmspace.h>
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x67, 0x00 };
-IPAddress ip(192, 168, 2, 2);
+IPAddress ip(192, 168, 1, 2);
 EthernetServer server(80);
 Adafruit_ADS1115 ads;
 

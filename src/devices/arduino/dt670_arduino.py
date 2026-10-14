@@ -41,7 +41,7 @@ class DT670Arduino(DeviceBase):
                        diagnostic when the flag reports a fault)
 
     Example:
-        dt670 = DT670Arduino("DT670_Depo", host="192.168.2.2")
+        dt670 = DT670Arduino("DT670_Depo", host="192.168.1.2")
         dt670.connect()
         dt670.start_housekeeping(interval=2.0)
     """
@@ -51,7 +51,7 @@ class DT670Arduino(DeviceBase):
     def __init__(
         self,
         device_id: str,
-        host: str = "192.168.2.2",
+        host: str = "192.168.1.2",
         http_timeout: float = 1.0,
         hk_interval: float = 2.0,
         **kwargs,
