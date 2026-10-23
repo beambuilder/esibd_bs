@@ -12,6 +12,7 @@ import logging
 import threading
 
 from ..base_device import PfeifferBaseDevice
+from .tolerant_comm import exchange_with_retry
 
 
 class HiPace300Bus(PfeifferBaseDevice):
@@ -43,6 +44,9 @@ class HiPace300Bus(PfeifferBaseDevice):
         hk_thread: Optional[threading.Thread] = None,
         thread_lock: Optional[threading.Lock] = None,
         hk_interval: float = 1.0,
+        tolerant_comm: bool = False,
+        comm_attempts: int = 3,
+        comm_retry_delay: float = 0.05,
         **kwargs,
     ):
         """
@@ -60,6 +64,13 @@ class HiPace300Bus(PfeifferBaseDevice):
             hk_thread: Optional housekeeping thread. If None, creates one automatically
             thread_lock: Optional thread lock. If None, creates one automatically
             hk_interval: Housekeeping monitoring interval in seconds (default: 1.0)
+            tolerant_comm: Use the CR-tolerant, retrying telegram exchange
+                (``tolerant_comm.exchange_with_retry``) instead of the stock
+                protocol functions. For lines whose TC400 replies arrive
+                with a corrupted terminating CR (HiPace_QMS, 2026-10-23).
+                Default False keeps the stock behavior.
+            comm_attempts: Telegram attempts per call when tolerant_comm is on
+            comm_retry_delay: Pause between attempts in seconds
             **kwargs: Additional connection parameters
         """
         super().__init__(
@@ -79,6 +90,9 @@ class HiPace300Bus(PfeifferBaseDevice):
         self.omnicontrol_address = device_address
         self.tc400_address = tc400_address
         self.gauge1_address = gauge1_address
+        self.tolerant_comm = tolerant_comm
+        self.comm_attempts = comm_attempts
+        self.comm_retry_delay = comm_retry_delay
         
         # Create channel mapping
         self.channel_addresses = {
@@ -181,6 +195,11 @@ class HiPace300Bus(PfeifferBaseDevice):
 
         try:
             with self.thread_lock:  # Thread-safe communication
+                if self.tolerant_comm:
+                    return exchange_with_retry(
+                        self.serial_connection, device_address, param_num,
+                        self.comm_attempts, self.comm_retry_delay,
+                    )
                 from ..pfeifferVacuumProtocol import query_data
                 return query_data(self.serial_connection, device_address, param_num)
         except Exception as e:
@@ -226,6 +245,14 @@ class HiPace300Bus(PfeifferBaseDevice):
 
         try:
             with self.thread_lock:  # Thread-safe communication
+                if self.tolerant_comm:
+                    # Retried writes are idempotent (absolute values) and
+                    # every attempt re-checks the acknowledgment.
+                    exchange_with_retry(
+                        self.serial_connection, device_address, param_num,
+                        self.comm_attempts, self.comm_retry_delay, data_str=value,
+                    )
+                    return
                 from ..pfeifferVacuumProtocol import write_command
                 write_command(self.serial_connection, device_address, param_num, value)
         except Exception as e:
